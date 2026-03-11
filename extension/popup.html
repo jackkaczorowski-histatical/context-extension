@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 260px;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #555;
+      transition: background 0.3s;
+    }
+
+    .status-dot.active {
+      background: #00e676;
+      box-shadow: 0 0 8px #00e676;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px #00e676; }
+      50% { opacity: 0.6; box-shadow: 0 0 16px #00e676; }
+    }
+
+    #toggleBtn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #00e676;
+      color: #1a1a2e;
+    }
+
+    #toggleBtn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    #toggleBtn.active {
+      background: #ff5252;
+      color: #fff;
+    }
+
+    .status-text {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="status-dot" id="statusDot"></div>
+    <h1>Context</h1>
+  </div>
+  <button id="toggleBtn">Start Listening</button>
+  <div class="status-text" id="statusText">Ready</div>
+  <script src="popup.js"></script>
+</body>
+</html>

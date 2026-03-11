@@ -5,52 +5,32 @@ const cors = {
 };
 
 module.exports = async function handler(req, res) {
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, cors);
-    return res.end();
-  }
+  Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
 
-  if (req.method !== "POST") {
-    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { ticker } = req.body || {};
-
-  if (!ticker) {
-    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
-    return res.status(400).json({ error: "Missing ticker field" });
-  }
+  if (!ticker) return res.status(400).json({ error: "Missing ticker" });
 
   try {
-    const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${encodeURIComponent(ticker.toUpperCase())}?apiKey=${process.env.POLYGON_API_KEY}`;
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
-      return res.status(404).json({ error: "not found" });
-    }
-
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?interval=1d&range=1d`;
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
     const data = await response.json();
-    const snap = data.ticker;
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta) return res.status(404).json({ error: "not found" });
 
-    if (!snap) {
-      Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
-      return res.status(404).json({ error: "not found" });
-    }
-
-    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json({
-      ticker: snap.ticker,
-      name: snap.name || snap.ticker,
-      price: snap.day?.c ?? snap.lastTrade?.p ?? null,
-      change: snap.todaysChange ?? null,
-      changePercent: snap.todaysChangePerc ?? null,
-      marketCap: snap.marketCap ?? null,
+      ticker: meta.symbol,
+      name: meta.shortName || meta.symbol,
+      price: meta.regularMarketPrice,
+      change: (meta.regularMarketPrice - meta.previousClose).toFixed(2),
+      changePercent: (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2),
+      marketCap: meta.marketCap
     });
   } catch (err) {
-    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(500).json({ error: err.message });
   }
 };

@@ -1,5 +1,3 @@
-const Anthropic = require("@anthropic-ai/sdk");
-
 const SYSTEM_PROMPT = `You are a live context assistant. Given a transcript chunk, identify anything a general audience might not immediately know — stocks, companies, people, historical events, countries, conflicts, laws, or concepts. Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Apple", "type": "stock", "ticker": "AAPL" }, { "term": "Bretton Woods", "type": "event", "ticker": null }] }. Max 2 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
 
 const cors = {
@@ -26,15 +24,27 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 256,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: transcript }],
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 256,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: transcript }],
+      }),
     });
 
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(errBody);
+    }
+
+    const message = await response.json();
     const text = message.content[0].text;
     const parsed = JSON.parse(text);
 

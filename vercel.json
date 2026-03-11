@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "routes": [
-    { "src": "/api/transcribe", "dest": "/api/transcribe.js" },
-    { "src": "/api/analyze", "dest": "/api/analyze.js" },
-    { "src": "/api/stock", "dest": "/api/stock.js" }
+  "rewrites": [
+    { "source": "/api/transcribe", "destination": "/api/transcribe.js" },
+    { "source": "/api/analyze", "destination": "/api/analyze.js" },
+    { "source": "/api/stock", "destination": "/api/stock.js" }
   ]
 }

@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "routes": [
+    { "src": "/api/transcribe", "dest": "/api/transcribe.js" },
+    { "src": "/api/analyze", "dest": "/api/analyze.js" },
+    { "src": "/api/stock", "dest": "/api/stock.js" }
+  ]
+}

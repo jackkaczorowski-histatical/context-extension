@@ -1,8 +1,3 @@
 {
-  "version": 2,
-  "rewrites": [
-    { "source": "/api/transcribe", "destination": "/api/transcribe.js" },
-    { "source": "/api/analyze", "destination": "/api/analyze.js" },
-    { "source": "/api/stock", "destination": "/api/stock.js" }
-  ]
+  "version": 2
 }

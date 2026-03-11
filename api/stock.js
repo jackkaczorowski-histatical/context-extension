@@ -26,8 +26,8 @@ module.exports = async function handler(req, res) {
       ticker: meta.symbol,
       name: meta.shortName || meta.symbol,
       price: meta.regularMarketPrice,
-      change: (meta.regularMarketPrice - meta.previousClose).toFixed(2),
-      changePercent: (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2),
+      change: (meta.regularMarketPrice - meta.chartPreviousClose).toFixed(2),
+      changePercent: (((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100).toFixed(2),
       marketCap: meta.marketCap
     });
   } catch (err) {

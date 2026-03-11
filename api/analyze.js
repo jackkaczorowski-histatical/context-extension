@@ -45,7 +45,8 @@ module.exports = async function handler(req, res) {
     }
 
     const message = await response.json();
-    const text = message.content[0].text;
+    let text = message.content[0].text;
+    text = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?\s*```$/, "");
     const parsed = JSON.parse(text);
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));

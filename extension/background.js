@@ -8,6 +8,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'STOP_CAPTURE') {
     stopCapture();
   } else if (message.type === 'AUDIO_CHUNK') {
+    console.log('[BACKGROUND] Received AUDIO_CHUNK, size:', message.audio.length, 'chars');
     processAudioChunk(message.audio);
   }
 });
@@ -34,6 +35,7 @@ async function startCapture() {
         reasons: ['USER_MEDIA'],
         justification: 'Capture tab audio for transcription'
       });
+      console.log('[BACKGROUND] Offscreen document created');
 
       // Wait for offscreen document to initialize
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -42,12 +44,12 @@ async function startCapture() {
       const msg = { type: 'START_RECORDING', streamId: streamId };
       try {
         await chrome.runtime.sendMessage(msg);
-        console.log('Stream ID sent to offscreen document');
+        console.log('[BACKGROUND] Stream ID sent to offscreen document');
       } catch (e) {
-        console.warn('First sendMessage failed, retrying in 1s...', e);
+        console.warn('[BACKGROUND] First sendMessage failed, retrying in 1s...', e);
         await new Promise(resolve => setTimeout(resolve, 1000));
         await chrome.runtime.sendMessage(msg);
-        console.log('Stream ID sent to offscreen document (retry)');
+        console.log('[BACKGROUND] Stream ID sent to offscreen document (retry)');
       }
     });
   } catch (err) {
@@ -84,6 +86,8 @@ async function processAudioChunk(base64) {
     const transcribeData = await transcribeRes.json();
     const transcript = transcribeData.transcript;
 
+    console.log('[BACKGROUND] Transcribe response:', transcript);
+
     if (!transcript || transcript.trim().length === 0) return;
 
     // Step 2: Analyze
@@ -96,6 +100,8 @@ async function processAudioChunk(base64) {
     if (!analyzeRes.ok) return;
     const analyzeData = await analyzeRes.json();
     const entities = analyzeData.entities || [];
+
+    console.log('[BACKGROUND] Analyze response:', JSON.stringify(entities));
 
     if (entities.length === 0) return;
 
@@ -111,6 +117,7 @@ async function processAudioChunk(base64) {
             });
             if (stockRes.ok) {
               const stockData = await stockRes.json();
+              console.log('[BACKGROUND] Stock response for', entity.ticker, ':', JSON.stringify(stockData));
               return { ...entity, ...stockData };
             }
           } catch (e) {

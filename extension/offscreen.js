@@ -3,6 +3,7 @@ let captureStream = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_RECORDING') {
+    console.log('[OFFSCREEN] Received START_RECORDING with streamId:', message.streamId);
     startRecording(message.streamId);
   } else if (message.type === 'STOP_RECORDING') {
     stopRecording();
@@ -25,6 +26,7 @@ async function startRecording(streamId) {
 
     mediaRecorder.ondataavailable = async (event) => {
       if (event.data.size > 0) {
+        console.log('[OFFSCREEN] Audio chunk captured, blob size:', event.data.size, 'bytes');
         const base64 = await blobToBase64(event.data);
         chrome.runtime.sendMessage({ type: 'AUDIO_CHUNK', audio: base64 });
       }

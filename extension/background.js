@@ -17,60 +17,37 @@ async function startCapture() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
-      console.error('No active tab found');
+      console.error('[BACKGROUND] No active tab found');
       return;
     }
 
     capturingTabId = tab.id;
 
-    chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
+    chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, (streamId) => {
       if (chrome.runtime.lastError) {
-        console.error('getMediaStreamId error:', chrome.runtime.lastError.message);
+        console.error('[BACKGROUND] getMediaStreamId error:', chrome.runtime.lastError.message);
         return;
       }
 
-      // Create offscreen document for audio capture
-      await chrome.offscreen.createDocument({
-        url: 'offscreen.html',
-        reasons: ['USER_MEDIA'],
-        justification: 'Capture tab audio for transcription'
+      console.log('[BACKGROUND] Got streamId, sending to content script');
+
+      chrome.tabs.sendMessage(tab.id, {
+        type: 'START_RECORDING',
+        streamId: streamId
       });
-      console.log('[BACKGROUND] Offscreen document created');
-
-      // Wait for offscreen document to initialize
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Send streamId to offscreen document, retry once if it fails
-      const msg = { type: 'START_RECORDING', streamId: streamId };
-      try {
-        await chrome.runtime.sendMessage(msg);
-        console.log('[BACKGROUND] Stream ID sent to offscreen document');
-      } catch (e) {
-        console.warn('[BACKGROUND] First sendMessage failed, retrying in 1s...', e);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await chrome.runtime.sendMessage(msg);
-        console.log('[BACKGROUND] Stream ID sent to offscreen document (retry)');
-      }
     });
   } catch (err) {
-    console.error('Capture error:', err);
+    console.error('[BACKGROUND] Capture error:', err.message || err);
   }
 }
 
-async function stopCapture() {
-  // Tell offscreen document to stop recording
-  chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
-
-  // Close the offscreen document
-  try {
-    await chrome.offscreen.closeDocument();
-  } catch (e) {
-    // Already closed or doesn't exist
+function stopCapture() {
+  if (capturingTabId) {
+    chrome.tabs.sendMessage(capturingTabId, { type: 'STOP_RECORDING' });
+    capturingTabId = null;
   }
-
-  capturingTabId = null;
   chrome.storage.local.set({ capturing: false });
-  console.log('Capture stopped');
+  console.log('[BACKGROUND] Capture stopped');
 }
 
 async function processAudioChunk(base64) {
@@ -121,7 +98,7 @@ async function processAudioChunk(base64) {
               return { ...entity, ...stockData };
             }
           } catch (e) {
-            console.error('Stock fetch error:', e);
+            console.error('[BACKGROUND] Stock fetch error:', e.message || e);
           }
         }
         return entity;
@@ -136,6 +113,6 @@ async function processAudioChunk(base64) {
       });
     }
   } catch (err) {
-    console.error('Processing error:', err);
+    console.error('[BACKGROUND] Processing error:', err.message || err);
   }
 }

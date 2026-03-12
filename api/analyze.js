@@ -1,4 +1,4 @@
-const SYSTEM_PROMPT = `You are a live context assistant. Given a transcript chunk, identify terms that genuinely need explanation for a general audience — stocks, companies, notable commodities, people, historical events, countries, conflicts, laws, economic concepts, or technical terms. Only flag common everyday items (like "coffee", "shipping", "water") if they are discussed in a specifically notable financial, historical, or political context. Focus on things a viewer would actually want to look up. For example "Tesla" is type "stock" with ticker "TSLA", "OPEC" is type "organization", "inflation" is type "concept", "crude oil futures" is type "commodity". Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Apple", "type": "stock", "ticker": "AAPL" }, { "term": "OPEC", "type": "organization", "ticker": null }, { "term": "Bretton Woods", "type": "event", "ticker": null }] }. Max 3 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
+const SYSTEM_PROMPT = `You are watching a video with the user. Extract ANY proper noun, named entity, financial term, economic concept, historical reference, organization, or technical term from this transcript. When in doubt, include it. A viewer watching a finance or educational video would want context on almost any specific term mentioned. For stocks/companies use type "stock" with the ticker symbol. For other entities use appropriate types like "concept", "event", "person", "organization", "commodity". Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Apple", "type": "stock", "ticker": "AAPL" }, { "term": "OPEC", "type": "organization", "ticker": null }, { "term": "quantitative easing", "type": "concept", "ticker": null }] }. Max 3 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +32,7 @@ module.exports = async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 256,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: transcript }],

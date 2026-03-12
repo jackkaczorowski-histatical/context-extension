@@ -51,7 +51,7 @@ async function startRecording(streamId) {
       console.error('[OFFSCREEN] MediaRecorder error:', event.error.name, event.error.message);
     };
 
-    mediaRecorder.start(4000); // 4-second chunks
+    mediaRecorder.start(8000); // 8-second chunks
     console.log('[OFFSCREEN] MediaRecorder started, mimeType:', mediaRecorder.mimeType);
   } catch (err) {
     console.error('[OFFSCREEN] getUserMedia error:', err.name, err.message);

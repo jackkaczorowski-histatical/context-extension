@@ -39,18 +39,6 @@ async function startCapture() {
     capturingTabId = tab.id;
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'url =', tab.url);
 
-    // Test: send hardcoded CONTEXT_DATA after 5 seconds to verify sidebar injection
-    setTimeout(async () => {
-      console.log('[BACKGROUND] Sending test CONTEXT_DATA to tab', capturingTabId);
-      await sendToContentScript(capturingTabId, {
-        type: 'CONTEXT_DATA',
-        entities: [
-          { term: 'Apple', type: 'stock', ticker: 'AAPL', price: 260.81, change: 0.5, changePercent: 0.19, name: 'Apple Inc.' },
-          { term: 'Federal Reserve', type: 'concept', description: 'The central banking system of the United States, controlling monetary policy and interest rates.' }
-        ]
-      });
-    }, 5000);
-
     chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
       try {
         if (chrome.runtime.lastError) {

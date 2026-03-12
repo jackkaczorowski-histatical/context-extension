@@ -1,5 +1,6 @@
 let mediaRecorder = null;
 let captureStream = null;
+let recordingInterval = null;
 
 // Signal to background that we're ready
 chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
@@ -33,32 +34,59 @@ async function startRecording(streamId) {
     audio.srcObject = stream;
     audio.play();
 
-    mediaRecorder = new MediaRecorder(stream);
+    function startNewRecorder() {
+      const chunks = [];
+      const recorder = new MediaRecorder(stream);
 
-    mediaRecorder.ondataavailable = async (event) => {
-      if (event.data.size > 0) {
-        console.log('[OFFSCREEN] Audio chunk captured, blob size:', event.data.size, 'bytes');
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        if (chunks.length === 0) return;
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        console.log('[OFFSCREEN] Complete audio blob created, size:', blob.size, 'bytes');
         try {
-          const base64 = await blobToBase64(event.data);
+          const base64 = await blobToBase64(blob);
           chrome.runtime.sendMessage({ type: 'AUDIO_CHUNK', audio: base64 });
         } catch (e) {
           console.error('[OFFSCREEN] Failed to send audio chunk:', e.name, e.message);
         }
+      };
+
+      recorder.onerror = (event) => {
+        console.error('[OFFSCREEN] MediaRecorder error:', event.error.name, event.error.message);
+      };
+
+      recorder.start();
+      console.log('[OFFSCREEN] New MediaRecorder started, mimeType:', recorder.mimeType);
+      mediaRecorder = recorder;
+    }
+
+    // Start the first recorder
+    startNewRecorder();
+
+    // Every 8 seconds, stop the current recorder (triggers onstop which sends the blob)
+    // and start a fresh one
+    recordingInterval = setInterval(() => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
       }
-    };
+      startNewRecorder();
+    }, 8000);
 
-    mediaRecorder.onerror = (event) => {
-      console.error('[OFFSCREEN] MediaRecorder error:', event.error.name, event.error.message);
-    };
-
-    mediaRecorder.start(8000); // 8-second chunks
-    console.log('[OFFSCREEN] MediaRecorder started, mimeType:', mediaRecorder.mimeType);
   } catch (err) {
     console.error('[OFFSCREEN] getUserMedia error:', err.name, err.message);
   }
 }
 
 function stopRecording() {
+  if (recordingInterval) {
+    clearInterval(recordingInterval);
+    recordingInterval = null;
+  }
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
   }

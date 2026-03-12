@@ -22,11 +22,20 @@ async function startCapture() {
 
     capturingTabId = tab.id;
 
-    chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, (streamId) => {
+    chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
       if (chrome.runtime.lastError) {
         console.error('getMediaStreamId error:', chrome.runtime.lastError.message);
         return;
       }
+
+      // Inject content script to ensure the receiving end exists
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js']
+      });
+
+      // Wait for content script to initialize
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       chrome.tabs.sendMessage(tab.id, {
         type: 'START_RECORDING',

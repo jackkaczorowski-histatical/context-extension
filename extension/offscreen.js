@@ -27,6 +27,12 @@ async function startRecording(streamId) {
     });
 
     captureStream = stream;
+
+    // Play audio back so the tab isn't muted
+    const audio = new Audio();
+    audio.srcObject = stream;
+    audio.play();
+
     mediaRecorder = new MediaRecorder(stream);
 
     mediaRecorder.ondataavailable = async (event) => {

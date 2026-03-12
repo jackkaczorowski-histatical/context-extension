@@ -35,13 +35,20 @@ async function startCapture() {
         justification: 'Capture tab audio for transcription'
       });
 
-      // Send streamId to offscreen document
-      chrome.runtime.sendMessage({
-        type: 'START_RECORDING',
-        streamId: streamId
-      });
+      // Wait for offscreen document to initialize
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      console.log('Stream ID sent to offscreen document');
+      // Send streamId to offscreen document, retry once if it fails
+      const msg = { type: 'START_RECORDING', streamId: streamId };
+      try {
+        await chrome.runtime.sendMessage(msg);
+        console.log('Stream ID sent to offscreen document');
+      } catch (e) {
+        console.warn('First sendMessage failed, retrying in 1s...', e);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await chrome.runtime.sendMessage(msg);
+        console.log('Stream ID sent to offscreen document (retry)');
+      }
     });
   } catch (err) {
     console.error('Capture error:', err);

@@ -1,12 +1,23 @@
 const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 
 let capturingTabId = null;
+let pendingStreamId = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
     startCapture();
   } else if (message.type === 'STOP_CAPTURE') {
     stopCapture();
+  } else if (message.type === 'OFFSCREEN_READY') {
+    console.log('[BACKGROUND] Offscreen document ready');
+    if (pendingStreamId) {
+      chrome.runtime.sendMessage({
+        type: 'START_RECORDING',
+        streamId: pendingStreamId
+      });
+      console.log('[BACKGROUND] Sent START_RECORDING to offscreen document');
+      pendingStreamId = null;
+    }
   } else if (message.type === 'AUDIO_CHUNK') {
     console.log('[BACKGROUND] Received AUDIO_CHUNK, size:', message.audio.length, 'chars');
     processAudioChunk(message.audio);
@@ -29,32 +40,34 @@ async function startCapture() {
         return;
       }
 
-      console.log('[BACKGROUND] Got streamId, injecting content script');
+      console.log('[BACKGROUND] Got streamId, creating offscreen document');
 
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
+      pendingStreamId = streamId;
+
+      await chrome.offscreen.createDocument({
+        url: 'offscreen.html',
+        reasons: ['USER_MEDIA'],
+        justification: 'Capture tab audio for transcription'
       });
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      console.log('[BACKGROUND] Sending START_RECORDING to content script');
-
-      chrome.tabs.sendMessage(tab.id, {
-        type: 'START_RECORDING',
-        streamId: streamId
-      });
+      console.log('[BACKGROUND] Offscreen document created, waiting for OFFSCREEN_READY');
     });
   } catch (err) {
     console.error('[BACKGROUND] Capture error:', err.message || err);
   }
 }
 
-function stopCapture() {
-  if (capturingTabId) {
-    chrome.tabs.sendMessage(capturingTabId, { type: 'STOP_RECORDING' });
-    capturingTabId = null;
+async function stopCapture() {
+  chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
+
+  try {
+    await chrome.offscreen.closeDocument();
+  } catch (e) {
+    // Already closed or doesn't exist
   }
+
+  capturingTabId = null;
+  pendingStreamId = null;
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');
 }

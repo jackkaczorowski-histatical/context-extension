@@ -173,24 +173,10 @@ async function processAudioChunk(base64) {
       })
     );
 
-    // Step 4: Save entities to storage and inject content script
-    console.log('[BACKGROUND] Step 4: capturingTabId =', capturingTabId, ', entities to send:', enrichedEntities.length);
-    if (capturingTabId) {
-      await chrome.storage.local.set({ pendingEntities: enrichedEntities });
-      console.log('[BACKGROUND] Saved pendingEntities to storage');
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: capturingTabId },
-          files: ['content.js'],
-          injectImmediately: true
-        });
-        console.log('[BACKGROUND] Injected content.js into tab', capturingTabId);
-      } catch (e) {
-        console.error('[BACKGROUND] Failed to inject content.js:', e.message || e);
-      }
-    } else {
-      console.error('[BACKGROUND] No capturingTabId set, cannot send CONTEXT_DATA');
-    }
+    // Step 4: Save entities to storage (content script picks them up via onChanged)
+    console.log('[BACKGROUND] Step 4: saving', enrichedEntities.length, 'entities to storage');
+    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingTimestamp: Date.now() });
+    console.log('[BACKGROUND] Saved pendingEntities to storage');
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
   }

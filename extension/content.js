@@ -1,9 +1,11 @@
+console.log('CONTENT SCRIPT LOADED');
+
 if (!window.__contextExtensionLoaded) {
   window.__contextExtensionLoaded = true;
 
-  function renderEntities(entities) {
+  function renderCards(entities) {
     if (!entities || entities.length === 0) return;
-    console.log('[CONTENT] Rendering', entities.length, 'entities');
+    console.log('[CONTENT] renderCards:', entities.length, 'entities');
 
     let sidebar = document.getElementById('context-sidebar');
     if (!sidebar) {
@@ -28,23 +30,22 @@ if (!window.__contextExtensionLoaded) {
       console.log('[CONTENT] Card added:', term);
     });
 
-    // Clear after rendering
     chrome.storage.local.remove('pendingEntities');
   }
 
-  // Check for pending entities on load
-  chrome.storage.local.get('pendingEntities', (data) => {
-    console.log('[CONTENT] Loaded, checking pendingEntities:', data.pendingEntities ? data.pendingEntities.length + ' entities' : 'none');
-    if (data.pendingEntities) {
-      renderEntities(data.pendingEntities);
+  // Listen for future updates
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.pendingEntities && changes.pendingEntities.newValue) {
+      console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
+      renderCards(changes.pendingEntities.newValue);
     }
   });
 
-  // Listen for future updates
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.pendingEntities && changes.pendingEntities.newValue) {
-      console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
-      renderEntities(changes.pendingEntities.newValue);
+  // Check for pending entities on load
+  chrome.storage.local.get('pendingEntities', (data) => {
+    console.log('[CONTENT] Initial check:', data.pendingEntities ? data.pendingEntities.length + ' entities' : 'none');
+    if (data.pendingEntities) {
+      renderCards(data.pendingEntities);
     }
   });
 }

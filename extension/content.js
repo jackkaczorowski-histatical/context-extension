@@ -1,4 +1,8 @@
 (() => {
+  // Prevent duplicate initialization when injected multiple times
+  if (window.__contextExtensionLoaded) return;
+  window.__contextExtensionLoaded = true;
+
   const DEDUP_WINDOW_MS = 60000;
   const recentTerms = new Map();
 

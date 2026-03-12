@@ -160,25 +160,41 @@ async function processAudioChunk(base64) {
       })
     );
 
-    // Step 4: Inject content script and send results
+    // Step 4: Send results to content script
     if (capturingTabId) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: capturingTabId },
-          files: ['content.js']
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        chrome.tabs.sendMessage(capturingTabId, {
-          type: 'CONTEXT_DATA',
-          entities: enrichedEntities
-        });
-      } catch (e) {
-        console.error('[BACKGROUND] Failed to send CONTEXT_DATA:', e.message || e);
-      }
+      await sendToContentScript(capturingTabId, {
+        type: 'CONTEXT_DATA',
+        entities: enrichedEntities
+      });
     }
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
+  }
+}
+
+async function injectContentScript(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ['content.js'],
+    injectImmediately: true
+  });
+  console.log('[BACKGROUND] Content script injected into tab', tabId);
+}
+
+async function sendToContentScript(tabId, message) {
+  try {
+    await injectContentScript(tabId);
+    await chrome.tabs.sendMessage(tabId, message);
+    console.log('[BACKGROUND] Sent', message.type, 'to tab', tabId);
+  } catch (e) {
+    console.warn('[BACKGROUND] First send failed, retrying:', e.message || e);
+    try {
+      await injectContentScript(tabId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await chrome.tabs.sendMessage(tabId, message);
+      console.log('[BACKGROUND] Sent', message.type, 'to tab', tabId, '(retry)');
+    } catch (e2) {
+      console.error('[BACKGROUND] Retry failed:', e2.message || e2);
+    }
   }
 }

@@ -8,7 +8,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'STOP_CAPTURE') {
     stopCapture();
   } else if (message.type === 'AUDIO_CHUNK') {
-    processAudioChunk(message.audio, sender.tab?.id);
+    processAudioChunk(message.audio);
   }
 });
 
@@ -28,37 +28,43 @@ async function startCapture() {
         return;
       }
 
-      // Inject content script to ensure the receiving end exists
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
+      // Create offscreen document for audio capture
+      await chrome.offscreen.createDocument({
+        url: 'offscreen.html',
+        reasons: ['USER_MEDIA'],
+        justification: 'Capture tab audio for transcription'
       });
 
-      // Wait for content script to initialize
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      chrome.tabs.sendMessage(tab.id, {
+      // Send streamId to offscreen document
+      chrome.runtime.sendMessage({
         type: 'START_RECORDING',
         streamId: streamId
       });
 
-      console.log('Stream ID sent to content script');
+      console.log('Stream ID sent to offscreen document');
     });
   } catch (err) {
     console.error('Capture error:', err);
   }
 }
 
-function stopCapture() {
-  if (capturingTabId) {
-    chrome.tabs.sendMessage(capturingTabId, { type: 'STOP_RECORDING' });
-    capturingTabId = null;
+async function stopCapture() {
+  // Tell offscreen document to stop recording
+  chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
+
+  // Close the offscreen document
+  try {
+    await chrome.offscreen.closeDocument();
+  } catch (e) {
+    // Already closed or doesn't exist
   }
+
+  capturingTabId = null;
   chrome.storage.local.set({ capturing: false });
   console.log('Capture stopped');
 }
 
-async function processAudioChunk(base64, tabId) {
+async function processAudioChunk(base64) {
   try {
     // Step 1: Transcribe
     const transcribeRes = await fetch(`${API_BASE}/transcribe`, {
@@ -109,9 +115,8 @@ async function processAudioChunk(base64, tabId) {
     );
 
     // Step 4: Send to content script
-    const targetTabId = tabId || capturingTabId;
-    if (targetTabId) {
-      chrome.tabs.sendMessage(targetTabId, {
+    if (capturingTabId) {
+      chrome.tabs.sendMessage(capturingTabId, {
         type: 'CONTEXT_DATA',
         entities: enrichedEntities
       });

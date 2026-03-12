@@ -121,7 +121,7 @@ async function processAudioChunk(base64) {
 
     if (entities.length === 0) return;
 
-    // Step 3: For stock entities, fetch stock data
+    // Step 3: Enrich entities — stocks get price data, others get descriptions
     const enrichedEntities = await Promise.all(
       entities.map(async (entity) => {
         if (entity.type === 'stock') {
@@ -138,6 +138,22 @@ async function processAudioChunk(base64) {
             }
           } catch (e) {
             console.error('[BACKGROUND] Stock fetch error:', e.message || e);
+          }
+        } else if (!entity.description) {
+          try {
+            const term = entity.term || entity.name || '';
+            const contextRes = await fetch(`${API_BASE}/context`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ term })
+            });
+            if (contextRes.ok) {
+              const contextData = await contextRes.json();
+              console.log('[BACKGROUND] Context response for', term, ':', JSON.stringify(contextData));
+              return { ...entity, description: contextData.description || '' };
+            }
+          } catch (e) {
+            console.error('[BACKGROUND] Context fetch error:', e.message || e);
           }
         }
         return entity;

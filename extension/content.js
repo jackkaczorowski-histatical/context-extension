@@ -147,6 +147,24 @@
         color: #ff5252;
       }
 
+      .context-card .entity-type {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(41, 182, 246, 0.15);
+        color: #29b6f6;
+        margin-bottom: 8px;
+      }
+
+      .context-card-stock .entity-type {
+        background: rgba(124, 77, 255, 0.15);
+        color: #b388ff;
+      }
+
       .context-card .term {
         font-size: 14px;
         font-weight: 600;
@@ -204,6 +222,7 @@
       : '';
 
     card.innerHTML = `
+      <div class="entity-type">Stock</div>
       <div class="ticker">${escapeHtml(entity.ticker || '')}</div>
       <div class="company-name">${escapeHtml(entity.companyName || entity.name || '')}</div>
       <div class="price-row">
@@ -219,9 +238,12 @@
     const card = document.createElement('div');
     card.className = 'context-card context-card-other';
 
+    const typeLabel = entity.type || 'topic';
+
     card.innerHTML = `
+      <div class="entity-type">${escapeHtml(typeLabel)}</div>
       <div class="term">${escapeHtml(entity.term || entity.name || '')}</div>
-      <div class="description">${escapeHtml(entity.description || '')}</div>
+      ${entity.description ? `<div class="description">${escapeHtml(entity.description)}</div>` : ''}
     `;
 
     return card;

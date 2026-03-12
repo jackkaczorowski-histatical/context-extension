@@ -21,7 +21,7 @@
         position: fixed;
         top: 0;
         right: 0;
-        width: 320px;
+        width: 380px;
         height: 100vh;
         background: #12121a;
         border-left: 1px solid #2a2a3e;
@@ -46,6 +46,10 @@
         padding: 16px;
         border-bottom: 1px solid #2a2a3e;
         flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        background: #12121a;
+        z-index: 1;
       }
 
       #context-sidebar-header h2 {
@@ -181,6 +185,13 @@
         color: #aaa;
         line-height: 1.5;
       }
+
+      .context-card .card-time {
+        font-size: 10px;
+        color: #555;
+        margin-top: 8px;
+        text-align: right;
+      }
     `;
 
     document.head.appendChild(style);
@@ -233,6 +244,7 @@
         <span class="price">$${parseFloat(entity.price || 0).toFixed(2)}</span>
         <span class="change ${changeClass}">${changePrefix}${changeVal.toFixed(2)}${changePercent}</span>
       </div>
+      <div class="card-time">${formatTime()}</div>
     `;
 
     return card;
@@ -248,9 +260,16 @@
       <div class="entity-type">${escapeHtml(typeLabel)}</div>
       <div class="term">${escapeHtml(entity.term || entity.name || '')}</div>
       ${entity.description ? `<div class="description">${escapeHtml(entity.description)}</div>` : ''}
+      <div class="card-time">${formatTime()}</div>
     `;
 
     return card;
+  }
+
+  const CARD_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+  function formatTime() {
+    return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
   function escapeHtml(str) {
@@ -277,6 +296,7 @@
           : createGenericCard(entity);
 
         cardContainer.prepend(card);
+        setTimeout(() => card.remove(), CARD_TTL_MS);
         addedAny = true;
       });
 

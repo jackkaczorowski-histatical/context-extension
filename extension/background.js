@@ -110,11 +110,19 @@ async function processAudioChunk(base64) {
   console.log('[BACKGROUND] Lock acquired');
   try {
     // Step 1: Transcribe
-    const transcribeRes = await fetch(`${API_BASE}/transcribe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audio: base64 })
-    });
+    const transcribeController = new AbortController();
+    const transcribeTimeout = setTimeout(() => transcribeController.abort(), 10000);
+    let transcribeRes;
+    try {
+      transcribeRes = await fetch(`${API_BASE}/transcribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio: base64 }),
+        signal: transcribeController.signal
+      });
+    } finally {
+      clearTimeout(transcribeTimeout);
+    }
 
     if (!transcribeRes.ok) {
       console.log('[BACKGROUND] Transcribe failed, status:', transcribeRes.status);
@@ -131,11 +139,19 @@ async function processAudioChunk(base64) {
     }
 
     // Step 2: Analyze
-    const analyzeRes = await fetch(`${API_BASE}/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript })
-    });
+    const analyzeController = new AbortController();
+    const analyzeTimeout = setTimeout(() => analyzeController.abort(), 10000);
+    let analyzeRes;
+    try {
+      analyzeRes = await fetch(`${API_BASE}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+        signal: analyzeController.signal
+      });
+    } finally {
+      clearTimeout(analyzeTimeout);
+    }
 
     if (!analyzeRes.ok) {
       console.log('[BACKGROUND] Analyze failed, status:', analyzeRes.status);
@@ -156,11 +172,19 @@ async function processAudioChunk(base64) {
       entities.map(async (entity) => {
         if (entity.type === 'stock') {
           try {
-            const stockRes = await fetch(`${API_BASE}/stock`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ticker: entity.ticker })
-            });
+            const stockController = new AbortController();
+            const stockTimeout = setTimeout(() => stockController.abort(), 10000);
+            let stockRes;
+            try {
+              stockRes = await fetch(`${API_BASE}/stock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: entity.ticker }),
+                signal: stockController.signal
+              });
+            } finally {
+              clearTimeout(stockTimeout);
+            }
             if (stockRes.ok) {
               const stockData = await stockRes.json();
               console.log('[BACKGROUND] Stock response for', entity.ticker, ':', JSON.stringify(stockData));
@@ -172,11 +196,19 @@ async function processAudioChunk(base64) {
         } else if (!entity.description) {
           try {
             const term = entity.term || entity.name || '';
-            const contextRes = await fetch(`${API_BASE}/context`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ term })
-            });
+            const ctxController = new AbortController();
+            const ctxTimeout = setTimeout(() => ctxController.abort(), 10000);
+            let contextRes;
+            try {
+              contextRes = await fetch(`${API_BASE}/context`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ term }),
+                signal: ctxController.signal
+              });
+            } finally {
+              clearTimeout(ctxTimeout);
+            }
             if (contextRes.ok) {
               const contextData = await contextRes.json();
               console.log('[BACKGROUND] Context response for', term, ':', JSON.stringify(contextData));

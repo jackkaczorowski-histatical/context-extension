@@ -173,13 +173,21 @@ async function processAudioChunk(base64) {
       })
     );
 
-    // Step 4: Send results to content script
+    // Step 4: Save entities to storage and inject content script
     console.log('[BACKGROUND] Step 4: capturingTabId =', capturingTabId, ', entities to send:', enrichedEntities.length);
     if (capturingTabId) {
-      await sendToContentScript(capturingTabId, {
-        type: 'CONTEXT_DATA',
-        entities: enrichedEntities
-      });
+      await chrome.storage.local.set({ pendingEntities: enrichedEntities });
+      console.log('[BACKGROUND] Saved pendingEntities to storage');
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: capturingTabId },
+          files: ['content.js'],
+          injectImmediately: true
+        });
+        console.log('[BACKGROUND] Injected content.js into tab', capturingTabId);
+      } catch (e) {
+        console.error('[BACKGROUND] Failed to inject content.js:', e.message || e);
+      }
     } else {
       console.error('[BACKGROUND] No capturingTabId set, cannot send CONTEXT_DATA');
     }
@@ -188,31 +196,3 @@ async function processAudioChunk(base64) {
   }
 }
 
-async function injectContentScript(tabId) {
-  console.log('[BACKGROUND] Injecting content.js into tab', tabId);
-  const result = await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ['content.js'],
-    injectImmediately: true
-  });
-  console.log('[BACKGROUND] executeScript result:', JSON.stringify(result));
-}
-
-async function sendToContentScript(tabId, message) {
-  console.log('[BACKGROUND] sendToContentScript: tabId =', tabId, ', type =', message.type);
-  try {
-    await injectContentScript(tabId);
-    await chrome.tabs.sendMessage(tabId, message);
-    console.log('[BACKGROUND] Sent', message.type, 'to tab', tabId);
-  } catch (e) {
-    console.warn('[BACKGROUND] First send failed for tab', tabId, ':', e.message || e);
-    try {
-      await injectContentScript(tabId);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      await chrome.tabs.sendMessage(tabId, message);
-      console.log('[BACKGROUND] Sent', message.type, 'to tab', tabId, '(retry)');
-    } catch (e2) {
-      console.error('[BACKGROUND] Retry also failed for tab', tabId, ':', e2.message || e2);
-    }
-  }
-}

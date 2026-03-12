@@ -1,9 +1,9 @@
 if (!window.__contextExtensionLoaded) {
   window.__contextExtensionLoaded = true;
 
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type !== 'CONTEXT_DATA') return;
-    console.log('CONTEXT_DATA RECEIVED', message.entities);
+  function renderEntities(entities) {
+    if (!entities || entities.length === 0) return;
+    console.log('[CONTENT] Rendering', entities.length, 'entities');
 
     let sidebar = document.getElementById('context-sidebar');
     if (!sidebar) {
@@ -11,9 +11,10 @@ if (!window.__contextExtensionLoaded) {
       sidebar.id = 'context-sidebar';
       sidebar.style.cssText = 'position:fixed;top:0;right:0;width:380px;height:100vh;background:#1a1a1a;z-index:2147483647;overflow-y:auto;color:white;font-family:Arial;';
       document.body.appendChild(sidebar);
+      console.log('[CONTENT] Sidebar created');
     }
 
-    (message.entities || []).forEach(entity => {
+    entities.forEach(entity => {
       const card = document.createElement('div');
       card.style.cssText = 'padding:16px;border-bottom:1px solid #333;';
 
@@ -24,6 +25,26 @@ if (!window.__contextExtensionLoaded) {
 
       card.innerHTML = `<div style="font-weight:bold;margin-bottom:4px;">${term}</div><div style="font-size:13px;color:#aaa;">${detail}</div>`;
       sidebar.prepend(card);
+      console.log('[CONTENT] Card added:', term);
     });
+
+    // Clear after rendering
+    chrome.storage.local.remove('pendingEntities');
+  }
+
+  // Check for pending entities on load
+  chrome.storage.local.get('pendingEntities', (data) => {
+    console.log('[CONTENT] Loaded, checking pendingEntities:', data.pendingEntities ? data.pendingEntities.length + ' entities' : 'none');
+    if (data.pendingEntities) {
+      renderEntities(data.pendingEntities);
+    }
+  });
+
+  // Listen for future updates
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.pendingEntities && changes.pendingEntities.newValue) {
+      console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
+      renderEntities(changes.pendingEntities.newValue);
+    }
   });
 }

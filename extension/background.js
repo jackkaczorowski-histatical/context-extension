@@ -35,22 +35,39 @@ async function startCapture() {
     capturingTabId = tab.id;
 
     chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
-      if (chrome.runtime.lastError) {
-        console.error('[BACKGROUND] getMediaStreamId error:', chrome.runtime.lastError.message);
-        return;
+      try {
+        if (chrome.runtime.lastError) {
+          console.error('[BACKGROUND] getMediaStreamId error:', chrome.runtime.lastError.message);
+          return;
+        }
+
+        console.log('[BACKGROUND] Got streamId');
+
+        const hasDoc = await chrome.offscreen.hasDocument();
+
+        if (hasDoc) {
+          console.log('[BACKGROUND] Offscreen document already exists, sending START_RECORDING');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          chrome.runtime.sendMessage({
+            type: 'START_RECORDING',
+            streamId: streamId
+          });
+          console.log('[BACKGROUND] Sent START_RECORDING to existing offscreen document');
+        } else {
+          console.log('[BACKGROUND] Creating offscreen document');
+          pendingStreamId = streamId;
+
+          await chrome.offscreen.createDocument({
+            url: 'offscreen.html',
+            reasons: ['USER_MEDIA'],
+            justification: 'Capture tab audio for transcription'
+          });
+
+          console.log('[BACKGROUND] Offscreen document created, waiting for OFFSCREEN_READY');
+        }
+      } catch (err) {
+        console.error('[BACKGROUND] Offscreen setup error:', err.message || err);
       }
-
-      console.log('[BACKGROUND] Got streamId, creating offscreen document');
-
-      pendingStreamId = streamId;
-
-      await chrome.offscreen.createDocument({
-        url: 'offscreen.html',
-        reasons: ['USER_MEDIA'],
-        justification: 'Capture tab audio for transcription'
-      });
-
-      console.log('[BACKGROUND] Offscreen document created, waiting for OFFSCREEN_READY');
     });
   } catch (err) {
     console.error('[BACKGROUND] Capture error:', err.message || err);

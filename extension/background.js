@@ -11,11 +11,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'OFFSCREEN_READY') {
     console.log('[BACKGROUND] Offscreen document ready');
     if (pendingStreamId) {
-      chrome.runtime.sendMessage({
-        type: 'START_RECORDING',
-        streamId: pendingStreamId
-      });
-      console.log('[BACKGROUND] Sent START_RECORDING to offscreen document');
+      try {
+        chrome.runtime.sendMessage({
+          type: 'START_RECORDING',
+          streamId: pendingStreamId
+        });
+        console.log('[BACKGROUND] Sent START_RECORDING to offscreen document');
+      } catch (e) {
+        console.error('[BACKGROUND] Failed to send START_RECORDING:', e.message || e);
+      }
       pendingStreamId = null;
     }
   } else if (message.type === 'AUDIO_CHUNK') {
@@ -48,11 +52,15 @@ async function startCapture() {
         if (hasDoc) {
           console.log('[BACKGROUND] Offscreen document already exists, sending START_RECORDING');
           await new Promise(resolve => setTimeout(resolve, 500));
-          chrome.runtime.sendMessage({
-            type: 'START_RECORDING',
-            streamId: streamId
-          });
-          console.log('[BACKGROUND] Sent START_RECORDING to existing offscreen document');
+          try {
+            chrome.runtime.sendMessage({
+              type: 'START_RECORDING',
+              streamId: streamId
+            });
+            console.log('[BACKGROUND] Sent START_RECORDING to existing offscreen document');
+          } catch (e) {
+            console.error('[BACKGROUND] Failed to send to existing offscreen:', e.message || e);
+          }
         } else {
           console.log('[BACKGROUND] Creating offscreen document');
           pendingStreamId = streamId;
@@ -75,7 +83,11 @@ async function startCapture() {
 }
 
 async function stopCapture() {
-  chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
+  try {
+    chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
+  } catch (e) {
+    // Offscreen doc may already be gone
+  }
 
   try {
     await chrome.offscreen.closeDocument();

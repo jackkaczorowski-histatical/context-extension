@@ -144,12 +144,23 @@ async function processAudioChunk(base64) {
       })
     );
 
-    // Step 4: Send to content script
+    // Step 4: Inject content script and send results
     if (capturingTabId) {
-      chrome.tabs.sendMessage(capturingTabId, {
-        type: 'CONTEXT_DATA',
-        entities: enrichedEntities
-      });
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: capturingTabId },
+          files: ['content.js']
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        chrome.tabs.sendMessage(capturingTabId, {
+          type: 'CONTEXT_DATA',
+          entities: enrichedEntities
+        });
+      } catch (e) {
+        console.error('[BACKGROUND] Failed to send CONTEXT_DATA:', e.message || e);
+      }
     }
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);

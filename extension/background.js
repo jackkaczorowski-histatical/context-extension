@@ -2,6 +2,7 @@ const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 
 let capturingTabId = null;
 let pendingStreamId = null;
+let isProcessing = false;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
@@ -104,6 +105,8 @@ async function stopCapture() {
 
 async function processAudioChunk(base64) {
   console.log('[BACKGROUND] Processing chunk');
+  if (isProcessing) { console.log('[BACKGROUND] Skipping chunk - already processing'); return; }
+  isProcessing = true;
   try {
     // Step 1: Transcribe
     const transcribeRes = await fetch(`${API_BASE}/transcribe`, {
@@ -180,6 +183,8 @@ async function processAudioChunk(base64) {
     console.log('[BACKGROUND] Saved pendingEntities to storage');
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
+  } finally {
+    isProcessing = false;
   }
 }
 

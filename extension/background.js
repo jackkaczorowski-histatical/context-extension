@@ -103,6 +103,7 @@ async function stopCapture() {
 }
 
 async function processAudioChunk(base64) {
+  console.log('[BACKGROUND] Processing chunk');
   try {
     // Step 1: Transcribe
     const transcribeRes = await fetch(`${API_BASE}/transcribe`, {

@@ -3,6 +3,9 @@ console.log('CONTENT SCRIPT LOADED');
 if (!window.__contextExtensionLoaded) {
   window.__contextExtensionLoaded = true;
 
+  const seenTerms = {}; // term -> timestamp
+  const DEDUP_WINDOW = 600000; // 10 minutes
+
   function renderCards(entities) {
     if (!entities || entities.length === 0) return;
     console.log('[CONTENT] renderCards:', entities.length, 'entities');
@@ -15,6 +18,25 @@ if (!window.__contextExtensionLoaded) {
       document.body.appendChild(sidebar);
       console.log('[CONTENT] Sidebar created');
     }
+
+    const now = Date.now();
+    // Clean expired entries
+    Object.keys(seenTerms).forEach(key => {
+      if (now - seenTerms[key] > DEDUP_WINDOW) delete seenTerms[key];
+    });
+
+    entities = entities.filter(entity => {
+      const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
+      if (!key) return false;
+      if (seenTerms[key] && now - seenTerms[key] < DEDUP_WINDOW) {
+        console.log('[CONTENT] Dedup skipped:', key);
+        return false;
+      }
+      seenTerms[key] = now;
+      return true;
+    });
+
+    if (entities.length === 0) return;
 
     entities.forEach(entity => {
       const card = document.createElement('div');

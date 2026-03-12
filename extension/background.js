@@ -107,6 +107,7 @@ async function processAudioChunk(base64) {
   console.log('[BACKGROUND] Processing chunk');
   if (isProcessing) { console.log('[BACKGROUND] Skipping chunk - already processing'); return; }
   isProcessing = true;
+  console.log('[BACKGROUND] Lock acquired');
   try {
     // Step 1: Transcribe
     const transcribeRes = await fetch(`${API_BASE}/transcribe`, {
@@ -115,13 +116,19 @@ async function processAudioChunk(base64) {
       body: JSON.stringify({ audio: base64 })
     });
 
-    if (!transcribeRes.ok) return;
+    if (!transcribeRes.ok) {
+      console.log('[BACKGROUND] Transcribe failed, status:', transcribeRes.status);
+      return;
+    }
     const transcribeData = await transcribeRes.json();
     const transcript = transcribeData.transcript;
 
     console.log('[BACKGROUND] Transcribe response:', transcript);
 
-    if (!transcript || transcript.trim().length === 0) return;
+    if (!transcript || transcript.trim().length === 0) {
+      console.log('[BACKGROUND] Empty transcript, skipping');
+      return;
+    }
 
     // Step 2: Analyze
     const analyzeRes = await fetch(`${API_BASE}/analyze`, {
@@ -130,13 +137,19 @@ async function processAudioChunk(base64) {
       body: JSON.stringify({ transcript })
     });
 
-    if (!analyzeRes.ok) return;
+    if (!analyzeRes.ok) {
+      console.log('[BACKGROUND] Analyze failed, status:', analyzeRes.status);
+      return;
+    }
     const analyzeData = await analyzeRes.json();
     const entities = analyzeData.entities || [];
 
     console.log('[BACKGROUND] Analyze response:', JSON.stringify(entities));
 
-    if (entities.length === 0) return;
+    if (entities.length === 0) {
+      console.log('[BACKGROUND] No entities found, skipping');
+      return;
+    }
 
     // Step 3: Enrich entities — stocks get price data, others get descriptions
     const enrichedEntities = await Promise.all(
@@ -185,6 +198,7 @@ async function processAudioChunk(base64) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
   } finally {
     isProcessing = false;
+    console.log('[BACKGROUND] Lock released');
   }
 }
 

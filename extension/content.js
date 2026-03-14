@@ -28,20 +28,6 @@ if (!window.__contextExtensionLoaded) {
     }
   });
 
-  const TYPE_COLORS = {
-    stock: '#00e676',
-    person: '#42a5f5',
-    people: '#42a5f5',
-    organization: '#42a5f5',
-    event: '#ffab00',
-    concept: '#ab47bc',
-    commodity: '#ef6c00'
-  };
-
-  function getTypeColor(type) {
-    return TYPE_COLORS[(type || '').toLowerCase()] || '#888';
-  }
-
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -57,6 +43,13 @@ if (!window.__contextExtensionLoaded) {
     return `${hours}:${mins} ${ampm}`;
   }
 
+  function firstSentence(str) {
+    if (!str) return '';
+    const idx = str.indexOf('.');
+    if (idx === -1) return str;
+    return str.slice(0, idx + 1);
+  }
+
   function injectStyles() {
     if (document.getElementById('context-sidebar-styles')) return;
     const style = document.createElement('style');
@@ -65,9 +58,9 @@ if (!window.__contextExtensionLoaded) {
       #context-sidebar {
         position: fixed;
         top: 0;
-        width: 380px;
+        width: 280px;
         height: 100vh;
-        background: #12121a;
+        background: #111118;
         z-index: 2147483647;
         display: flex;
         flex-direction: column;
@@ -78,15 +71,15 @@ if (!window.__contextExtensionLoaded) {
 
       #context-sidebar.pos-right {
         right: 0;
-        border-left: 1px solid #2a2a3e;
-        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+        border-left: 1px solid #1e1e2a;
+        box-shadow: -2px 0 12px rgba(0, 0, 0, 0.3);
         transform: translateX(100%);
       }
 
       #context-sidebar.pos-left {
         left: 0;
-        border-right: 1px solid #2a2a3e;
-        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+        border-right: 1px solid #1e1e2a;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
         transform: translateX(-100%);
       }
 
@@ -98,33 +91,32 @@ if (!window.__contextExtensionLoaded) {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px;
-        border-bottom: 1px solid #2a2a3e;
+        padding: 10px 12px;
+        border-bottom: 1px solid #1e1e2a;
         flex-shrink: 0;
       }
 
       #context-sidebar-header h2 {
-        font-size: 14px;
+        font-size: 11px;
         font-weight: 600;
-        color: #fff;
+        color: #555;
         margin: 0;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
       }
 
       #context-sidebar-close {
         background: none;
         border: none;
-        color: #666;
-        font-size: 18px;
+        color: #444;
+        font-size: 16px;
         cursor: pointer;
-        padding: 4px 8px;
+        padding: 2px 6px;
         border-radius: 4px;
         line-height: 1;
       }
 
       #context-sidebar-close:hover {
-        background: #2a2a3e;
-        color: #fff;
+        color: #aaa;
       }
 
       #context-sidebar-cards {
@@ -134,7 +126,7 @@ if (!window.__contextExtensionLoaded) {
       }
 
       #context-sidebar-cards::-webkit-scrollbar {
-        width: 6px;
+        width: 4px;
       }
 
       #context-sidebar-cards::-webkit-scrollbar-track {
@@ -142,19 +134,19 @@ if (!window.__contextExtensionLoaded) {
       }
 
       #context-sidebar-cards::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 3px;
+        background: #222;
+        border-radius: 2px;
       }
 
       .context-card {
         position: relative;
-        padding: 16px;
-        border-bottom: 1px solid #2a2a3e;
-        animation: context-card-in 0.35s ease-out both;
+        padding: 10px 12px;
+        border-bottom: 1px solid #1e1e2a;
+        animation: context-card-in 0.25s ease-out both;
       }
 
       @keyframes context-card-in {
-        from { opacity: 0; transform: translateY(12px); }
+        from { opacity: 0; transform: translateY(6px); }
         to { opacity: 1; transform: translateY(0); }
       }
 
@@ -162,96 +154,96 @@ if (!window.__contextExtensionLoaded) {
         animation: none;
       }
 
-      .context-card .type-badge {
-        font-size: 10px;
+      .context-card .term-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 3px;
+      }
+
+      .context-card .term-name {
+        font-size: 13px;
         font-weight: 700;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        margin-bottom: 4px;
+        color: #ccc;
+      }
+
+      .context-card .inline-time {
+        font-size: 10px;
+        color: #444;
+        flex-shrink: 0;
+        margin-left: 8px;
+      }
+
+      .context-card .description {
+        font-size: 12px;
+        color: #888;
+        line-height: 1.5;
+      }
+
+      .context-card .stock-row {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
       }
 
       .context-card .ticker {
-        font-size: 20px;
-        font-weight: 800;
-        color: #fff;
-        margin-bottom: 2px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #ccc;
       }
 
       .context-card .company-name {
+        font-size: 11px;
+        color: #555;
+      }
+
+      .context-card .stock-price {
         font-size: 12px;
-        color: #888;
-        margin-bottom: 10px;
-      }
-
-      .context-card .price-row {
-        display: flex;
-        align-items: baseline;
-        gap: 10px;
-      }
-
-      .context-card .price {
-        font-size: 22px;
-        font-weight: 600;
-        color: #fff;
+        color: #999;
+        margin-left: auto;
       }
 
       .context-card .change {
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 600;
       }
 
       .context-card .change.positive {
-        color: #00e676;
+        color: #00c853;
       }
 
       .context-card .change.negative {
-        color: #ff5252;
-      }
-
-      .context-card .term-name {
-        font-size: 16px;
-        font-weight: 700;
-        color: #fff;
-        margin-bottom: 6px;
-      }
-
-      .context-card .description {
-        font-size: 13px;
-        color: #aaa;
-        line-height: 1.6;
-      }
-
-      .context-card .card-timestamp {
-        font-size: 11px;
-        color: #555;
-        text-align: right;
-        margin-top: 8px;
+        color: #ef5350;
       }
 
       .context-card .thumbs-down-btn {
         position: absolute;
-        top: 12px;
-        right: 12px;
+        top: 8px;
+        right: 8px;
         background: none;
         border: none;
-        color: #555;
-        font-size: 14px;
+        color: #333;
+        font-size: 11px;
         cursor: pointer;
-        padding: 4px 6px;
-        border-radius: 4px;
+        padding: 2px 4px;
+        border-radius: 3px;
         line-height: 1;
-        transition: color 0.15s, background 0.15s;
+        opacity: 0;
+        transition: opacity 0.15s, color 0.15s;
+      }
+
+      .context-card:hover .thumbs-down-btn {
+        opacity: 1;
       }
 
       .context-card .thumbs-down-btn:hover {
-        color: #ff5252;
-        background: rgba(255, 82, 82, 0.1);
+        color: #ef5350;
       }
 
       .context-card .feedback-msg {
-        font-size: 12px;
-        color: #888;
-        padding: 8px 0;
+        font-size: 11px;
+        color: #555;
+        padding: 4px 0;
         text-align: center;
       }
     `;
@@ -295,8 +287,6 @@ if (!window.__contextExtensionLoaded) {
     const card = document.createElement('div');
     card.className = 'context-card';
 
-    const typeColor = getTypeColor('stock');
-    const typeBadge = `<div class="type-badge" style="color:${typeColor}">STOCK</div>`;
     const ticker = escapeHtml(entity.ticker || '');
     const companyName = escapeHtml(entity.companyName || entity.name || '');
     const timestamp = formatTime(new Date());
@@ -306,27 +296,23 @@ if (!window.__contextExtensionLoaded) {
       const changeVal = parseFloat(entity.change) || 0;
       const changeClass = changeVal >= 0 ? 'positive' : 'negative';
       const changePrefix = changeVal >= 0 ? '+' : '';
-      const changePercent = entity.changePercent != null
-        ? ` (${changePrefix}${parseFloat(entity.changePercent).toFixed(2)}%)`
-        : '';
 
       card.innerHTML = `
-        ${typeBadge}
-        <div class="ticker">${ticker}</div>
-        <div class="company-name">${companyName}</div>
-        <div class="price-row">
-          <span class="price">$${price.toFixed(2)}</span>
-          <span class="change ${changeClass}">${changePrefix}${changeVal.toFixed(2)}${changePercent}</span>
+        <div class="stock-row">
+          <span class="ticker">${ticker}</span>
+          <span class="company-name">${companyName}</span>
+          <span class="stock-price">$${price.toFixed(2)}</span>
+          <span class="change ${changeClass}">${changePrefix}${changeVal.toFixed(2)}</span>
+          <span class="inline-time">${timestamp}</span>
         </div>
-        <div class="card-timestamp">${timestamp}</div>
       `;
     } else {
       card.innerHTML = `
-        ${typeBadge}
-        <div class="ticker">${ticker}</div>
-        <div class="company-name">${companyName}</div>
-        <div class="description">${escapeHtml(entity.description || '')}</div>
-        <div class="card-timestamp">${timestamp}</div>
+        <div class="term-header">
+          <span class="ticker">${ticker}</span>
+          <span class="inline-time">${timestamp}</span>
+        </div>
+        <div class="description">${escapeHtml(firstSentence(entity.description || ''))}</div>
       `;
     }
 
@@ -340,16 +326,15 @@ if (!window.__contextExtensionLoaded) {
     const card = document.createElement('div');
     card.className = 'context-card';
 
-    const type = entity.type || 'other';
-    const typeColor = getTypeColor(type);
-    const typeBadge = (type || 'OTHER').toUpperCase();
     const timestamp = formatTime(new Date());
+    const desc = firstSentence(entity.description || '');
 
     card.innerHTML = `
-      <div class="type-badge" style="color:${typeColor}">${typeBadge}</div>
-      <div class="term-name">${escapeHtml(entity.term || entity.name || '')}</div>
-      <div class="description">${escapeHtml(entity.description || '')}</div>
-      <div class="card-timestamp">${timestamp}</div>
+      <div class="term-header">
+        <span class="term-name">${escapeHtml(entity.term || entity.name || '')}</span>
+        <span class="inline-time">${timestamp}</span>
+      </div>
+      ${desc ? `<div class="description">${escapeHtml(desc)}</div>` : ''}
     `;
 
     const key = (entity.term || entity.name || '').toLowerCase();

@@ -26,6 +26,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'AUDIO_CHUNK') {
     console.log('[BACKGROUND] Received AUDIO_CHUNK, size:', message.audio.length, 'chars');
     processAudioChunk(message.audio);
+  } else if (message.type === 'GET_ACTIVE_TAB_ID') {
+    sendResponse({ isActiveTab: sender.tab && sender.tab.id === capturingTabId });
   }
 });
 
@@ -39,6 +41,12 @@ async function startCapture() {
 
     capturingTabId = tab.id;
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'url =', tab.url);
+
+    // Store activeTabId and sessionStart for content script
+    chrome.storage.local.set({
+      activeTabId: tab.id,
+      sessionStart: Date.now()
+    });
 
     chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
       try {
@@ -99,6 +107,7 @@ async function stopCapture() {
 
   capturingTabId = null;
   pendingStreamId = null;
+  chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');
 }

@@ -5,6 +5,7 @@ if (!window.__contextExtensionLoaded) {
 
   const DEDUP_WINDOW = 600000; // 10 minutes
   const seenTerms = new Map(); // term -> timestamp
+  let lastSessionStart = null;
 
   let ignoreList = new Set();
   let settings = {
@@ -48,6 +49,14 @@ if (!window.__contextExtensionLoaded) {
     const idx = str.indexOf('.');
     if (idx === -1) return str;
     return str.slice(0, idx + 1);
+  }
+
+  function isActiveTab() {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'GET_ACTIVE_TAB_ID' }, (response) => {
+        resolve(response && response.isActiveTab);
+      });
+    });
   }
 
   function injectStyles() {
@@ -343,10 +352,7 @@ if (!window.__contextExtensionLoaded) {
     return card;
   }
 
-  function renderCards(entities) {
-    if (!entities || entities.length === 0) return;
-    console.log('[CONTENT] renderCards:', entities.length, 'entities');
-
+  function ensureSidebar() {
     injectStyles();
 
     let sidebar = document.getElementById('context-sidebar');
@@ -379,6 +385,34 @@ if (!window.__contextExtensionLoaded) {
     } else {
       cardContainer = document.getElementById('context-sidebar-cards');
     }
+    return sidebar;
+  }
+
+  function renderSessionDivider(timestamp) {
+    if (timestamp === lastSessionStart) return;
+    lastSessionStart = timestamp;
+
+    const sidebar = ensureSidebar();
+    const timeStr = formatTime(new Date(timestamp));
+
+    const divider = document.createElement('div');
+    divider.className = 'context-session-divider';
+    divider.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;';
+    divider.innerHTML =
+      '<hr style="flex:1;border:none;border-top:1px solid #333;margin:0;">' +
+      '<span style="color:#666;font-size:11px;white-space:nowrap;">Session started ' + timeStr + '</span>' +
+      '<hr style="flex:1;border:none;border-top:1px solid #333;margin:0;">';
+
+    sidebar.prepend(divider);
+    console.log('[CONTENT] Session divider added:', timeStr);
+  }
+
+  function renderCards(entities) {
+    if (!entities || entities.length === 0) return;
+    console.log('[CONTENT] renderCards:', entities.length, 'entities');
+
+    const sidebar = ensureSidebar();
+    const cardContainer = document.getElementById('context-sidebar-cards');
 
     const now = Date.now();
 
@@ -424,15 +458,27 @@ if (!window.__contextExtensionLoaded) {
   }
 
   // Listen for future updates
-  chrome.storage.onChanged.addListener((changes) => {
+  chrome.storage.onChanged.addListener(async (changes) => {
+    if (changes.sessionStart && changes.sessionStart.newValue) {
+      const active = await isActiveTab();
+      if (!active) return;
+      renderSessionDivider(changes.sessionStart.newValue);
+    }
     if (changes.pendingEntities && changes.pendingEntities.newValue) {
       console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
+      const active = await isActiveTab();
+      if (!active) return;
       renderCards(changes.pendingEntities.newValue);
     }
   });
 
   // Check for pending entities on load
-  chrome.storage.local.get('pendingEntities', (data) => {
+  chrome.storage.local.get(['pendingEntities', 'sessionStart'], async (data) => {
+    const active = await isActiveTab();
+    if (!active) return;
+    if (data.sessionStart) {
+      renderSessionDivider(data.sessionStart);
+    }
     console.log('[CONTENT] Initial check:', data.pendingEntities ? data.pendingEntities.length + ' entities' : 'none');
     if (data.pendingEntities) {
       renderCards(data.pendingEntities);

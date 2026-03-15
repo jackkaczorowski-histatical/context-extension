@@ -60,7 +60,14 @@ async function startRecording(streamId) {
         console.error('[OFFSCREEN] MediaRecorder error:', event.error.name, event.error.message);
       };
 
-      recorder.start();
+      try {
+        recorder.start();
+      } catch (err) {
+        console.error('[OFFSCREEN] MediaRecorder.start() failed:', err.name, err.message);
+        stopRecording();
+        startRecording(streamId);
+        return;
+      }
       console.log('[OFFSCREEN] New MediaRecorder started, mimeType:', recorder.mimeType);
       mediaRecorder = recorder;
     }

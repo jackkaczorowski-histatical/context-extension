@@ -1,6 +1,8 @@
 let mediaRecorder = null;
 let captureStream = null;
-let recordingInterval = null;
+let deepgramSocket = null;
+
+const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 
 // Signal to background that we're ready
 chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
@@ -34,25 +36,36 @@ async function startRecording(streamId) {
     audio.srcObject = stream;
     audio.play();
 
-    function startNewRecorder() {
-      const chunks = [];
+    // Fetch the Deepgram API key from our secure endpoint
+    let token;
+    try {
+      const tokenRes = await fetch(`${API_BASE}/deepgram-token`);
+      if (!tokenRes.ok) {
+        console.error('[OFFSCREEN] Failed to fetch Deepgram token:', tokenRes.status);
+        return;
+      }
+      const tokenData = await tokenRes.json();
+      token = tokenData.token;
+    } catch (e) {
+      console.error('[OFFSCREEN] Token fetch error:', e.message);
+      return;
+    }
+
+    // Connect to Deepgram's live streaming WebSocket
+    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+      'model=nova-2&interim_results=false&utterance_end_ms=1500&vad_events=true';
+
+    deepgramSocket = new WebSocket(dgUrl, ['token', token]);
+
+    deepgramSocket.onopen = () => {
+      console.log('[OFFSCREEN] Deepgram WebSocket connected');
+
+      // Start MediaRecorder and stream audio data to Deepgram
       const recorder = new MediaRecorder(stream);
 
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        if (chunks.length === 0) return;
-        const blob = new Blob(chunks, { type: recorder.mimeType });
-        console.log('[OFFSCREEN] Complete audio blob created, size:', blob.size, 'bytes');
-        try {
-          const base64 = await blobToBase64(blob);
-          chrome.runtime.sendMessage({ type: 'AUDIO_CHUNK', audio: base64 });
-        } catch (e) {
-          console.error('[OFFSCREEN] Failed to send audio chunk:', e.name, e.message);
+        if (event.data.size > 0 && deepgramSocket && deepgramSocket.readyState === WebSocket.OPEN) {
+          deepgramSocket.send(event.data);
         }
       };
 
@@ -61,28 +74,38 @@ async function startRecording(streamId) {
       };
 
       try {
-        recorder.start();
+        recorder.start(250); // Send data every 250ms
+        console.log('[OFFSCREEN] MediaRecorder started, streaming to Deepgram');
+        mediaRecorder = recorder;
       } catch (err) {
         console.error('[OFFSCREEN] MediaRecorder.start() failed:', err.name, err.message);
-        stopRecording();
-        startRecording(streamId);
-        return;
       }
-      console.log('[OFFSCREEN] New MediaRecorder started, mimeType:', recorder.mimeType);
-      mediaRecorder = recorder;
-    }
+    };
 
-    // Start the first recorder
-    startNewRecorder();
+    deepgramSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
 
-    // Every 8 seconds, stop the current recorder (triggers onstop which sends the blob)
-    // and start a fresh one
-    recordingInterval = setInterval(() => {
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
+        // Handle final transcripts
+        if (data.is_final && data.channel?.alternatives?.[0]?.transcript) {
+          const transcript = data.channel.alternatives[0].transcript.trim();
+          if (transcript.length > 0) {
+            console.log('[OFFSCREEN] Final transcript:', transcript);
+            chrome.runtime.sendMessage({ type: 'TRANSCRIPT', transcript });
+          }
+        }
+      } catch (e) {
+        console.error('[OFFSCREEN] Error parsing Deepgram message:', e.message);
       }
-      startNewRecorder();
-    }, 8000);
+    };
+
+    deepgramSocket.onerror = (event) => {
+      console.error('[OFFSCREEN] Deepgram WebSocket error');
+    };
+
+    deepgramSocket.onclose = (event) => {
+      console.log('[OFFSCREEN] Deepgram WebSocket closed:', event.code, event.reason);
+    };
 
   } catch (err) {
     console.error('[OFFSCREEN] getUserMedia error:', err.name, err.message);
@@ -90,29 +113,23 @@ async function startRecording(streamId) {
 }
 
 function stopRecording() {
-  if (recordingInterval) {
-    clearInterval(recordingInterval);
-    recordingInterval = null;
-  }
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
   }
+  mediaRecorder = null;
+
+  if (deepgramSocket) {
+    if (deepgramSocket.readyState === WebSocket.OPEN) {
+      deepgramSocket.send(JSON.stringify({ type: 'CloseStream' }));
+    }
+    deepgramSocket.close();
+    deepgramSocket = null;
+  }
+
   if (captureStream) {
     captureStream.getTracks().forEach(track => track.stop());
     captureStream = null;
   }
-  mediaRecorder = null;
-  console.log('[OFFSCREEN] Recording stopped');
-}
 
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result.split(',')[1];
-      resolve(base64);
-    };
-    reader.onerror = () => reject(new Error('FileReader failed'));
-    reader.readAsDataURL(blob);
-  });
+  console.log('[OFFSCREEN] Recording stopped');
 }

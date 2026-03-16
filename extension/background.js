@@ -3,6 +3,7 @@ const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 let capturingTabId = null;
 let pendingStreamId = null;
 let isProcessing = false;
+const transcriptQueue = [];
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
@@ -23,9 +24,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       pendingStreamId = null;
     }
-  } else if (message.type === 'AUDIO_CHUNK') {
-    console.log('[BACKGROUND] Received AUDIO_CHUNK, size:', message.audio.length, 'chars');
-    processAudioChunk(message.audio);
+  } else if (message.type === 'TRANSCRIPT') {
+    console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
+    transcriptQueue.push(message.transcript);
+    if (!isProcessing) processNextTranscript();
   } else if (message.type === 'GET_ACTIVE_TAB_ID') {
     sendResponse({ isActiveTab: sender.tab && sender.tab.id === capturingTabId });
   }
@@ -107,47 +109,25 @@ async function stopCapture() {
 
   capturingTabId = null;
   pendingStreamId = null;
+  transcriptQueue.length = 0;
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');
 }
 
-async function processAudioChunk(base64) {
-  console.log('[BACKGROUND] Processing chunk');
-  if (isProcessing) { console.log('[BACKGROUND] Skipping chunk - already processing'); return; }
+async function processNextTranscript() {
+  if (transcriptQueue.length === 0) {
+    isProcessing = false;
+    console.log('[BACKGROUND] Queue empty, lock released');
+    return;
+  }
+
   isProcessing = true;
-  console.log('[BACKGROUND] Lock acquired');
+  const transcript = transcriptQueue.shift();
+  console.log('[BACKGROUND] Processing transcript:', transcript);
+
   try {
-    // Step 1: Transcribe
-    const transcribeController = new AbortController();
-    const transcribeTimeout = setTimeout(() => transcribeController.abort(), 10000);
-    let transcribeRes;
-    try {
-      transcribeRes = await fetch(`${API_BASE}/transcribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audio: base64 }),
-        signal: transcribeController.signal
-      });
-    } finally {
-      clearTimeout(transcribeTimeout);
-    }
-
-    if (!transcribeRes.ok) {
-      console.log('[BACKGROUND] Transcribe failed, status:', transcribeRes.status);
-      return;
-    }
-    const transcribeData = await transcribeRes.json();
-    const transcript = transcribeData.transcript;
-
-    console.log('[BACKGROUND] Transcribe response:', transcript);
-
-    if (!transcript || transcript.trim().length === 0) {
-      console.log('[BACKGROUND] Empty transcript, skipping');
-      return;
-    }
-
-    // Step 2: Analyze
+    // Step 1: Analyze
     const analyzeController = new AbortController();
     const analyzeTimeout = setTimeout(() => analyzeController.abort(), 10000);
     let analyzeRes;
@@ -164,6 +144,7 @@ async function processAudioChunk(base64) {
 
     if (!analyzeRes.ok) {
       console.log('[BACKGROUND] Analyze failed, status:', analyzeRes.status);
+      processNextTranscript();
       return;
     }
     const analyzeData = await analyzeRes.json();
@@ -173,10 +154,11 @@ async function processAudioChunk(base64) {
 
     if (entities.length === 0) {
       console.log('[BACKGROUND] No entities found, skipping');
+      processNextTranscript();
       return;
     }
 
-    // Step 3: Enrich entities — stocks get price data, others get descriptions
+    // Step 2: Enrich entities — stocks get price data, others get descriptions
     const enrichedEntities = await Promise.all(
       entities.map(async (entity) => {
         if (entity.type === 'stock') {
@@ -231,15 +213,14 @@ async function processAudioChunk(base64) {
       })
     );
 
-    // Step 4: Save entities to storage (content script picks them up via onChanged)
-    console.log('[BACKGROUND] Step 4: saving', enrichedEntities.length, 'entities to storage');
+    // Step 3: Save entities to storage (content script picks them up via onChanged)
+    console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
     await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingTimestamp: Date.now() });
     console.log('[BACKGROUND] Saved pendingEntities to storage');
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
-  } finally {
-    isProcessing = false;
-    console.log('[BACKGROUND] Lock released');
   }
-}
 
+  // Process next transcript in queue
+  processNextTranscript();
+}

@@ -1,4 +1,4 @@
-console.log('CONTENT SCRIPT LOADED');
+console.log('[CONTENT] Script loaded');
 
 if (!window.__contextExtensionLoaded) {
   window.__contextExtensionLoaded = true;
@@ -49,21 +49,6 @@ if (!window.__contextExtensionLoaded) {
     const idx = str.indexOf('.');
     if (idx === -1) return str;
     return str.slice(0, idx + 1);
-  }
-
-  async function isActiveTab() {
-    try {
-      const data = await chrome.storage.local.get(['activeTabId', 'activeTabUrl']);
-      const activeTabId = data.activeTabId;
-      const activeTabUrl = data.activeTabUrl;
-      // Compare stored capture URL to this tab's URL; render if match or if check is inconclusive
-      const rendering = activeTabId == null || !activeTabUrl || activeTabUrl === window.location.href;
-      console.log(`[CONTENT] Tab check: activeTabId=${activeTabId}, rendering=${rendering}`);
-      return rendering;
-    } catch (e) {
-      console.log('[CONTENT] Tab check: activeTabId=error, rendering=true');
-      return true;
-    }
   }
 
   function injectStyles() {
@@ -464,25 +449,20 @@ if (!window.__contextExtensionLoaded) {
     chrome.storage.local.remove('pendingEntities');
   }
 
-  // Listen for future updates
-  chrome.storage.onChanged.addListener(async (changes) => {
+  // Listen for future updates (no activeTabId check — render whenever pendingEntities exists)
+  chrome.storage.onChanged.addListener((changes) => {
+    console.log('[CONTENT] storage changed:', JSON.stringify(changes));
     if (changes.sessionStart && changes.sessionStart.newValue) {
-      const active = await isActiveTab();
-      if (!active) return;
       renderSessionDivider(changes.sessionStart.newValue);
     }
     if (changes.pendingEntities && changes.pendingEntities.newValue) {
       console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
-      const active = await isActiveTab();
-      if (!active) return;
       renderCards(changes.pendingEntities.newValue);
     }
   });
 
-  // Check for pending entities on load
-  chrome.storage.local.get(['pendingEntities', 'sessionStart'], async (data) => {
-    const active = await isActiveTab();
-    if (!active) return;
+  // Check for pending entities on load (no activeTabId check)
+  chrome.storage.local.get(['pendingEntities', 'sessionStart'], (data) => {
     if (data.sessionStart) {
       renderSessionDivider(data.sessionStart);
     }
@@ -491,4 +471,14 @@ if (!window.__contextExtensionLoaded) {
       renderCards(data.pendingEntities);
     }
   });
+
+  // Polling fallback: every 2 seconds, check for pendingEntities and render if found
+  setInterval(() => {
+    chrome.storage.local.get(['pendingEntities'], (data) => {
+      if (data.pendingEntities && data.pendingEntities.length > 0) {
+        console.log('[CONTENT] Polling fallback found', data.pendingEntities.length, 'entities');
+        renderCards(data.pendingEntities);
+      }
+    });
+  }, 2000);
 }

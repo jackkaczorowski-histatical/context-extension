@@ -51,12 +51,17 @@ if (!window.__contextExtensionLoaded) {
     return str.slice(0, idx + 1);
   }
 
-  function isActiveTab() {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: 'GET_ACTIVE_TAB_ID' }, (response) => {
-        resolve(response && response.isActiveTab);
-      });
-    });
+  async function isActiveTab() {
+    try {
+      const data = await chrome.storage.local.get('activeTabId');
+      const activeTabId = data.activeTabId;
+      const rendering = activeTabId != null;
+      console.log(`[CONTENT] Tab check: activeTabId=${activeTabId}, rendering=${rendering}`);
+      return rendering;
+    } catch (e) {
+      console.log('[CONTENT] Tab check: activeTabId=error, rendering=true');
+      return true;
+    }
   }
 
   function injectStyles() {

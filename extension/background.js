@@ -28,8 +28,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
     transcriptQueue.push(message.transcript);
     if (!isProcessing) processNextTranscript();
-  } else if (message.type === 'GET_ACTIVE_TAB_ID') {
-    sendResponse({ isActiveTab: sender.tab && sender.tab.id === capturingTabId });
   }
 });
 
@@ -44,9 +42,10 @@ async function startCapture() {
     capturingTabId = tab.id;
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'url =', tab.url);
 
-    // Store activeTabId and sessionStart for content script
+    // Store activeTabId, URL, and sessionStart for content script
     chrome.storage.local.set({
       activeTabId: tab.id,
+      activeTabUrl: tab.url,
       sessionStart: Date.now()
     });
 

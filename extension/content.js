@@ -53,9 +53,11 @@ if (!window.__contextExtensionLoaded) {
 
   async function isActiveTab() {
     try {
-      const data = await chrome.storage.local.get('activeTabId');
+      const data = await chrome.storage.local.get(['activeTabId', 'activeTabUrl']);
       const activeTabId = data.activeTabId;
-      const rendering = activeTabId != null;
+      const activeTabUrl = data.activeTabUrl;
+      // Compare stored capture URL to this tab's URL; render if match or if check is inconclusive
+      const rendering = activeTabId == null || !activeTabUrl || activeTabUrl === window.location.href;
       console.log(`[CONTENT] Tab check: activeTabId=${activeTabId}, rendering=${rendering}`);
       return rendering;
     } catch (e) {

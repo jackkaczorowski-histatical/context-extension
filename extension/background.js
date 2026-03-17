@@ -1,6 +1,7 @@
 const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 
 let capturingTabId = null;
+let capturingTabTitle = null;
 let pendingStreamId = null;
 let isProcessing = false;
 const transcriptQueue = [];
@@ -39,7 +40,8 @@ async function startCapture() {
     }
 
     capturingTabId = tab.id;
-    console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'url =', tab.url);
+    capturingTabTitle = tab.title || '';
+    console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
 
     // Store activeTabId, URL, and sessionStart for content script
     chrome.storage.local.set({
@@ -106,6 +108,7 @@ async function stopCapture() {
   }
 
   capturingTabId = null;
+  capturingTabTitle = null;
   pendingStreamId = null;
   transcriptQueue.length = 0;
   chrome.storage.local.remove('activeTabId');
@@ -164,6 +167,10 @@ async function processNextTranscript() {
   console.log('[BACKGROUND] Processing transcript:', transcript);
 
   try {
+    // Fetch user profile for analyze request
+    const profileData = await chrome.storage.local.get('userProfile');
+    const userProfile = profileData.userProfile || null;
+
     // Step 1: Analyze
     const analyzeController = new AbortController();
     const analyzeTimeout = setTimeout(() => analyzeController.abort(), 10000);
@@ -172,7 +179,7 @@ async function processNextTranscript() {
       analyzeRes = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile }),
         signal: analyzeController.signal
       });
     } finally {

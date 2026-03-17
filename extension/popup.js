@@ -135,11 +135,16 @@ function initMainPopup() {
   const settingsPanel = document.getElementById('settingsPanel');
   const cardsPerChunkSlider = document.getElementById('cardsPerChunk');
   const cardsPerChunkVal = document.getElementById('cardsPerChunkVal');
+  const depthSlider = document.getElementById('depthSlider');
+  const depthVal = document.getElementById('depthVal');
   const positionToggle = document.getElementById('positionToggle');
   const autoHideToggle = document.getElementById('autoHideToggle');
 
+  const depthLabels = { 1: 'Surface', 2: 'Balanced', 3: 'Deep cuts' };
+
   let currentSettings = {
     cardsPerChunk: 3,
+    depth: 2,
     sidebarPosition: 'right',
     autoHide: false
   };
@@ -154,6 +159,9 @@ function initMainPopup() {
   function applySettingsToUI() {
     cardsPerChunkSlider.value = currentSettings.cardsPerChunk;
     cardsPerChunkVal.textContent = currentSettings.cardsPerChunk;
+
+    depthSlider.value = currentSettings.depth;
+    depthVal.textContent = depthLabels[currentSettings.depth] || 'Balanced';
 
     positionToggle.querySelectorAll('button').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.pos === currentSettings.sidebarPosition);
@@ -173,6 +181,12 @@ function initMainPopup() {
   cardsPerChunkSlider.addEventListener('input', () => {
     currentSettings.cardsPerChunk = parseInt(cardsPerChunkSlider.value, 10);
     cardsPerChunkVal.textContent = currentSettings.cardsPerChunk;
+    saveSettings();
+  });
+
+  depthSlider.addEventListener('input', () => {
+    currentSettings.depth = parseInt(depthSlider.value, 10);
+    depthVal.textContent = depthLabels[currentSettings.depth] || 'Balanced';
     saveSettings();
   });
 

@@ -10,10 +10,11 @@ function formatCounts(counts) {
   return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
 }
 
-function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile) {
+function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth) {
   const title = pageTitle || "unknown content";
   const level = knowledgeLevel || "intermediate";
   const interestList = interests && interests.length > 0 ? interests.join(", ") : "general topics";
+  const d = depth || 2;
 
   let relevanceFilter;
   if (level === "beginner") {
@@ -22,6 +23,15 @@ function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile) {
     relevanceFilter = "Only return entities with relevance 3 — truly obscure or specialist terms. Skip anything a well-read person would know.";
   } else {
     relevanceFilter = "Only return entities with relevance 2 or 3. Skip common knowledge.";
+  }
+
+  let depthInstruction;
+  if (d === 1) {
+    depthInstruction = "Depth is set to Surface: only show the most accessible, widely relevant entities. Stick to relevance 1-2. Skip anything niche or specialist.";
+  } else if (d === 3) {
+    depthInstruction = "Depth is set to Deep Cuts: include obscure, specialist, and niche terms that only a dedicated learner would want. Include all relevance levels including very obscure.";
+  } else {
+    depthInstruction = "Depth is set to Balanced: show a mix of moderately known and lesser-known entities. Stick to relevance 2-3.";
   }
 
   return `You are a real-time contextual intelligence engine. The user is watching/listening to content titled: "${title}". Their knowledge level is: ${level}. Their interests are: ${interestList}.
@@ -35,6 +45,8 @@ Extract ONLY entities, concepts, events, or terms that a viewer would genuinely 
 - For expert users, only extract truly obscure or specialist terms. For beginners, cast a wider net but still skip the obvious.
 
 For each entity, include a relevance score: 3 = most people wouldn't know this, 2 = moderately well-known, 1 = common knowledge. ${relevanceFilter}
+
+${depthInstruction}
 
 For stocks/companies use type "stock" with the ticker symbol. For other entities use appropriate types: "concept", "event", "person", "organization", "commodity".
 
@@ -53,7 +65,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { transcript, pageTitle, userProfile, tasteProfile } = req.body || {};
+  const { transcript, pageTitle, userProfile, tasteProfile, depth } = req.body || {};
 
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -62,7 +74,7 @@ module.exports = async function handler(req, res) {
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
   const interests = userProfile?.interests || [];
-  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile);
+  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

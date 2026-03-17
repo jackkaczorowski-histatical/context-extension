@@ -1,7 +1,40 @@
-// --- Onboarding check ---
+// --- Onboarding ---
 const onboardingEl = document.getElementById('onboarding');
 const mainPopupEl = document.getElementById('mainPopup');
+const getStartedBtn = document.getElementById('getStartedBtn');
+const levelButtons = document.querySelectorAll('.ob-level-btn');
+const interestCheckboxes = document.querySelectorAll('#interestCheckboxes input');
 
+let selectedLevel = null;
+
+// Wire up onboarding controls once (they stay in the DOM)
+levelButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    levelButtons.forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedLevel = btn.dataset.level;
+    getStartedBtn.disabled = false;
+  });
+});
+
+getStartedBtn.addEventListener('click', () => {
+  if (!selectedLevel) return;
+
+  const interests = Array.from(
+    document.querySelectorAll('#interestCheckboxes input:checked')
+  ).map(cb => cb.value);
+
+  const userProfile = { knowledgeLevel: selectedLevel, interests };
+  chrome.storage.local.set({ userProfile, onboardingComplete: true }, () => {
+    onboardingEl.style.display = 'none';
+    onboardingEl.classList.remove('overlay');
+    if (mainPopupEl.style.display === 'none') {
+      showMainPopup();
+    }
+  });
+});
+
+// Decide which view to show on open
 chrome.storage.local.get('onboardingComplete', (data) => {
   if (data.onboardingComplete) {
     showMainPopup();
@@ -11,6 +44,12 @@ chrome.storage.local.get('onboardingComplete', (data) => {
 });
 
 function showOnboarding(isOverlay) {
+  // Reset state
+  selectedLevel = null;
+  getStartedBtn.disabled = true;
+  levelButtons.forEach(b => b.classList.remove('selected'));
+  interestCheckboxes.forEach(cb => { cb.checked = false; });
+
   onboardingEl.style.display = 'block';
 
   if (isOverlay) {
@@ -20,15 +59,9 @@ function showOnboarding(isOverlay) {
     mainPopupEl.style.display = 'none';
   }
 
-  let selectedLevel = null;
-  const levelButtons = onboardingEl.querySelectorAll('.ob-level-btn');
-  const getStartedBtn = document.getElementById('getStartedBtn');
-  const checkboxes = onboardingEl.querySelectorAll('#interestCheckboxes input');
-
-  // Pre-fill from existing profile if editing
+  // Pre-fill from saved profile
   chrome.storage.local.get('userProfile', (data) => {
     if (data.userProfile) {
-      // Pre-select knowledge level
       levelButtons.forEach(btn => {
         if (btn.dataset.level === data.userProfile.knowledgeLevel) {
           btn.classList.add('selected');
@@ -36,50 +69,11 @@ function showOnboarding(isOverlay) {
           getStartedBtn.disabled = false;
         }
       });
-      // Pre-check interests
       const saved = data.userProfile.interests || [];
-      checkboxes.forEach(cb => {
+      interestCheckboxes.forEach(cb => {
         cb.checked = saved.includes(cb.value);
       });
     }
-  });
-
-  if (!selectedLevel) {
-    getStartedBtn.disabled = true;
-  }
-
-  // Clone and replace to remove old event listeners
-  levelButtons.forEach(btn => {
-    const fresh = btn.cloneNode(true);
-    btn.parentNode.replaceChild(fresh, btn);
-  });
-
-  const freshLevelButtons = onboardingEl.querySelectorAll('.ob-level-btn');
-  freshLevelButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      freshLevelButtons.forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      selectedLevel = btn.dataset.level;
-      getStartedBtn.disabled = false;
-    });
-  });
-
-  const freshGetStarted = getStartedBtn.cloneNode(true);
-  getStartedBtn.parentNode.replaceChild(freshGetStarted, getStartedBtn);
-
-  freshGetStarted.addEventListener('click', () => {
-    const interests = Array.from(
-      onboardingEl.querySelectorAll('#interestCheckboxes input:checked')
-    ).map(cb => cb.value);
-
-    const userProfile = { knowledgeLevel: selectedLevel, interests };
-    chrome.storage.local.set({ userProfile, onboardingComplete: true }, () => {
-      onboardingEl.style.display = 'none';
-      onboardingEl.classList.remove('overlay');
-      if (!isOverlay) {
-        showMainPopup();
-      }
-    });
   });
 }
 
@@ -89,7 +83,12 @@ function showMainPopup() {
   initMainPopup();
 }
 
+let mainPopupInitialized = false;
+
 function initMainPopup() {
+  if (mainPopupInitialized) return;
+  mainPopupInitialized = true;
+
   const toggleBtn = document.getElementById('toggleBtn');
   const statusText = document.getElementById('statusText');
 
@@ -124,8 +123,7 @@ function initMainPopup() {
   }
 
   // --- Edit preferences ---
-  const editPrefsBtn = document.getElementById('editPrefsBtn');
-  editPrefsBtn.addEventListener('click', () => {
+  document.getElementById('editPrefsBtn').addEventListener('click', () => {
     showOnboarding(true);
   });
 

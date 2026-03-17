@@ -311,16 +311,25 @@ if (!window.__contextExtensionLoaded) {
     }
   `;
 
+  function enforceHostStyles() {
+    if (!hostEl) return;
+    hostEl.style.setProperty('background', '#0e0e16', 'important');
+    hostEl.style.setProperty('background-color', '#0e0e16', 'important');
+    hostEl.style.setProperty('color', '#e0e0f0', 'important');
+    hostEl.style.setProperty('font-family', "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", 'important');
+  }
+
   function getHostCSS() {
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
     const borderSide = pos === 'right' ? 'border-left' : 'border-right';
-    return `position:fixed;top:0;${pos}:0;width:300px;height:100vh;z-index:2147483647;${borderSide}:1px solid #1e1e2e;transform:translateX(${pos === 'right' ? '100%' : '-100%'});transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
+    return `position:fixed;top:0;${pos}:0;width:300px;height:100vh;z-index:2147483647;background:#0e0e16;${borderSide}:1px solid #1e1e2e;transform:translateX(${pos === 'right' ? '100%' : '-100%'});transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
   }
 
   function applySidebarPosition() {
     if (!hostEl) return;
     const isOpen = hostEl.dataset.open === 'true';
     hostEl.style.cssText = getHostCSS();
+    enforceHostStyles();
     if (isOpen) hostEl.style.transform = 'translateX(0)';
   }
 
@@ -328,6 +337,7 @@ if (!window.__contextExtensionLoaded) {
     if (!hostEl) return;
     hostEl.dataset.open = 'true';
     hostEl.style.transform = 'translateX(0)';
+    enforceHostStyles();
   }
 
   function closeSidebar() {
@@ -472,6 +482,23 @@ if (!window.__contextExtensionLoaded) {
     sidebar.appendChild(cardContainer);
     shadowRoot.appendChild(sidebar);
     document.body.appendChild(hostEl);
+
+    // Force styles via setProperty with !important on the host element
+    enforceHostStyles();
+
+    // MutationObserver: if YouTube or anything mutates the host's style/class, re-enforce
+    const observer = new MutationObserver(() => {
+      enforceHostStyles();
+      console.log('[CONTENT] MutationObserver re-enforced host styles');
+    });
+    observer.observe(hostEl, { attributes: true, attributeFilter: ['style', 'class'] });
+
+    // Diagnostic: log computed style to see what's actually rendering
+    requestAnimationFrame(() => {
+      const computed = window.getComputedStyle(hostEl);
+      console.log('[CONTENT] Host computed bg:', computed.backgroundColor, 'color:', computed.color);
+      console.log('[CONTENT] Host inline style:', hostEl.style.cssText);
+    });
 
     console.log('[CONTENT] Shadow DOM sidebar created');
     return sidebar;

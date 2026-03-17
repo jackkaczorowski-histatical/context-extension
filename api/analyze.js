@@ -1,10 +1,39 @@
-const SYSTEM_PROMPT = `You are watching a video with the user. Extract ANY proper noun, named entity, financial term, economic concept, historical reference, organization, or technical term from this transcript. When in doubt, include it. A viewer watching a finance or educational video would want context on almost any specific term mentioned. For stocks/companies use type "stock" with the ticker symbol. For other entities use appropriate types like "concept", "event", "person", "organization", "commodity". Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Apple", "type": "stock", "ticker": "AAPL" }, { "term": "OPEC", "type": "organization", "ticker": null }, { "term": "quantitative easing", "type": "concept", "ticker": null }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
-
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
+
+function buildSystemPrompt(pageTitle, knowledgeLevel, interests) {
+  const title = pageTitle || "unknown content";
+  const level = knowledgeLevel || "intermediate";
+  const interestList = interests && interests.length > 0 ? interests.join(", ") : "general topics";
+
+  let relevanceFilter;
+  if (level === "beginner") {
+    relevanceFilter = "Return all entities (relevance 1, 2, and 3). Cast a wider net, but still skip the truly obvious.";
+  } else if (level === "expert") {
+    relevanceFilter = "Only return entities with relevance 3 — truly obscure or specialist terms. Skip anything a well-read person would know.";
+  } else {
+    relevanceFilter = "Only return entities with relevance 2 or 3. Skip common knowledge.";
+  }
+
+  return `You are a real-time contextual intelligence engine. The user is watching/listening to content titled: "${title}". Their knowledge level is: ${level}. Their interests are: ${interestList}.
+
+Extract ONLY entities, concepts, events, or terms that a viewer would genuinely benefit from having explained — things they likely don't already know. Apply these filters strictly:
+
+- SKIP the main topic itself and anything obvious from the title. If the title mentions the French Revolution, do not extract "French Revolution."
+- SKIP well-known countries, continents, and major cities unless they are being discussed in a surprising or non-obvious way.
+- SKIP generic/common terms like "government", "war", "economy" unless they refer to a specific named event or concept.
+- PRIORITIZE: specific historical figures not widely known, technical financial terms, obscure events, named policies/laws/treaties, specific organizations, and domain jargon the viewer might not know.
+- For expert users, only extract truly obscure or specialist terms. For beginners, cast a wider net but still skip the obvious.
+
+For each entity, include a relevance score: 3 = most people wouldn't know this, 2 = moderately well-known, 1 = common knowledge. ${relevanceFilter}
+
+For stocks/companies use type "stock" with the ticker symbol. For other entities use appropriate types: "concept", "event", "person", "organization", "commodity".
+
+Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
+}
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -16,12 +45,16 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { transcript } = req.body || {};
+  const { transcript, pageTitle, userProfile } = req.body || {};
 
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(400).json({ error: "Missing transcript field" });
   }
+
+  const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
+  const interests = userProfile?.interests || [];
+  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -34,7 +67,7 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 256,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: [{ role: "user", content: transcript }],
       }),
     });

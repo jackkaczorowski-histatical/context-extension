@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
         messages: [
           {
             role: "user",
-            content: `Give a 2-3 sentence description of the following term ${toneInstruction} while watching a video. Do NOT start the description with the term name itself. Jump straight into the explanation. For example instead of 'The Bastille was a fortress...' just say 'A fortress and prison in Paris that became a symbol of royal tyranny...' Term: ${term}. Return ONLY a JSON object: { "description": "..." }`,
+            content: `Give a 1-2 short sentence description of "${term}" ${toneInstruction}. MUST be under 120 characters total, ideally under 100. Be punchy and conversational. Do NOT start with the term name. Jump straight into the explanation. Example: instead of 'The Bastille was a fortress...' say 'A fortress in Paris that symbolized royal tyranny.' Return ONLY a JSON object: { "description": "..." }`,
           },
         ],
       }),

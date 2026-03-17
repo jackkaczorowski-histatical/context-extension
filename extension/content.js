@@ -37,6 +37,21 @@ if (!window.__contextExtensionLoaded) {
     if (data.extensionSettings) settings = { ...settings, ...data.extensionSettings };
   });
 
+  // Check if this tab is the one being captured
+  function isActiveTab(callback) {
+    chrome.storage.local.get(['activeTabUrl'], (data) => {
+      if (chrome.runtime.lastError) { callback(false); return; }
+      const activeUrl = data.activeTabUrl || '';
+      try {
+        const active = new URL(activeUrl);
+        const current = new URL(window.location.href);
+        callback(active.origin + active.pathname === current.origin + current.pathname);
+      } catch (e) {
+        callback(activeUrl === window.location.href);
+      }
+    });
+  }
+
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.extensionSettings) {
       settings = { ...settings, ...changes.extensionSettings.newValue };
@@ -62,8 +77,9 @@ if (!window.__contextExtensionLoaded) {
   function firstSentence(str) {
     if (!str) return '';
     const idx = str.indexOf('.');
-    if (idx === -1) return str;
-    return str.slice(0, idx + 1);
+    let result = idx === -1 ? str : str.slice(0, idx + 1);
+    if (result.length > 120) result = result.slice(0, 117) + '...';
+    return result;
   }
 
   const SHADOW_CSS = `
@@ -80,16 +96,23 @@ if (!window.__contextExtensionLoaded) {
     }
     #header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 16px; background: #0e0e16;
-      border-bottom: 1px solid #1e1e2e; flex-shrink: 0;
+      padding: 12px 12px 12px 16px; background: #0e0e16;
+      border-bottom: 1px solid rgba(255,255,255,0.04); flex-shrink: 0;
     }
-    .ctx-wordmark { font-size: 13px; font-weight: 500; color: #e0e0f0; letter-spacing: 0.01em; }
+    .ctx-wordmark { font-size: 13px; font-weight: 600; color: #e0e0f0; letter-spacing: -0.01em; }
+    .ctx-header-right { display: flex; align-items: center; gap: 10px; }
     .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
       animation: ctx-pulse 2s ease-in-out infinite;
     }
     .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
+    .ctx-close-btn {
+      background: none; border: none; color: #3a3a5a; font-size: 16px;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px;
+      line-height: 1; transition: color 0.15s, background 0.15s;
+    }
+    .ctx-close-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
     @keyframes ctx-pulse {
       0%, 100% { opacity: 1; box-shadow: 0 0 4px #00e676; }
       50% { opacity: 0.4; box-shadow: 0 0 8px #00e676; }
@@ -121,13 +144,14 @@ if (!window.__contextExtensionLoaded) {
       display: flex; align-items: center; gap: 10px;
       padding: 10px 16px; background: #0e0e16;
     }
-    .session-divider hr { flex: 1; border: none; border-top: 1px solid #1e1e2e; margin: 0; }
+    .session-divider hr { flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.04); margin: 0; }
     .session-divider span { color: #3a3a5a; font-size: 10px; white-space: nowrap; }
     .context-card {
       position: relative; padding: 13px 16px 11px 18px;
-      border-bottom: 1px solid #161620; border-left: 2px solid #4a4a6a;
-      background: #0e0e16; animation: ctx-card-in 0.25s ease-out both;
+      border-bottom: 1px solid rgba(255,255,255,0.03); border-left: 2px solid #4a4a6a;
+      background: #121220; animation: ctx-card-in 0.25s ease-out both;
     }
+    .context-card:hover { background: #14142a; }
     @keyframes ctx-card-in {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
@@ -138,7 +162,7 @@ if (!window.__contextExtensionLoaded) {
       text-transform: uppercase; margin-bottom: 3px;
     }
     .card-term { font-size: 13px; font-weight: 600; color: #d0d0e8; margin-bottom: 4px; }
-    .card-desc { font-size: 11px; color: #4a4a6a; line-height: 1.55; }
+    .card-desc { font-size: 11px; color: #6a6a8a; line-height: 1.55; }
     .card-time { font-size: 10px; color: #2a2a3a; float: right; margin-top: 4px; }
     .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; }
     .stock-company { font-size: 10px; color: #3a3a5a; margin-bottom: 8px; }
@@ -295,11 +319,19 @@ if (!window.__contextExtensionLoaded) {
     header.id = 'header';
     header.innerHTML = `
       <span class="ctx-wordmark">context</span>
-      <div class="ctx-live">
-        <span class="ctx-live-dot"></span>
-        <span class="ctx-live-text">Live</span>
+      <div class="ctx-header-right">
+        <div class="ctx-live">
+          <span class="ctx-live-dot"></span>
+          <span class="ctx-live-text">Live</span>
+        </div>
+        <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
       </div>
     `;
+
+    // Wire up close button
+    header.querySelector('.ctx-close-btn').addEventListener('click', () => {
+      closeSidebar();
+    });
 
     // Empty state
     const emptyState = document.createElement('div');
@@ -403,18 +435,36 @@ if (!window.__contextExtensionLoaded) {
 
   // Listen for future updates
   chrome.storage.onChanged.addListener((changes) => {
-    console.log('[CONTENT] storage changed:', JSON.stringify(changes));
     if (changes.sessionStart && changes.sessionStart.newValue) {
-      renderSessionDivider(changes.sessionStart.newValue);
+      isActiveTab((active) => {
+        if (active) renderSessionDivider(changes.sessionStart.newValue);
+      });
     }
     if (changes.pendingEntities && changes.pendingEntities.newValue) {
-      console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
-      renderCards(changes.pendingEntities.newValue);
+      isActiveTab((active) => {
+        if (!active) {
+          console.log('[CONTENT] Not the captured tab, ignoring entities');
+          return;
+        }
+        console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
+        renderCards(changes.pendingEntities.newValue);
+      });
     }
   });
 
   // Check for pending entities on load
-  chrome.storage.local.get(['pendingEntities', 'sessionStart'], (data) => {
+  chrome.storage.local.get(['pendingEntities', 'sessionStart', 'activeTabUrl'], (data) => {
+    try {
+      const activeUrl = data.activeTabUrl || '';
+      const active = new URL(activeUrl);
+      const current = new URL(window.location.href);
+      if (active.origin + active.pathname !== current.origin + current.pathname) {
+        console.log('[CONTENT] Not the captured tab on load, skipping');
+        return;
+      }
+    } catch (e) {
+      if (data.activeTabUrl && data.activeTabUrl !== window.location.href) return;
+    }
     if (data.sessionStart) {
       renderSessionDivider(data.sessionStart);
     }
@@ -432,12 +482,15 @@ if (!window.__contextExtensionLoaded) {
         clearInterval(pollId);
         return;
       }
-      chrome.storage.local.get(['pendingEntities'], (data) => {
-        if (chrome.runtime.lastError) return;
-        if (data.pendingEntities && data.pendingEntities.length > 0) {
-          console.log('[CONTENT] Polling fallback found', data.pendingEntities.length, 'entities');
-          renderCards(data.pendingEntities);
-        }
+      isActiveTab((active) => {
+        if (!active) return;
+        chrome.storage.local.get(['pendingEntities'], (data) => {
+          if (chrome.runtime.lastError) return;
+          if (data.pendingEntities && data.pendingEntities.length > 0) {
+            console.log('[CONTENT] Polling fallback found', data.pendingEntities.length, 'entities');
+            renderCards(data.pendingEntities);
+          }
+        });
       });
     } catch (e) {
       console.log('[CONTENT] Extension context gone, clearing interval');

@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://api.deepgram.com/v1/keys/${projectId}`,
+      `https://api.deepgram.com/v1/projects/${projectId}/keys`,
       {
         method: "POST",
         headers: {

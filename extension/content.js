@@ -171,13 +171,19 @@ if (!window.__contextExtensionLoaded) {
     .stock-change { font-size: 12px; font-weight: 600; }
     .stock-change.positive { color: #00e676; }
     .stock-change.negative { color: #ff5252; }
-    .thumbs-down-btn {
-      position: absolute; top: 10px; right: 10px; background: none; border: none;
-      color: #2a2a3a; font-size: 10px; cursor: pointer; padding: 2px 4px;
-      border-radius: 3px; line-height: 1; opacity: 0; transition: opacity 0.15s, color 0.15s;
+    .card-actions {
+      position: absolute; top: 10px; right: 10px; display: flex; gap: 4px;
+      opacity: 0; transition: opacity 0.15s;
     }
-    .context-card:hover .thumbs-down-btn { opacity: 1; }
+    .context-card:hover .card-actions { opacity: 1; }
+    .thumbs-up-btn, .thumbs-down-btn {
+      background: none; border: none; color: #2a2a3a; font-size: 10px;
+      cursor: pointer; padding: 2px 4px; border-radius: 3px; line-height: 1;
+      transition: color 0.15s;
+    }
+    .thumbs-up-btn:hover { color: #00e676; }
     .thumbs-down-btn:hover { color: #ff5252; }
+    .thumbs-up-ok { color: #00e676; font-size: 9px; padding: 2px 4px; line-height: 1; }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
   `;
 
@@ -215,19 +221,43 @@ if (!window.__contextExtensionLoaded) {
     }
   }
 
-  function addThumbsDown(card, key) {
-    const btn = document.createElement('button');
-    btn.className = 'thumbs-down-btn';
-    btn.innerHTML = '&#x1F44E;';
-    btn.title = 'Not useful';
-    btn.addEventListener('click', () => {
+  function addCardButtons(card, key, entity) {
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+
+    const upBtn = document.createElement('button');
+    upBtn.className = 'thumbs-up-btn';
+    upBtn.innerHTML = '&#x1F44D;';
+    upBtn.title = 'Useful';
+    upBtn.addEventListener('click', () => {
+      chrome.storage.local.get('likedEntities', (data) => {
+        const liked = data.likedEntities || [];
+        liked.push({ type: entity.type || 'other', term: key, timestamp: Date.now() });
+        chrome.storage.local.set({ likedEntities: liked });
+      });
+      upBtn.innerHTML = '&#x2713;';
+      upBtn.classList.add('thumbs-up-ok');
+      setTimeout(() => {
+        upBtn.innerHTML = '&#x1F44D;';
+        upBtn.classList.remove('thumbs-up-ok');
+      }, 1000);
+    });
+
+    const downBtn = document.createElement('button');
+    downBtn.className = 'thumbs-down-btn';
+    downBtn.innerHTML = '&#x1F44E;';
+    downBtn.title = 'Not useful';
+    downBtn.addEventListener('click', () => {
       ignoreList.add(key);
       chrome.storage.local.set({ ignoreList: Array.from(ignoreList) });
       card.innerHTML = '<div class="feedback-msg">Thanks for the feedback</div>';
       card.classList.add('collapsed');
       card.style.borderLeftColor = '#4a4a6a';
     });
-    card.appendChild(btn);
+
+    actions.appendChild(upBtn);
+    actions.appendChild(downBtn);
+    card.appendChild(actions);
   }
 
   function createStockCard(entity) {
@@ -267,7 +297,7 @@ if (!window.__contextExtensionLoaded) {
     }
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
-    addThumbsDown(card, key);
+    addCardButtons(card, key, entity);
     return card;
   }
 
@@ -290,7 +320,7 @@ if (!window.__contextExtensionLoaded) {
     `;
 
     const key = (entity.term || entity.name || '').toLowerCase();
-    addThumbsDown(card, key);
+    addCardButtons(card, key, entity);
     return card;
   }
 

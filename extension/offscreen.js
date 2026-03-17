@@ -1,7 +1,11 @@
+const TOKEN_URL = 'https://context-extension-zv8d.vercel.app/api/deepgram-token';
+
 let mediaRecorder = null;
 let captureStream = null;
-let audioChunks = [];
-let chunkInterval = null;
+let dgSocket = null;
+let keepAliveInterval = null;
+let intentionalClose = false;
+let currentStream = null;
 
 // Signal to background that we're ready
 chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
@@ -16,6 +20,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+async function fetchTempToken() {
+  console.log('[OFFSCREEN] Fetching temporary Deepgram token...');
+  const res = await fetch(TOKEN_URL);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Token fetch failed: ${res.status} ${errText}`);
+  }
+  const data = await res.json();
+  if (!data.token) {
+    throw new Error('Token response missing token field');
+  }
+  console.log('[OFFSCREEN] Got temp token, length:', data.token.length);
+  return data.token;
+}
+
 async function startRecording(streamId) {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -29,6 +48,7 @@ async function startRecording(streamId) {
     });
 
     captureStream = stream;
+    currentStream = stream;
 
     // Play audio back so the tab isn't muted
     const audio = new Audio();
@@ -43,108 +63,146 @@ async function startRecording(streamId) {
       });
     });
 
-    startNewRecorder(stream);
-
-    // Every 8 seconds, harvest the current recording and send it
-    chunkInterval = setInterval(() => {
-      harvestAndRestart(stream);
-    }, 8000);
-
-    console.log('[OFFSCREEN] Recording started with 8s batch interval');
+    await connectAndStream(stream);
 
   } catch (err) {
-    console.error('[OFFSCREEN] getUserMedia error:', err.name, err.message);
+    console.error('[OFFSCREEN] startRecording error:', err.name, err.message);
   }
 }
 
-function startNewRecorder(stream) {
-  // Check if stream tracks are still live
+async function connectAndStream(stream) {
+  // Check tracks are still live
   const tracks = stream.getTracks();
   const allLive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
   if (!allLive) {
-    console.warn('[OFFSCREEN] Stream tracks not live, cannot start recorder');
+    console.warn('[OFFSCREEN] Stream tracks not live, cannot connect');
     return;
   }
 
-  audioChunks = [];
+  let token;
+  try {
+    token = await fetchTempToken();
+  } catch (e) {
+    console.error('[OFFSCREEN] Token error:', e.message);
+    return;
+  }
+
+  const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+    'model=nova-2&smart_format=true&punctuate=true';
+
+  console.log('[OFFSCREEN] Connecting to Deepgram WebSocket...');
+  intentionalClose = false;
+  dgSocket = new WebSocket(dgUrl, ['token', token]);
+
+  dgSocket.onopen = () => {
+    console.log('[OFFSCREEN] Deepgram WebSocket connected');
+
+    // Start MediaRecorder streaming audio to WebSocket
+    startMediaRecorder(stream);
+
+    // Send KeepAlive every 8 seconds
+    keepAliveInterval = setInterval(() => {
+      if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+        dgSocket.send(JSON.stringify({ type: 'KeepAlive' }));
+      }
+    }, 8000);
+  };
+
+  dgSocket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.is_final && data.channel?.alternatives?.[0]?.transcript) {
+        const transcript = data.channel.alternatives[0].transcript.trim();
+        if (transcript.length > 0) {
+          console.log('[OFFSCREEN] Transcript:', transcript);
+          chrome.runtime.sendMessage({ type: 'TRANSCRIPT', transcript });
+        }
+      }
+    } catch (e) {
+      console.error('[OFFSCREEN] Error parsing Deepgram message:', e.message);
+    }
+  };
+
+  dgSocket.onerror = () => {
+    console.error('[OFFSCREEN] Deepgram WebSocket error, readyState:', dgSocket?.readyState);
+  };
+
+  dgSocket.onclose = (event) => {
+    console.log('[OFFSCREEN] Deepgram WebSocket closed. code:', event.code, 'reason:', event.reason);
+    clearKeepAlive();
+
+    // Reconnect if unexpected close and stream is still live
+    if (!intentionalClose && currentStream) {
+      const live = currentStream.getTracks().some(t => t.readyState === 'live');
+      if (live) {
+        console.log('[OFFSCREEN] Unexpected close, reconnecting in 2s...');
+        setTimeout(() => {
+          if (currentStream) connectAndStream(currentStream);
+        }, 2000);
+      }
+    }
+  };
+}
+
+function startMediaRecorder(stream) {
+  // Stop existing recorder if any
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    try { mediaRecorder.stop(); } catch (e) { /* ok */ }
+  }
+
+  const tracks = stream.getTracks();
+  const allLive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
+  if (!allLive) {
+    console.warn('[OFFSCREEN] Cannot start recorder, tracks not live');
+    return;
+  }
 
   try {
     const recorder = new MediaRecorder(stream);
 
     recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
+      if (event.data.size > 0 && dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+        dgSocket.send(event.data);
       }
     };
 
     recorder.onerror = (event) => {
-      console.error('[OFFSCREEN] MediaRecorder error:', event.error.name, event.error.message);
+      console.error('[OFFSCREEN] MediaRecorder error:', event.error?.name, event.error?.message);
     };
 
-    recorder.start(250); // Collect data every 250ms
+    recorder.start(250);
     mediaRecorder = recorder;
-    console.log('[OFFSCREEN] MediaRecorder started');
+    console.log('[OFFSCREEN] MediaRecorder started, streaming to Deepgram');
   } catch (err) {
     console.error('[OFFSCREEN] MediaRecorder.start() failed:', err.name, err.message);
   }
 }
 
-function harvestAndRestart(stream) {
-  if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-    // Try to start a fresh recorder if old one died
-    startNewRecorder(stream);
-    return;
+function clearKeepAlive() {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
   }
-
-  // Stop current recorder — this triggers a final ondataavailable
-  mediaRecorder.onstop = () => {
-    if (audioChunks.length > 0) {
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      sendAudioChunk(blob);
-    }
-    // Start a fresh recorder immediately
-    startNewRecorder(stream);
-  };
-
-  try {
-    mediaRecorder.stop();
-  } catch (e) {
-    console.warn('[OFFSCREEN] recorder.stop() failed:', e.message);
-    startNewRecorder(stream);
-  }
-}
-
-async function sendAudioChunk(blob) {
-  try {
-    const buffer = await blob.arrayBuffer();
-    const base64 = arrayBufferToBase64(buffer);
-    console.log('[OFFSCREEN] Sending AUDIO_CHUNK, size:', base64.length);
-    chrome.runtime.sendMessage({ type: 'AUDIO_CHUNK', audio: base64 });
-  } catch (e) {
-    console.error('[OFFSCREEN] Failed to send audio chunk:', e.message);
-  }
-}
-
-function arrayBufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
 }
 
 function stopRecording() {
-  if (chunkInterval) {
-    clearInterval(chunkInterval);
-    chunkInterval = null;
-  }
+  intentionalClose = true;
+  currentStream = null;
+
+  clearKeepAlive();
 
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     try { mediaRecorder.stop(); } catch (e) { /* already stopped */ }
   }
   mediaRecorder = null;
-  audioChunks = [];
+
+  if (dgSocket) {
+    if (dgSocket.readyState === WebSocket.OPEN) {
+      dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
+    }
+    dgSocket.close();
+    dgSocket = null;
+  }
 
   if (captureStream) {
     captureStream.getTracks().forEach(track => track.stop());

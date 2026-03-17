@@ -25,6 +25,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       pendingStreamId = null;
     }
+  } else if (message.type === 'TRANSCRIPT') {
+    console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
+    transcriptQueue.push(message.transcript);
+    if (!isProcessing) processNextTranscript();
   } else if (message.type === 'AUDIO_CHUNK') {
     console.log('[BACKGROUND] Received AUDIO_CHUNK, size:', message.audio?.length);
     processAudioChunk(message.audio);

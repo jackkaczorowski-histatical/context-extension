@@ -4,7 +4,13 @@ const cors = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-function buildSystemPrompt(pageTitle, knowledgeLevel, interests) {
+function formatCounts(counts) {
+  const entries = Object.entries(counts || {}).filter(([, v]) => v > 0);
+  if (entries.length === 0) return "none yet";
+  return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
+}
+
+function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile) {
   const title = pageTitle || "unknown content";
   const level = knowledgeLevel || "intermediate";
   const interestList = interests && interests.length > 0 ? interests.join(", ") : "general topics";
@@ -32,6 +38,8 @@ For each entity, include a relevance score: 3 = most people wouldn't know this, 
 
 For stocks/companies use type "stock" with the ticker symbol. For other entities use appropriate types: "concept", "event", "person", "organization", "commodity".
 
+The user's engagement history shows they prefer these entity types: ${formatCounts(tasteProfile?.liked)}. They tend to dismiss: ${formatCounts(tasteProfile?.ignored)}. Weight your extraction toward the types they engage with.
+
 Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
 }
 
@@ -45,7 +53,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { transcript, pageTitle, userProfile } = req.body || {};
+  const { transcript, pageTitle, userProfile, tasteProfile } = req.body || {};
 
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -54,7 +62,7 @@ module.exports = async function handler(req, res) {
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
   const interests = userProfile?.interests || [];
-  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests);
+  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

@@ -167,9 +167,21 @@ async function processNextTranscript() {
   console.log('[BACKGROUND] Processing transcript:', transcript);
 
   try {
-    // Fetch user profile for analyze request
-    const profileData = await chrome.storage.local.get('userProfile');
-    const userProfile = profileData.userProfile || null;
+    // Fetch user profile and engagement history for analyze request
+    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList']);
+    const userProfile = storageData.userProfile || null;
+
+    // Build taste profile from engagement history
+    const likedCounts = {};
+    (storageData.likedEntities || []).forEach(e => {
+      const t = e.type || 'other';
+      likedCounts[t] = (likedCounts[t] || 0) + 1;
+    });
+    const ignoredCounts = {};
+    (storageData.ignoreList || []).forEach(term => {
+      ignoredCounts['unknown'] = (ignoredCounts['unknown'] || 0) + 1;
+    });
+    const tasteProfile = { liked: likedCounts, ignored: ignoredCounts };
 
     // Step 1: Analyze
     const analyzeController = new AbortController();
@@ -179,7 +191,7 @@ async function processNextTranscript() {
       analyzeRes = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile }),
+        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile }),
         signal: analyzeController.signal
       });
     } finally {

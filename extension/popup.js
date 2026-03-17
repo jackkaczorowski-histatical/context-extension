@@ -91,6 +91,7 @@ function initMainPopup() {
 
   const toggleBtn = document.getElementById('toggleBtn');
   const statusText = document.getElementById('statusText');
+  const statusBadge = document.getElementById('statusBadge');
 
   let isActive = false;
 
@@ -114,11 +115,13 @@ function initMainPopup() {
     if (active) {
       toggleBtn.textContent = 'Stop listening';
       toggleBtn.classList.add('active');
-      statusText.textContent = 'Listening to tab audio...';
+      statusText.textContent = 'Live';
+      statusBadge.classList.add('active');
     } else {
       toggleBtn.textContent = 'Start listening';
       toggleBtn.classList.remove('active');
       statusText.textContent = 'Ready';
+      statusBadge.classList.remove('active');
     }
   }
 

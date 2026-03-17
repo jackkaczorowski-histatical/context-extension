@@ -483,24 +483,28 @@ if (!window.__contextExtensionLoaded) {
     shadowRoot.appendChild(sidebar);
     document.body.appendChild(hostEl);
 
-    // Force styles via setProperty with !important on the host element
-    enforceHostStyles();
+    // Force styles on both host element and inner sidebar
+    const forceStyles = () => {
+      hostEl.style.setProperty('background', '#0e0e16', 'important');
+      hostEl.style.setProperty('background-color', '#0e0e16', 'important');
+      hostEl.style.setProperty('color', '#e0e0f0', 'important');
+      hostEl.style.setProperty('border-left', '1px solid #1e1e2e', 'important');
+      sidebar.style.setProperty('background', '#0e0e16', 'important');
+      sidebar.style.setProperty('color', '#e0e0f0', 'important');
+      if (cardContainer) {
+        cardContainer.style.setProperty('background', '#0e0e16', 'important');
+      }
+    };
+    forceStyles();
 
-    // MutationObserver: if YouTube or anything mutates the host's style/class, re-enforce
-    const observer = new MutationObserver(() => {
-      enforceHostStyles();
-      console.log('[CONTENT] MutationObserver re-enforced host styles');
-    });
-    observer.observe(hostEl, { attributes: true, attributeFilter: ['style', 'class'] });
+    // MutationObserver: re-enforce if YouTube mutates host style/class
+    const styleObserver = new MutationObserver(forceStyles);
+    styleObserver.observe(hostEl, { attributes: true, attributeFilter: ['style', 'class'] });
 
-    // Diagnostic: log computed style to see what's actually rendering
-    requestAnimationFrame(() => {
-      const computed = window.getComputedStyle(hostEl);
-      console.log('[CONTENT] Host computed bg:', computed.backgroundColor, 'color:', computed.color);
-      console.log('[CONTENT] Host inline style:', hostEl.style.cssText);
-    });
+    // Interval fallback: re-enforce every 500ms in case anything overrides
+    setInterval(forceStyles, 500);
 
-    console.log('[CONTENT] Shadow DOM sidebar created');
+    console.log('[CONTENT] Shadow DOM sidebar created, style enforcement active');
     return sidebar;
   }
 

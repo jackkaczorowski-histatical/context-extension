@@ -60,6 +60,14 @@ async function startRecording(streamId) {
     deepgramSocket.onopen = () => {
       console.log('[OFFSCREEN] Deepgram WebSocket connected');
 
+      // Check if all stream tracks are still live before starting
+      const tracks = stream.getTracks();
+      const allLive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
+      if (!allLive) {
+        console.warn('[OFFSCREEN] Stream tracks ended before recorder could start, aborting');
+        return;
+      }
+
       // Start MediaRecorder and stream audio data to Deepgram
       const recorder = new MediaRecorder(stream);
 
@@ -73,12 +81,23 @@ async function startRecording(streamId) {
         console.error('[OFFSCREEN] MediaRecorder error:', event.error.name, event.error.message);
       };
 
+      // Stop recorder gracefully if any track ends
+      tracks.forEach(track => {
+        track.addEventListener('ended', () => {
+          console.warn('[OFFSCREEN] Track ended, stopping recorder');
+          if (recorder.state !== 'inactive') {
+            try { recorder.stop(); } catch (e) { /* already stopped */ }
+          }
+        });
+      });
+
       try {
         recorder.start(250); // Send data every 250ms
         console.log('[OFFSCREEN] MediaRecorder started, streaming to Deepgram');
         mediaRecorder = recorder;
       } catch (err) {
         console.error('[OFFSCREEN] MediaRecorder.start() failed:', err.name, err.message);
+        return;
       }
     };
 

@@ -6,36 +6,79 @@ chrome.storage.local.get('onboardingComplete', (data) => {
   if (data.onboardingComplete) {
     showMainPopup();
   } else {
-    showOnboarding();
+    showOnboarding(false);
   }
 });
 
-function showOnboarding() {
+function showOnboarding(isOverlay) {
   onboardingEl.style.display = 'block';
-  mainPopupEl.style.display = 'none';
+
+  if (isOverlay) {
+    onboardingEl.classList.add('overlay');
+  } else {
+    onboardingEl.classList.remove('overlay');
+    mainPopupEl.style.display = 'none';
+  }
 
   let selectedLevel = null;
-  const levelButtons = document.querySelectorAll('.ob-level-btn');
+  const levelButtons = onboardingEl.querySelectorAll('.ob-level-btn');
   const getStartedBtn = document.getElementById('getStartedBtn');
-  getStartedBtn.disabled = true;
+  const checkboxes = onboardingEl.querySelectorAll('#interestCheckboxes input');
 
+  // Pre-fill from existing profile if editing
+  chrome.storage.local.get('userProfile', (data) => {
+    if (data.userProfile) {
+      // Pre-select knowledge level
+      levelButtons.forEach(btn => {
+        if (btn.dataset.level === data.userProfile.knowledgeLevel) {
+          btn.classList.add('selected');
+          selectedLevel = data.userProfile.knowledgeLevel;
+          getStartedBtn.disabled = false;
+        }
+      });
+      // Pre-check interests
+      const saved = data.userProfile.interests || [];
+      checkboxes.forEach(cb => {
+        cb.checked = saved.includes(cb.value);
+      });
+    }
+  });
+
+  if (!selectedLevel) {
+    getStartedBtn.disabled = true;
+  }
+
+  // Clone and replace to remove old event listeners
   levelButtons.forEach(btn => {
+    const fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+  });
+
+  const freshLevelButtons = onboardingEl.querySelectorAll('.ob-level-btn');
+  freshLevelButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      levelButtons.forEach(b => b.classList.remove('selected'));
+      freshLevelButtons.forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedLevel = btn.dataset.level;
       getStartedBtn.disabled = false;
     });
   });
 
-  getStartedBtn.addEventListener('click', () => {
+  const freshGetStarted = getStartedBtn.cloneNode(true);
+  getStartedBtn.parentNode.replaceChild(freshGetStarted, getStartedBtn);
+
+  freshGetStarted.addEventListener('click', () => {
     const interests = Array.from(
-      document.querySelectorAll('#interestCheckboxes input:checked')
+      onboardingEl.querySelectorAll('#interestCheckboxes input:checked')
     ).map(cb => cb.value);
 
     const userProfile = { knowledgeLevel: selectedLevel, interests };
     chrome.storage.local.set({ userProfile, onboardingComplete: true }, () => {
-      showMainPopup();
+      onboardingEl.style.display = 'none';
+      onboardingEl.classList.remove('overlay');
+      if (!isOverlay) {
+        showMainPopup();
+      }
     });
   });
 }
@@ -79,6 +122,12 @@ function initMainPopup() {
       statusText.textContent = 'Ready';
     }
   }
+
+  // --- Edit preferences ---
+  const editPrefsBtn = document.getElementById('editPrefsBtn');
+  editPrefsBtn.addEventListener('click', () => {
+    showOnboarding(true);
+  });
 
   // --- Settings panel ---
   const settingsGearBtn = document.getElementById('settingsGearBtn');

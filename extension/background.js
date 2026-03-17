@@ -24,10 +24,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       pendingStreamId = null;
     }
-  } else if (message.type === 'TRANSCRIPT') {
-    console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
-    transcriptQueue.push(message.transcript);
-    if (!isProcessing) processNextTranscript();
+  } else if (message.type === 'AUDIO_CHUNK') {
+    console.log('[BACKGROUND] Received AUDIO_CHUNK, size:', message.audio?.length);
+    processAudioChunk(message.audio);
   }
 });
 
@@ -112,6 +111,45 @@ async function stopCapture() {
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');
+}
+
+async function processAudioChunk(base64Audio) {
+  if (!base64Audio) return;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/transcribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio: base64Audio }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!res.ok) {
+      console.error('[BACKGROUND] Transcribe failed, status:', res.status);
+      return;
+    }
+
+    const data = await res.json();
+    const transcript = (data.transcript || '').trim();
+
+    if (transcript.length === 0) {
+      console.log('[BACKGROUND] Empty transcript, skipping');
+      return;
+    }
+
+    console.log('[BACKGROUND] Transcript:', transcript);
+    transcriptQueue.push(transcript);
+    if (!isProcessing) processNextTranscript();
+  } catch (err) {
+    console.error('[BACKGROUND] processAudioChunk error:', err.message || err);
+  }
 }
 
 async function processNextTranscript() {

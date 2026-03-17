@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
         messages: [
           {
             role: "user",
-            content: `Give a 1-2 short sentence description of "${term}" ${toneInstruction}. MUST be under 120 characters total, ideally under 100. Be punchy and conversational. Do NOT start with the term name. Jump straight into the explanation. Example: instead of 'The Bastille was a fortress...' say 'A fortress in Paris that symbolized royal tyranny.' Return ONLY a JSON object: { "description": "..." }`,
+            content: `Give a 1-2 short sentence description of "${term}" ${toneInstruction}. MUST be under 120 characters total, ideally under 100. Be punchy and conversational. Do NOT start with the term name. Jump straight into the explanation. Never use em dashes, double hyphens, or dashes of any kind. Use commas, periods, or rewrite the sentence instead. Write like a sharp human, not like AI. No filler phrases like 'essentially', 'basically', 'think of it as'. Just state what it is directly. Example: instead of 'The Bastille was a fortress...' say 'A fortress in Paris that symbolized royal tyranny.' Return ONLY a JSON object: { "description": "..." }`,
           },
         ],
       }),

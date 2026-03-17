@@ -322,9 +322,10 @@ if (!window.__contextExtensionLoaded) {
 
   function renderCards(entities) {
     if (!entities || entities.length === 0) return;
-    console.log('[CONTENT] renderCards:', entities.length, 'entities');
+    console.log('[CONTENT] renderCards called, sidebar exists:', !!document.getElementById('context-sidebar'));
 
     const sidebar = ensureSidebar();
+    console.log('[CONTENT] Sidebar element:', sidebar.id, 'bg:', sidebar.style.background, 'cssText:', sidebar.style.cssText.substring(0, 50));
     const cardContainer = document.getElementById('context-sidebar-cards');
 
     const now = Date.now();

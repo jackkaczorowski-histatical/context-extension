@@ -5,6 +5,8 @@ let capturingTabTitle = null;
 let pendingStreamId = null;
 let isProcessing = false;
 const transcriptQueue = [];
+let transcriptBuffer = '';
+let bufferTimer = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
@@ -27,10 +29,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === 'TRANSCRIPT') {
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
-    transcriptQueue.push(message.transcript);
-    if (!isProcessing) processNextTranscript();
+    transcriptBuffer += (transcriptBuffer ? ' ' : '') + message.transcript;
+    if (!bufferTimer) {
+      bufferTimer = setTimeout(() => {
+        flushTranscriptBuffer();
+      }, 12000);
+    }
   }
 });
+
+function flushTranscriptBuffer() {
+  if (bufferTimer) {
+    clearTimeout(bufferTimer);
+    bufferTimer = null;
+  }
+  const text = transcriptBuffer.trim();
+  transcriptBuffer = '';
+  if (text.length > 0) {
+    console.log('[BACKGROUND] Flushing buffer:', text.length, 'chars');
+    transcriptQueue.push(text);
+    if (!isProcessing) processNextTranscript();
+  }
+}
 
 async function startCapture() {
   try {
@@ -108,10 +128,12 @@ async function stopCapture() {
     // Already closed or doesn't exist
   }
 
+  // Flush any remaining buffered transcript
+  flushTranscriptBuffer();
+
   capturingTabId = null;
   capturingTabTitle = null;
   pendingStreamId = null;
-  transcriptQueue.length = 0;
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');

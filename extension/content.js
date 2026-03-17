@@ -65,6 +65,7 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function injectStyles() {
+    document.getElementById('context-sidebar')?.remove();
     if (document.getElementById('context-sidebar-styles')) return;
     const style = document.createElement('style');
     style.id = 'context-sidebar-styles';
@@ -74,7 +75,7 @@ if (!window.__contextExtensionLoaded) {
         top: 0;
         width: 300px;
         height: 100vh;
-        background: #0e0e16;
+        background: #0e0e16 !important;
         z-index: 2147483647;
         display: flex;
         flex-direction: column;
@@ -224,7 +225,7 @@ if (!window.__contextExtensionLoaded) {
         position: relative;
         padding: 13px 16px 11px 18px;
         border-bottom: 1px solid #161620;
-        border-left: 2px solid #4a4a6a;
+        border-left: 2px solid #4a4a6a !important;
         animation: ctx-card-in 0.25s ease-out both;
       }
 

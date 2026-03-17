@@ -425,12 +425,23 @@ if (!window.__contextExtensionLoaded) {
   });
 
   // Polling fallback: check every 2s in case storage.onChanged doesn't fire
-  setInterval(() => {
-    chrome.storage.local.get(['pendingEntities'], (data) => {
-      if (data.pendingEntities && data.pendingEntities.length > 0) {
-        console.log('[CONTENT] Polling fallback found', data.pendingEntities.length, 'entities');
-        renderCards(data.pendingEntities);
+  const pollId = setInterval(() => {
+    try {
+      if (!chrome.runtime?.id) {
+        console.log('[CONTENT] Extension context invalidated, stopping poll');
+        clearInterval(pollId);
+        return;
       }
-    });
+      chrome.storage.local.get(['pendingEntities'], (data) => {
+        if (chrome.runtime.lastError) return;
+        if (data.pendingEntities && data.pendingEntities.length > 0) {
+          console.log('[CONTENT] Polling fallback found', data.pendingEntities.length, 'entities');
+          renderCards(data.pendingEntities);
+        }
+      });
+    } catch (e) {
+      console.log('[CONTENT] Extension context gone, clearing interval');
+      clearInterval(pollId);
+    }
   }, 2000);
 }

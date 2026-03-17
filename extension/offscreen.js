@@ -39,13 +39,20 @@ async function startRecording(streamId) {
     // Fetch the Deepgram API key from our secure endpoint
     let token;
     try {
+      console.log('[OFFSCREEN] Fetching Deepgram token from:', `${API_BASE}/deepgram-token`);
       const tokenRes = await fetch(`${API_BASE}/deepgram-token`);
       if (!tokenRes.ok) {
-        console.error('[OFFSCREEN] Failed to fetch Deepgram token:', tokenRes.status);
+        const errText = await tokenRes.text().catch(() => '');
+        console.error('[OFFSCREEN] Failed to fetch Deepgram token:', tokenRes.status, errText);
         return;
       }
       const tokenData = await tokenRes.json();
       token = tokenData.token;
+      if (!token) {
+        console.error('[OFFSCREEN] Token response missing token field:', JSON.stringify(tokenData));
+        return;
+      }
+      console.log('[OFFSCREEN] Got Deepgram token, length:', token.length);
     } catch (e) {
       console.error('[OFFSCREEN] Token fetch error:', e.message);
       return;
@@ -53,8 +60,9 @@ async function startRecording(streamId) {
 
     // Connect to Deepgram's live streaming WebSocket
     const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
-      'model=nova-2&interim_results=false&utterance_end_ms=1500&vad_events=true';
+      'model=nova-2&language=en&interim_results=false&utterance_end_ms=1500&vad_events=true';
 
+    console.log('[OFFSCREEN] Connecting to Deepgram WebSocket...');
     deepgramSocket = new WebSocket(dgUrl, ['token', token]);
 
     deepgramSocket.onopen = () => {
@@ -119,11 +127,15 @@ async function startRecording(streamId) {
     };
 
     deepgramSocket.onerror = (event) => {
-      console.error('[OFFSCREEN] Deepgram WebSocket error');
+      console.error('[OFFSCREEN] Deepgram WebSocket error. readyState:', deepgramSocket?.readyState);
     };
 
     deepgramSocket.onclose = (event) => {
-      console.log('[OFFSCREEN] Deepgram WebSocket closed:', event.code, event.reason);
+      console.log('[OFFSCREEN] Deepgram WebSocket closed. code:', event.code, 'reason:', event.reason, 'wasClean:', event.wasClean);
+      // Code 1008 = policy violation (bad auth), 1006 = abnormal closure (network/auth issue)
+      if (event.code === 1008 || event.code === 1006) {
+        console.error('[OFFSCREEN] WebSocket auth may have failed. Verify DEEPGRAM_API_KEY env var is set correctly in Vercel.');
+      }
     };
 
   } catch (err) {

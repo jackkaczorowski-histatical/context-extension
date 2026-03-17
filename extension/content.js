@@ -15,8 +15,8 @@ if (!window.__contextExtensionLoaded) {
     autoHide: false
   };
   let autoHideTimer = null;
-  let iframeEl = null;
-  let iframeDoc = null;
+  let shadowRoot = null;
+  let hostEl = null;
 
   const TYPE_COLORS = {
     event: '#ff9500',
@@ -66,25 +66,22 @@ if (!window.__contextExtensionLoaded) {
     return str.slice(0, idx + 1);
   }
 
-  const IFRAME_CSS = `
-    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-    body {
+  const SHADOW_CSS = `
+    :host {
+      display: block;
       background: #0e0e16;
-      color: #e0e0f0;
+    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    #sidebar {
+      width: 100%; height: 100%; background: #0e0e16;
+      display: flex; flex-direction: column; overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      color: #e0e0f0;
     }
     #header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 16px;
-      background: #0e0e16;
-      border-bottom: 1px solid #1e1e2e;
-      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; background: #0e0e16;
+      border-bottom: 1px solid #1e1e2e; flex-shrink: 0;
     }
     .ctx-wordmark { font-size: 13px; font-weight: 500; color: #e0e0f0; letter-spacing: 0.01em; }
     .ctx-live { display: flex; align-items: center; gap: 5px; }
@@ -97,8 +94,6 @@ if (!window.__contextExtensionLoaded) {
       0%, 100% { opacity: 1; box-shadow: 0 0 4px #00e676; }
       50% { opacity: 0.4; box-shadow: 0 0 8px #00e676; }
     }
-
-    /* Empty state */
     #empty-state {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 12px;
@@ -116,26 +111,18 @@ if (!window.__contextExtensionLoaded) {
       40% { opacity: 1; transform: scale(1.2); }
     }
     .ctx-empty-text { font-size: 12px; color: #3a3a5a; }
-
-    /* Cards container */
     #cards {
       flex: 1; overflow-y: auto; padding: 0; background: #0e0e16; display: none;
     }
     #cards::-webkit-scrollbar { width: 3px; }
     #cards::-webkit-scrollbar-track { background: transparent; }
     #cards::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
-
-    /* Session divider */
     .session-divider {
       display: flex; align-items: center; gap: 10px;
       padding: 10px 16px; background: #0e0e16;
     }
-    .session-divider hr {
-      flex: 1; border: none; border-top: 1px solid #1e1e2e; margin: 0;
-    }
+    .session-divider hr { flex: 1; border: none; border-top: 1px solid #1e1e2e; margin: 0; }
     .session-divider span { color: #3a3a5a; font-size: 10px; white-space: nowrap; }
-
-    /* Cards */
     .context-card {
       position: relative; padding: 13px 16px 11px 18px;
       border-bottom: 1px solid #161620; border-left: 2px solid #4a4a6a;
@@ -153,8 +140,6 @@ if (!window.__contextExtensionLoaded) {
     .card-term { font-size: 13px; font-weight: 600; color: #d0d0e8; margin-bottom: 4px; }
     .card-desc { font-size: 11px; color: #4a4a6a; line-height: 1.55; }
     .card-time { font-size: 10px; color: #2a2a3a; float: right; margin-top: 4px; }
-
-    /* Stock cards */
     .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; }
     .stock-company { font-size: 10px; color: #3a3a5a; margin-bottom: 8px; }
     .stock-price-row { display: flex; align-items: baseline; gap: 8px; }
@@ -162,8 +147,6 @@ if (!window.__contextExtensionLoaded) {
     .stock-change { font-size: 12px; font-weight: 600; }
     .stock-change.positive { color: #00e676; }
     .stock-change.negative { color: #ff5252; }
-
-    /* Thumbs down */
     .thumbs-down-btn {
       position: absolute; top: 10px; right: 10px; background: none; border: none;
       color: #2a2a3a; font-size: 10px; cursor: pointer; padding: 2px 4px;
@@ -174,56 +157,42 @@ if (!window.__contextExtensionLoaded) {
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
   `;
 
-  const IFRAME_HTML = `<!DOCTYPE html><html><head><style>${IFRAME_CSS}</style></head><body>
-    <div id="header">
-      <span class="ctx-wordmark">context</span>
-      <div class="ctx-live">
-        <span class="ctx-live-dot"></span>
-        <span class="ctx-live-text">Live</span>
-      </div>
-    </div>
-    <div id="empty-state">
-      <div class="ctx-empty-dots"><span></span><span></span><span></span></div>
-      <div class="ctx-empty-text">Listening...</div>
-    </div>
-    <div id="cards"></div>
-  </body></html>`;
-
-  function getIframeCSS() {
+  function getHostPosition() {
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
-    const borderSide = pos === 'right' ? 'border-left' : 'border-right';
-    return `position:fixed!important;top:0!important;${pos}:0!important;width:300px!important;height:100vh!important;z-index:2147483647!important;border:none!important;${borderSide}:1px solid #1e1e2e!important;background:#0e0e16!important;transform:translateX(${pos === 'right' ? '100%' : '-100%'})!important;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1)!important;`;
+    const border = pos === 'right' ? 'border-left:1px solid #1e1e2e;' : 'border-right:1px solid #1e1e2e;';
+    const translate = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
+    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;${border}background:#0e0e16;transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
   }
 
   function applySidebarPosition() {
-    if (!iframeEl) return;
-    const isOpen = iframeEl.dataset.open === 'true';
-    iframeEl.style.cssText = getIframeCSS();
-    if (isOpen) iframeEl.style.setProperty('transform', 'translateX(0)', 'important');
+    if (!hostEl) return;
+    const isOpen = hostEl.dataset.open === 'true';
+    hostEl.style.cssText = getHostPosition();
+    if (isOpen) hostEl.style.transform = 'translateX(0)';
   }
 
   function openSidebar() {
-    if (!iframeEl) return;
-    iframeEl.dataset.open = 'true';
-    iframeEl.style.setProperty('transform', 'translateX(0)', 'important');
+    if (!hostEl) return;
+    hostEl.dataset.open = 'true';
+    hostEl.style.transform = 'translateX(0)';
   }
 
   function closeSidebar() {
-    if (!iframeEl) return;
-    iframeEl.dataset.open = 'false';
+    if (!hostEl) return;
+    hostEl.dataset.open = 'false';
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
-    iframeEl.style.setProperty('transform', pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)', 'important');
+    hostEl.style.transform = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
   }
 
   function resetAutoHide() {
     if (autoHideTimer) clearTimeout(autoHideTimer);
-    if (settings.autoHide && iframeEl) {
+    if (settings.autoHide && hostEl) {
       autoHideTimer = setTimeout(() => closeSidebar(), 30000);
     }
   }
 
   function addThumbsDown(card, key) {
-    const btn = iframeDoc.createElement('button');
+    const btn = document.createElement('button');
     btn.className = 'thumbs-down-btn';
     btn.innerHTML = '&#x1F44E;';
     btn.title = 'Not useful';
@@ -238,7 +207,7 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function createStockCard(entity) {
-    const card = iframeDoc.createElement('div');
+    const card = document.createElement('div');
     card.className = 'context-card';
     const color = getTypeColor('stock');
     card.style.borderLeftColor = color;
@@ -279,7 +248,7 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function createGenericCard(entity) {
-    const card = iframeDoc.createElement('div');
+    const card = document.createElement('div');
     card.className = 'context-card';
     const type = entity.type || 'other';
     const color = getTypeColor(type);
@@ -302,29 +271,63 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function ensureSidebar() {
-    if (iframeDoc) return iframeDoc.getElementById('cards');
+    if (shadowRoot) return shadowRoot.getElementById('cards');
 
-    // Create iframe — its contents are 100% isolated from YouTube CSS
-    iframeEl = document.createElement('iframe');
-    iframeEl.id = 'context-sidebar-iframe';
-    iframeEl.style.cssText = getIframeCSS();
-    iframeEl.setAttribute('allowtransparency', 'true');
-    document.body.appendChild(iframeEl);
+    // Host element — inline styles so YouTube can't override positioning
+    hostEl = document.createElement('div');
+    hostEl.id = 'context-sidebar-host';
+    hostEl.style.cssText = getHostPosition();
 
-    iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow.document;
-    iframeDoc.open();
-    iframeDoc.write(IFRAME_HTML);
-    iframeDoc.close();
+    // Shadow DOM — YouTube CSS cannot cross this boundary
+    shadowRoot = hostEl.attachShadow({ mode: 'open' });
 
-    console.log('[CONTENT] Iframe sidebar created');
-    return iframeDoc.getElementById('cards');
+    // Styles inside shadow root (completely isolated)
+    const style = document.createElement('style');
+    style.textContent = SHADOW_CSS;
+    shadowRoot.appendChild(style);
+
+    // Sidebar wrapper
+    const sidebar = document.createElement('div');
+    sidebar.id = 'sidebar';
+
+    // Header
+    const header = document.createElement('div');
+    header.id = 'header';
+    header.innerHTML = `
+      <span class="ctx-wordmark">context</span>
+      <div class="ctx-live">
+        <span class="ctx-live-dot"></span>
+        <span class="ctx-live-text">Live</span>
+      </div>
+    `;
+
+    // Empty state
+    const emptyState = document.createElement('div');
+    emptyState.id = 'empty-state';
+    emptyState.innerHTML = `
+      <div class="ctx-empty-dots"><span></span><span></span><span></span></div>
+      <div class="ctx-empty-text">Listening...</div>
+    `;
+
+    // Cards container
+    const cardContainer = document.createElement('div');
+    cardContainer.id = 'cards';
+
+    sidebar.appendChild(header);
+    sidebar.appendChild(emptyState);
+    sidebar.appendChild(cardContainer);
+    shadowRoot.appendChild(sidebar);
+    document.body.appendChild(hostEl);
+
+    console.log('[CONTENT] Shadow DOM sidebar created');
+    return cardContainer;
   }
 
   function showCardsHideEmpty() {
-    if (hasCards || !iframeDoc) return;
+    if (hasCards || !shadowRoot) return;
     hasCards = true;
-    const empty = iframeDoc.getElementById('empty-state');
-    const cards = iframeDoc.getElementById('cards');
+    const empty = shadowRoot.getElementById('empty-state');
+    const cards = shadowRoot.getElementById('cards');
     if (empty) empty.style.display = 'none';
     if (cards) cards.style.display = 'block';
   }
@@ -334,10 +337,10 @@ if (!window.__contextExtensionLoaded) {
     lastSessionStart = timestamp;
 
     ensureSidebar();
-    const cards = iframeDoc.getElementById('cards');
+    const cards = shadowRoot.getElementById('cards');
     const timeStr = formatTime(new Date(timestamp));
 
-    const divider = iframeDoc.createElement('div');
+    const divider = document.createElement('div');
     divider.className = 'session-divider';
     divider.innerHTML =
       '<hr>' +
@@ -354,7 +357,7 @@ if (!window.__contextExtensionLoaded) {
     console.log('[CONTENT] renderCards:', entities.length, 'entities');
 
     ensureSidebar();
-    const cards = iframeDoc.getElementById('cards');
+    const cards = shadowRoot.getElementById('cards');
 
     const now = Date.now();
 
@@ -421,7 +424,7 @@ if (!window.__contextExtensionLoaded) {
     }
   });
 
-  // Polling fallback
+  // Polling fallback: check every 2s in case storage.onChanged doesn't fire
   setInterval(() => {
     chrome.storage.local.get(['pendingEntities'], (data) => {
       if (data.pendingEntities && data.pendingEntities.length > 0) {

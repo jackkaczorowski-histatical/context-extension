@@ -1,3 +1,53 @@
+// --- Onboarding check ---
+const onboardingEl = document.getElementById('onboarding');
+const mainPopupEl = document.getElementById('mainPopup');
+
+chrome.storage.local.get('onboardingComplete', (data) => {
+  if (data.onboardingComplete) {
+    showMainPopup();
+  } else {
+    showOnboarding();
+  }
+});
+
+function showOnboarding() {
+  onboardingEl.style.display = 'block';
+  mainPopupEl.style.display = 'none';
+
+  let selectedLevel = null;
+  const levelButtons = document.querySelectorAll('.ob-level-btn');
+  const getStartedBtn = document.getElementById('getStartedBtn');
+  getStartedBtn.disabled = true;
+
+  levelButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      levelButtons.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedLevel = btn.dataset.level;
+      getStartedBtn.disabled = false;
+    });
+  });
+
+  getStartedBtn.addEventListener('click', () => {
+    const interests = Array.from(
+      document.querySelectorAll('#interestCheckboxes input:checked')
+    ).map(cb => cb.value);
+
+    const userProfile = { knowledgeLevel: selectedLevel, interests };
+    chrome.storage.local.set({ userProfile, onboardingComplete: true }, () => {
+      showMainPopup();
+    });
+  });
+}
+
+function showMainPopup() {
+  onboardingEl.style.display = 'none';
+  mainPopupEl.style.display = 'block';
+  initMainPopup();
+}
+
+function initMainPopup() {
+
 const toggleBtn = document.getElementById('toggleBtn');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
@@ -96,3 +146,5 @@ autoHideToggle.addEventListener('click', () => {
   autoHideToggle.classList.toggle('on', currentSettings.autoHide);
   saveSettings();
 });
+
+} // end initMainPopup

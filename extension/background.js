@@ -186,6 +186,7 @@ async function processNextTranscript() {
         } else if (!entity.description) {
           try {
             const term = entity.term || entity.name || '';
+            const profileData = await chrome.storage.local.get('userProfile');
             const ctxController = new AbortController();
             const ctxTimeout = setTimeout(() => ctxController.abort(), 10000);
             let contextRes;
@@ -193,7 +194,7 @@ async function processNextTranscript() {
               contextRes = await fetch(`${API_BASE}/context`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ term }),
+                body: JSON.stringify({ term, userProfile: profileData.userProfile || null }),
                 signal: ctxController.signal
               });
             } finally {

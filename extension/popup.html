@@ -193,9 +193,93 @@
       background: #7c4dff;
       color: #fff;
     }
+
+    /* Onboarding styles */
+    .ob-level-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #222;
+      color: #aaa;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .ob-level-btn.selected {
+      background: #7c4dff;
+      border-color: #7c4dff;
+      color: #fff;
+    }
+
+    .ob-check {
+      font-size: 12px;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .ob-check input {
+      accent-color: #7c4dff;
+    }
+
+    #getStartedBtn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #7c4dff;
+      color: #fff;
+      transition: filter 0.2s;
+    }
+
+    #getStartedBtn:hover {
+      filter: brightness(1.15);
+    }
+
+    #getStartedBtn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
   </style>
 </head>
 <body>
+  <!-- Onboarding screen -->
+  <div id="onboarding" style="display:none;">
+    <h1 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:18px;">Personalize your experience</h1>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;color:#aaa;margin-bottom:8px;">How would you describe your knowledge level?</div>
+      <div id="levelButtons" style="display:flex;gap:6px;">
+        <button class="ob-level-btn" data-level="beginner">Beginner</button>
+        <button class="ob-level-btn" data-level="intermediate">Intermediate</button>
+        <button class="ob-level-btn" data-level="expert">Expert</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:18px;">
+      <div style="font-size:12px;color:#aaa;margin-bottom:8px;">What topics interest you most?</div>
+      <div id="interestCheckboxes" style="display:flex;flex-direction:column;gap:6px;">
+        <label class="ob-check"><input type="checkbox" value="Finance"> Finance</label>
+        <label class="ob-check"><input type="checkbox" value="History"> History</label>
+        <label class="ob-check"><input type="checkbox" value="Politics"> Politics</label>
+        <label class="ob-check"><input type="checkbox" value="Science"> Science</label>
+        <label class="ob-check"><input type="checkbox" value="Sports"> Sports</label>
+      </div>
+    </div>
+
+    <button id="getStartedBtn">Get Started</button>
+  </div>
+
+  <!-- Normal popup -->
+  <div id="mainPopup" style="display:none;">
   <div class="header">
     <div class="status-dot" id="statusDot"></div>
     <h1>Context</h1>
@@ -227,6 +311,7 @@
       <div class="toggle-switch" id="autoHideToggle"></div>
     </div>
   </div>
+  </div><!-- end mainPopup -->
 
   <script src="popup.js"></script>
 </body>

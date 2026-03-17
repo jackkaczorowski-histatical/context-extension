@@ -14,11 +14,27 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { term } = req.body || {};
+  const { term, userProfile } = req.body || {};
 
   if (!term) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(400).json({ error: "Missing term field" });
+  }
+
+  // Tailor tone based on user's knowledge level
+  let toneInstruction = "that would help a general audience understand it";
+  if (userProfile && userProfile.knowledgeLevel) {
+    const level = userProfile.knowledgeLevel;
+    if (level === "beginner") {
+      toneInstruction =
+        "using simple everyday language and analogies, as if explaining to someone with no background knowledge";
+    } else if (level === "intermediate") {
+      toneInstruction =
+        "assuming some background knowledge, balancing clarity with depth";
+    } else if (level === "expert") {
+      toneInstruction =
+        "in a concise and technical manner, assuming the reader is already familiar with the domain";
+    }
   }
 
   try {
@@ -35,7 +51,7 @@ module.exports = async function handler(req, res) {
         messages: [
           {
             role: "user",
-            content: `Give a 2-3 sentence description of the following term that would help a general audience understand it while watching a video. Do NOT start the description with the term name itself. Jump straight into the explanation. For example instead of 'The Bastille was a fortress...' just say 'A fortress and prison in Paris that became a symbol of royal tyranny...' Term: ${term}. Return ONLY a JSON object: { "description": "..." }`,
+            content: `Give a 2-3 sentence description of the following term ${toneInstruction} while watching a video. Do NOT start the description with the term name itself. Jump straight into the explanation. For example instead of 'The Bastille was a fortress...' just say 'A fortress and prison in Paris that became a symbol of royal tyranny...' Term: ${term}. Return ONLY a JSON object: { "description": "..." }`,
           },
         ],
       }),

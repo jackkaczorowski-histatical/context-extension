@@ -15,8 +15,8 @@ if (!window.__contextExtensionLoaded) {
     autoHide: false
   };
   let autoHideTimer = null;
-  let shadowRoot = null;
-  let hostEl = null;
+  let iframeEl = null;
+  let iframeDoc = null;
 
   const TYPE_COLORS = {
     event: '#ff9500',
@@ -66,30 +66,18 @@ if (!window.__contextExtensionLoaded) {
     return str.slice(0, idx + 1);
   }
 
-  // All styles live inside shadow DOM — completely isolated from host page CSS
-  const SHADOW_CSS = `
-    *, *::before, *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    :host {
-      all: initial;
-    }
-
-    #context-sidebar {
-      width: 100%;
-      height: 100%;
+  const IFRAME_CSS = `
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body {
       background: #0e0e16;
+      color: #e0e0f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: #e0e0f0;
-      overflow: hidden;
     }
-
-    #context-sidebar-header {
+    #header {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -98,264 +86,144 @@ if (!window.__contextExtensionLoaded) {
       border-bottom: 1px solid #1e1e2e;
       flex-shrink: 0;
     }
-
-    .ctx-wordmark {
-      font-size: 13px;
-      font-weight: 500;
-      color: #e0e0f0;
-      letter-spacing: 0.01em;
-    }
-
-    .ctx-live {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
+    .ctx-wordmark { font-size: 13px; font-weight: 500; color: #e0e0f0; letter-spacing: 0.01em; }
+    .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #00e676;
+      width: 6px; height: 6px; border-radius: 50%; background: #00e676;
       animation: ctx-pulse 2s ease-in-out infinite;
     }
-
-    .ctx-live-text {
-      font-size: 10px;
-      color: #00e676;
-      font-weight: 500;
-    }
-
+    .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
     @keyframes ctx-pulse {
       0%, 100% { opacity: 1; box-shadow: 0 0 4px #00e676; }
       50% { opacity: 0.4; box-shadow: 0 0 8px #00e676; }
     }
 
     /* Empty state */
-    #context-sidebar-empty {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
+    #empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
       background: #0e0e16;
     }
-
-    .ctx-empty-dots {
-      display: flex;
-      gap: 6px;
-    }
-
+    .ctx-empty-dots { display: flex; gap: 6px; }
     .ctx-empty-dots span {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: #3a3a5a;
+      width: 5px; height: 5px; border-radius: 50%; background: #3a3a5a;
       animation: ctx-dot-pulse 1.4s ease-in-out infinite;
     }
-
     .ctx-empty-dots span:nth-child(2) { animation-delay: 0.2s; }
     .ctx-empty-dots span:nth-child(3) { animation-delay: 0.4s; }
-
     @keyframes ctx-dot-pulse {
       0%, 80%, 100% { opacity: 0.3; transform: scale(1); }
       40% { opacity: 1; transform: scale(1.2); }
     }
-
-    .ctx-empty-text {
-      font-size: 12px;
-      color: #3a3a5a;
-    }
+    .ctx-empty-text { font-size: 12px; color: #3a3a5a; }
 
     /* Cards container */
-    #context-sidebar-cards {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0;
-      background: #0e0e16;
+    #cards {
+      flex: 1; overflow-y: auto; padding: 0; background: #0e0e16; display: none;
     }
-
-    #context-sidebar-cards::-webkit-scrollbar { width: 3px; }
-    #context-sidebar-cards::-webkit-scrollbar-track { background: transparent; }
-    #context-sidebar-cards::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
+    #cards::-webkit-scrollbar { width: 3px; }
+    #cards::-webkit-scrollbar-track { background: transparent; }
+    #cards::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
 
     /* Session divider */
-    .context-session-divider {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 16px;
-      background: #0e0e16;
+    .session-divider {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; background: #0e0e16;
     }
-
-    .context-session-divider hr {
-      flex: 1;
-      border: none;
-      border-top: 1px solid #1e1e2e;
-      margin: 0;
+    .session-divider hr {
+      flex: 1; border: none; border-top: 1px solid #1e1e2e; margin: 0;
     }
-
-    .context-session-divider span {
-      color: #3a3a5a;
-      font-size: 10px;
-      white-space: nowrap;
-    }
+    .session-divider span { color: #3a3a5a; font-size: 10px; white-space: nowrap; }
 
     /* Cards */
     .context-card {
-      position: relative;
-      padding: 13px 16px 11px 18px;
-      border-bottom: 1px solid #161620;
-      border-left: 2px solid #4a4a6a;
-      background: #0e0e16;
-      animation: ctx-card-in 0.25s ease-out both;
+      position: relative; padding: 13px 16px 11px 18px;
+      border-bottom: 1px solid #161620; border-left: 2px solid #4a4a6a;
+      background: #0e0e16; animation: ctx-card-in 0.25s ease-out both;
     }
-
     @keyframes ctx-card-in {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
-    .context-card.collapsed {
-      animation: none;
-    }
-
+    .context-card.collapsed { animation: none; }
     .card-type {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 3px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 3px;
     }
-
-    .card-term {
-      font-size: 13px;
-      font-weight: 600;
-      color: #d0d0e8;
-      margin-bottom: 4px;
-    }
-
-    .card-desc {
-      font-size: 11px;
-      color: #4a4a6a;
-      line-height: 1.55;
-    }
-
-    .card-time {
-      font-size: 10px;
-      color: #2a2a3a;
-      float: right;
-      margin-top: 4px;
-    }
+    .card-term { font-size: 13px; font-weight: 600; color: #d0d0e8; margin-bottom: 4px; }
+    .card-desc { font-size: 11px; color: #4a4a6a; line-height: 1.55; }
+    .card-time { font-size: 10px; color: #2a2a3a; float: right; margin-top: 4px; }
 
     /* Stock cards */
-    .stock-ticker {
-      font-size: 18px;
-      font-weight: 700;
-      color: #e0e0f0;
-      margin-bottom: 1px;
-    }
-
-    .stock-company {
-      font-size: 10px;
-      color: #3a3a5a;
-      margin-bottom: 8px;
-    }
-
-    .stock-price-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .stock-price {
-      font-size: 16px;
-      font-weight: 600;
-      color: #e0e0f0;
-    }
-
-    .stock-change {
-      font-size: 12px;
-      font-weight: 600;
-    }
-
+    .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; }
+    .stock-company { font-size: 10px; color: #3a3a5a; margin-bottom: 8px; }
+    .stock-price-row { display: flex; align-items: baseline; gap: 8px; }
+    .stock-price { font-size: 16px; font-weight: 600; color: #e0e0f0; }
+    .stock-change { font-size: 12px; font-weight: 600; }
     .stock-change.positive { color: #00e676; }
     .stock-change.negative { color: #ff5252; }
 
     /* Thumbs down */
     .thumbs-down-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      color: #2a2a3a;
-      font-size: 10px;
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 3px;
-      line-height: 1;
-      opacity: 0;
-      transition: opacity 0.15s, color 0.15s;
+      position: absolute; top: 10px; right: 10px; background: none; border: none;
+      color: #2a2a3a; font-size: 10px; cursor: pointer; padding: 2px 4px;
+      border-radius: 3px; line-height: 1; opacity: 0; transition: opacity 0.15s, color 0.15s;
     }
-
     .context-card:hover .thumbs-down-btn { opacity: 1; }
     .thumbs-down-btn:hover { color: #ff5252; }
-
-    .feedback-msg {
-      font-size: 11px;
-      color: #3a3a5a;
-      padding: 4px 0;
-      text-align: center;
-    }
+    .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
   `;
 
-  function enforceHostStyles() {
-    if (!hostEl) return;
-    hostEl.style.setProperty('background', '#0e0e16', 'important');
-    hostEl.style.setProperty('background-color', '#0e0e16', 'important');
-    hostEl.style.setProperty('color', '#e0e0f0', 'important');
-    hostEl.style.setProperty('font-family', "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", 'important');
-  }
+  const IFRAME_HTML = `<!DOCTYPE html><html><head><style>${IFRAME_CSS}</style></head><body>
+    <div id="header">
+      <span class="ctx-wordmark">context</span>
+      <div class="ctx-live">
+        <span class="ctx-live-dot"></span>
+        <span class="ctx-live-text">Live</span>
+      </div>
+    </div>
+    <div id="empty-state">
+      <div class="ctx-empty-dots"><span></span><span></span><span></span></div>
+      <div class="ctx-empty-text">Listening...</div>
+    </div>
+    <div id="cards"></div>
+  </body></html>`;
 
-  function getHostCSS() {
+  function getIframeCSS() {
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
     const borderSide = pos === 'right' ? 'border-left' : 'border-right';
-    return `position:fixed;top:0;${pos}:0;width:300px;height:100vh;z-index:2147483647;background:#0e0e16;${borderSide}:1px solid #1e1e2e;transform:translateX(${pos === 'right' ? '100%' : '-100%'});transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
+    return `position:fixed!important;top:0!important;${pos}:0!important;width:300px!important;height:100vh!important;z-index:2147483647!important;border:none!important;${borderSide}:1px solid #1e1e2e!important;background:#0e0e16!important;transform:translateX(${pos === 'right' ? '100%' : '-100%'})!important;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1)!important;`;
   }
 
   function applySidebarPosition() {
-    if (!hostEl) return;
-    const isOpen = hostEl.dataset.open === 'true';
-    hostEl.style.cssText = getHostCSS();
-    enforceHostStyles();
-    if (isOpen) hostEl.style.transform = 'translateX(0)';
+    if (!iframeEl) return;
+    const isOpen = iframeEl.dataset.open === 'true';
+    iframeEl.style.cssText = getIframeCSS();
+    if (isOpen) iframeEl.style.setProperty('transform', 'translateX(0)', 'important');
   }
 
   function openSidebar() {
-    if (!hostEl) return;
-    hostEl.dataset.open = 'true';
-    hostEl.style.transform = 'translateX(0)';
-    enforceHostStyles();
+    if (!iframeEl) return;
+    iframeEl.dataset.open = 'true';
+    iframeEl.style.setProperty('transform', 'translateX(0)', 'important');
   }
 
   function closeSidebar() {
-    if (!hostEl) return;
-    hostEl.dataset.open = 'false';
+    if (!iframeEl) return;
+    iframeEl.dataset.open = 'false';
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
-    hostEl.style.transform = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
+    iframeEl.style.setProperty('transform', pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)', 'important');
   }
 
   function resetAutoHide() {
     if (autoHideTimer) clearTimeout(autoHideTimer);
-    if (settings.autoHide && hostEl) {
+    if (settings.autoHide && iframeEl) {
       autoHideTimer = setTimeout(() => closeSidebar(), 30000);
     }
   }
 
   function addThumbsDown(card, key) {
-    const btn = document.createElement('button');
+    const btn = iframeDoc.createElement('button');
     btn.className = 'thumbs-down-btn';
     btn.innerHTML = '&#x1F44E;';
     btn.title = 'Not useful';
@@ -370,7 +238,7 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function createStockCard(entity) {
-    const card = document.createElement('div');
+    const card = iframeDoc.createElement('div');
     card.className = 'context-card';
     const color = getTypeColor('stock');
     card.style.borderLeftColor = color;
@@ -411,7 +279,7 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function createGenericCard(entity) {
-    const card = document.createElement('div');
+    const card = iframeDoc.createElement('div');
     card.className = 'context-card';
     const type = entity.type || 'other';
     const color = getTypeColor(type);
@@ -434,85 +302,29 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function ensureSidebar() {
-    if (shadowRoot) return shadowRoot.getElementById('context-sidebar');
+    if (iframeDoc) return iframeDoc.getElementById('cards');
 
-    // Create host element with inline styles (immune to page CSS)
-    hostEl = document.createElement('div');
-    hostEl.id = 'context-sidebar-host';
-    hostEl.style.cssText = getHostCSS();
+    // Create iframe — its contents are 100% isolated from YouTube CSS
+    iframeEl = document.createElement('iframe');
+    iframeEl.id = 'context-sidebar-iframe';
+    iframeEl.style.cssText = getIframeCSS();
+    iframeEl.setAttribute('allowtransparency', 'true');
+    document.body.appendChild(iframeEl);
 
-    // Attach shadow root — complete CSS isolation
-    shadowRoot = hostEl.attachShadow({ mode: 'open' });
+    iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(IFRAME_HTML);
+    iframeDoc.close();
 
-    // Inject styles into shadow root (page CSS cannot reach here)
-    const style = document.createElement('style');
-    style.textContent = SHADOW_CSS;
-    shadowRoot.appendChild(style);
-
-    // Sidebar container (fills shadow host)
-    const sidebar = document.createElement('div');
-    sidebar.id = 'context-sidebar';
-
-    // Header
-    const header = document.createElement('div');
-    header.id = 'context-sidebar-header';
-    header.innerHTML = `
-      <span class="ctx-wordmark">context</span>
-      <div class="ctx-live">
-        <span class="ctx-live-dot"></span>
-        <span class="ctx-live-text">Live</span>
-      </div>
-    `;
-
-    // Empty state
-    const emptyState = document.createElement('div');
-    emptyState.id = 'context-sidebar-empty';
-    emptyState.innerHTML = `
-      <div class="ctx-empty-dots"><span></span><span></span><span></span></div>
-      <div class="ctx-empty-text">Listening...</div>
-    `;
-
-    // Cards container
-    const cardContainer = document.createElement('div');
-    cardContainer.id = 'context-sidebar-cards';
-    cardContainer.style.display = 'none';
-
-    sidebar.appendChild(header);
-    sidebar.appendChild(emptyState);
-    sidebar.appendChild(cardContainer);
-    shadowRoot.appendChild(sidebar);
-    document.body.appendChild(hostEl);
-
-    // Force styles on both host element and inner sidebar
-    const forceStyles = () => {
-      hostEl.style.setProperty('background', '#0e0e16', 'important');
-      hostEl.style.setProperty('background-color', '#0e0e16', 'important');
-      hostEl.style.setProperty('color', '#e0e0f0', 'important');
-      hostEl.style.setProperty('border-left', '1px solid #1e1e2e', 'important');
-      sidebar.style.setProperty('background', '#0e0e16', 'important');
-      sidebar.style.setProperty('color', '#e0e0f0', 'important');
-      if (cardContainer) {
-        cardContainer.style.setProperty('background', '#0e0e16', 'important');
-      }
-    };
-    forceStyles();
-
-    // MutationObserver: re-enforce if YouTube mutates host style/class
-    const styleObserver = new MutationObserver(forceStyles);
-    styleObserver.observe(hostEl, { attributes: true, attributeFilter: ['style', 'class'] });
-
-    // Interval fallback: re-enforce every 500ms in case anything overrides
-    setInterval(forceStyles, 500);
-
-    console.log('[CONTENT] Shadow DOM sidebar created, style enforcement active');
-    return sidebar;
+    console.log('[CONTENT] Iframe sidebar created');
+    return iframeDoc.getElementById('cards');
   }
 
   function showCardsHideEmpty() {
-    if (hasCards || !shadowRoot) return;
+    if (hasCards || !iframeDoc) return;
     hasCards = true;
-    const empty = shadowRoot.getElementById('context-sidebar-empty');
-    const cards = shadowRoot.getElementById('context-sidebar-cards');
+    const empty = iframeDoc.getElementById('empty-state');
+    const cards = iframeDoc.getElementById('cards');
     if (empty) empty.style.display = 'none';
     if (cards) cards.style.display = 'block';
   }
@@ -522,17 +334,17 @@ if (!window.__contextExtensionLoaded) {
     lastSessionStart = timestamp;
 
     ensureSidebar();
-    const cardContainer = shadowRoot.getElementById('context-sidebar-cards');
+    const cards = iframeDoc.getElementById('cards');
     const timeStr = formatTime(new Date(timestamp));
 
-    const divider = document.createElement('div');
-    divider.className = 'context-session-divider';
+    const divider = iframeDoc.createElement('div');
+    divider.className = 'session-divider';
     divider.innerHTML =
       '<hr>' +
       '<span>Session started ' + timeStr + '</span>' +
       '<hr>';
 
-    cardContainer.prepend(divider);
+    cards.prepend(divider);
     showCardsHideEmpty();
     console.log('[CONTENT] Session divider added:', timeStr);
   }
@@ -542,7 +354,7 @@ if (!window.__contextExtensionLoaded) {
     console.log('[CONTENT] renderCards:', entities.length, 'entities');
 
     ensureSidebar();
-    const cardContainer = shadowRoot.getElementById('context-sidebar-cards');
+    const cards = iframeDoc.getElementById('cards');
 
     const now = Date.now();
 
@@ -576,7 +388,7 @@ if (!window.__contextExtensionLoaded) {
         ? createStockCard(entity)
         : createGenericCard(entity);
 
-      cardContainer.prepend(card);
+      cards.prepend(card);
       console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
     });
 

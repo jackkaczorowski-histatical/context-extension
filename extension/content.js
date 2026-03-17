@@ -184,6 +184,11 @@ if (!window.__contextExtensionLoaded) {
     .thumbs-up-btn:hover { color: #00e676; }
     .thumbs-down-btn:hover { color: #ff5252; }
     .thumbs-up-ok { color: #00e676; font-size: 9px; padding: 2px 4px; line-height: 1; }
+    .card-wiki-link {
+      font-size: 10px; color: #3a3a5a; text-decoration: none;
+      transition: color 0.15s; float: left; margin-top: 4px;
+    }
+    .card-wiki-link:hover { color: #7a7aaa; }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
   `;
 
@@ -312,10 +317,14 @@ if (!window.__contextExtensionLoaded) {
     const desc = firstSentence(entity.description || '');
     const typeLabel = (type || 'OTHER').toUpperCase();
 
+    const wikiTerm = (entity.term || entity.name || '').replace(/ /g, '_');
+    const wikiUrl = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(wikiTerm);
+
     card.innerHTML = `
       <div class="card-type" style="color:${color}">${typeLabel}</div>
       <div class="card-term">${escapeHtml(entity.term || entity.name || '')}</div>
       ${desc ? `<div class="card-desc">${escapeHtml(desc)}</div>` : ''}
+      <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
       <span class="card-time">${timestamp}</span>
     `;
 

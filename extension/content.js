@@ -3,9 +3,10 @@ console.log('[CONTENT] Script loaded');
 if (!window.__contextExtensionLoaded) {
   window.__contextExtensionLoaded = true;
 
-  const DEDUP_WINDOW = 600000; // 10 minutes
-  const seenTerms = new Map(); // term -> timestamp
+  const DEDUP_WINDOW = 600000;
+  const seenTerms = new Map();
   let lastSessionStart = null;
+  let hasCards = false;
 
   let ignoreList = new Set();
   let settings = {
@@ -15,13 +16,25 @@ if (!window.__contextExtensionLoaded) {
   };
   let autoHideTimer = null;
 
-  // Load ignore list and settings on init
+  const TYPE_COLORS = {
+    event: '#ff9500',
+    concept: '#7070ff',
+    person: '#00d4aa',
+    people: '#00d4aa',
+    stock: '#00e676',
+    organization: '#4d9fff',
+    commodity: '#ff9500'
+  };
+
+  function getTypeColor(type) {
+    return TYPE_COLORS[(type || '').toLowerCase()] || '#4a4a6a';
+  }
+
   chrome.storage.local.get(['ignoreList', 'extensionSettings'], (data) => {
     if (data.ignoreList) ignoreList = new Set(data.ignoreList);
     if (data.extensionSettings) settings = { ...settings, ...data.extensionSettings };
   });
 
-  // Listen for settings changes
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.extensionSettings) {
       settings = { ...settings, ...changes.extensionSettings.newValue };
@@ -59,28 +72,26 @@ if (!window.__contextExtensionLoaded) {
       #context-sidebar {
         position: fixed;
         top: 0;
-        width: 280px;
+        width: 300px;
         height: 100vh;
-        background: #111118;
+        background: #0e0e16;
         z-index: 2147483647;
         display: flex;
         flex-direction: column;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        color: #e0e0e0;
+        color: #e0e0f0;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       #context-sidebar.pos-right {
         right: 0;
-        border-left: 1px solid #1e1e2a;
-        box-shadow: -2px 0 12px rgba(0, 0, 0, 0.3);
+        border-left: 1px solid #1e1e2e;
         transform: translateX(100%);
       }
 
       #context-sidebar.pos-left {
         left: 0;
-        border-right: 1px solid #1e1e2a;
-        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
+        border-right: 1px solid #1e1e2e;
         transform: translateX(-100%);
       }
 
@@ -88,38 +99,86 @@ if (!window.__contextExtensionLoaded) {
         transform: translateX(0) !important;
       }
 
+      /* Header */
       #context-sidebar-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 10px 12px;
-        border-bottom: 1px solid #1e1e2a;
+        padding: 14px 16px;
+        background: #0e0e16;
+        border-bottom: 1px solid #1e1e2e;
         flex-shrink: 0;
       }
 
-      #context-sidebar-header h2 {
-        font-size: 11px;
-        font-weight: 600;
-        color: #555;
-        margin: 0;
-        letter-spacing: 1px;
+      #context-sidebar-header .ctx-wordmark {
+        font-size: 13px;
+        font-weight: 500;
+        color: #e0e0f0;
+        letter-spacing: 0.01em;
       }
 
-      #context-sidebar-close {
-        background: none;
-        border: none;
-        color: #444;
-        font-size: 16px;
-        cursor: pointer;
-        padding: 2px 6px;
-        border-radius: 4px;
-        line-height: 1;
+      #context-sidebar-header .ctx-live {
+        display: flex;
+        align-items: center;
+        gap: 5px;
       }
 
-      #context-sidebar-close:hover {
-        color: #aaa;
+      #context-sidebar-header .ctx-live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #00e676;
+        animation: ctx-pulse 2s ease-in-out infinite;
       }
 
+      @keyframes ctx-pulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 4px #00e676; }
+        50% { opacity: 0.4; box-shadow: 0 0 8px #00e676; }
+      }
+
+      #context-sidebar-header .ctx-live-text {
+        font-size: 10px;
+        color: #00e676;
+        font-weight: 500;
+      }
+
+      /* Empty state */
+      #context-sidebar-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .ctx-empty-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .ctx-empty-dots span {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #3a3a5a;
+        animation: ctx-dot-pulse 1.4s ease-in-out infinite;
+      }
+
+      .ctx-empty-dots span:nth-child(2) { animation-delay: 0.2s; }
+      .ctx-empty-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+      @keyframes ctx-dot-pulse {
+        0%, 80%, 100% { opacity: 0.3; transform: scale(1); }
+        40% { opacity: 1; transform: scale(1.2); }
+      }
+
+      .ctx-empty-text {
+        font-size: 12px;
+        color: #3a3a5a;
+      }
+
+      /* Cards container */
       #context-sidebar-cards {
         flex: 1;
         overflow-y: auto;
@@ -127,7 +186,7 @@ if (!window.__contextExtensionLoaded) {
       }
 
       #context-sidebar-cards::-webkit-scrollbar {
-        width: 4px;
+        width: 3px;
       }
 
       #context-sidebar-cards::-webkit-scrollbar-track {
@@ -135,18 +194,41 @@ if (!window.__contextExtensionLoaded) {
       }
 
       #context-sidebar-cards::-webkit-scrollbar-thumb {
-        background: #222;
+        background: #1e1e2e;
         border-radius: 2px;
       }
 
-      .context-card {
-        position: relative;
-        padding: 10px 12px;
-        border-bottom: 1px solid #1e1e2a;
-        animation: context-card-in 0.25s ease-out both;
+      /* Session divider */
+      .context-session-divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
       }
 
-      @keyframes context-card-in {
+      .context-session-divider hr {
+        flex: 1;
+        border: none;
+        border-top: 1px solid #1e1e2e;
+        margin: 0;
+      }
+
+      .context-session-divider span {
+        color: #3a3a5a;
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      /* Cards */
+      .context-card {
+        position: relative;
+        padding: 13px 16px 11px 18px;
+        border-bottom: 1px solid #161620;
+        border-left: 2px solid #4a4a6a;
+        animation: ctx-card-in 0.25s ease-out both;
+      }
+
+      @keyframes ctx-card-in {
         from { opacity: 0; transform: translateY(6px); }
         to { opacity: 1; transform: translateY(0); }
       }
@@ -155,76 +237,77 @@ if (!window.__contextExtensionLoaded) {
         animation: none;
       }
 
-      .context-card .term-header {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
+      .context-card .card-type {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
         margin-bottom: 3px;
       }
 
-      .context-card .term-name {
+      .context-card .card-term {
         font-size: 13px;
-        font-weight: 700;
-        color: #ccc;
+        font-weight: 600;
+        color: #d0d0e8;
+        margin-bottom: 4px;
       }
 
-      .context-card .inline-time {
+      .context-card .card-desc {
+        font-size: 11px;
+        color: #4a4a6a;
+        line-height: 1.55;
+      }
+
+      .context-card .card-time {
         font-size: 10px;
-        color: #444;
-        flex-shrink: 0;
-        margin-left: 8px;
+        color: #2a2a3a;
+        float: right;
+        margin-top: 4px;
       }
 
-      .context-card .description {
-        font-size: 12px;
-        color: #888;
-        line-height: 1.5;
+      /* Stock cards */
+      .context-card .stock-ticker {
+        font-size: 18px;
+        font-weight: 700;
+        color: #e0e0f0;
+        margin-bottom: 1px;
       }
 
-      .context-card .stock-row {
+      .context-card .stock-company {
+        font-size: 10px;
+        color: #3a3a5a;
+        margin-bottom: 8px;
+      }
+
+      .context-card .stock-price-row {
         display: flex;
         align-items: baseline;
-        gap: 6px;
-      }
-
-      .context-card .ticker {
-        font-size: 13px;
-        font-weight: 700;
-        color: #ccc;
-      }
-
-      .context-card .company-name {
-        font-size: 11px;
-        color: #555;
+        gap: 8px;
       }
 
       .context-card .stock-price {
-        font-size: 12px;
-        color: #999;
-        margin-left: auto;
+        font-size: 16px;
+        font-weight: 600;
+        color: #e0e0f0;
       }
 
-      .context-card .change {
-        font-size: 11px;
+      .context-card .stock-change {
+        font-size: 12px;
         font-weight: 600;
       }
 
-      .context-card .change.positive {
-        color: #00c853;
-      }
+      .context-card .stock-change.positive { color: #00e676; }
+      .context-card .stock-change.negative { color: #ff5252; }
 
-      .context-card .change.negative {
-        color: #ef5350;
-      }
-
+      /* Thumbs down */
       .context-card .thumbs-down-btn {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: 10px;
+        right: 10px;
         background: none;
         border: none;
-        color: #333;
-        font-size: 11px;
+        color: #2a2a3a;
+        font-size: 10px;
         cursor: pointer;
         padding: 2px 4px;
         border-radius: 3px;
@@ -233,17 +316,12 @@ if (!window.__contextExtensionLoaded) {
         transition: opacity 0.15s, color 0.15s;
       }
 
-      .context-card:hover .thumbs-down-btn {
-        opacity: 1;
-      }
-
-      .context-card .thumbs-down-btn:hover {
-        color: #ef5350;
-      }
+      .context-card:hover .thumbs-down-btn { opacity: 1; }
+      .context-card .thumbs-down-btn:hover { color: #ff5252; }
 
       .context-card .feedback-msg {
         font-size: 11px;
-        color: #555;
+        color: #3a3a5a;
         padding: 4px 0;
         text-align: center;
       }
@@ -280,6 +358,7 @@ if (!window.__contextExtensionLoaded) {
       chrome.storage.local.set({ ignoreList: Array.from(ignoreList) });
       card.innerHTML = '<div class="feedback-msg">Thanks for the feedback</div>';
       card.classList.add('collapsed');
+      card.style.borderLeftColor = '#4a4a6a';
     });
     card.appendChild(btn);
   }
@@ -287,6 +366,8 @@ if (!window.__contextExtensionLoaded) {
   function createStockCard(entity) {
     const card = document.createElement('div');
     card.className = 'context-card';
+    const color = getTypeColor('stock');
+    card.style.borderLeftColor = color;
 
     const ticker = escapeHtml(entity.ticker || '');
     const companyName = escapeHtml(entity.companyName || entity.name || '');
@@ -299,48 +380,50 @@ if (!window.__contextExtensionLoaded) {
       const changePrefix = changeVal >= 0 ? '+' : '';
 
       card.innerHTML = `
-        <div class="stock-row">
-          <span class="ticker">${ticker}</span>
-          <span class="company-name">${companyName}</span>
+        <div class="card-type" style="color:${color}">STOCK</div>
+        <div class="stock-ticker">${ticker}</div>
+        <div class="stock-company">${companyName}</div>
+        <div class="stock-price-row">
           <span class="stock-price">$${price.toFixed(2)}</span>
-          <span class="change ${changeClass}">${changePrefix}${changeVal.toFixed(2)}</span>
-          <span class="inline-time">${timestamp}</span>
+          <span class="stock-change ${changeClass}">${changePrefix}${changeVal.toFixed(2)}</span>
         </div>
+        <span class="card-time">${timestamp}</span>
       `;
     } else {
       card.innerHTML = `
-        <div class="term-header">
-          <span class="ticker">${ticker}</span>
-          <span class="inline-time">${timestamp}</span>
-        </div>
-        <div class="description">${escapeHtml(firstSentence(entity.description || ''))}</div>
+        <div class="card-type" style="color:${color}">STOCK</div>
+        <div class="stock-ticker">${ticker}</div>
+        <div class="stock-company">${companyName}</div>
+        <div class="card-desc">${escapeHtml(firstSentence(entity.description || ''))}</div>
+        <span class="card-time">${timestamp}</span>
       `;
     }
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
     addThumbsDown(card, key);
-
     return card;
   }
 
   function createGenericCard(entity) {
     const card = document.createElement('div');
     card.className = 'context-card';
+    const type = entity.type || 'other';
+    const color = getTypeColor(type);
+    card.style.borderLeftColor = color;
 
     const timestamp = formatTime(new Date());
     const desc = firstSentence(entity.description || '');
+    const typeLabel = (type || 'OTHER').toUpperCase();
 
     card.innerHTML = `
-      <div class="term-header">
-        <span class="term-name">${escapeHtml(entity.term || entity.name || '')}</span>
-        <span class="inline-time">${timestamp}</span>
-      </div>
-      ${desc ? `<div class="description">${escapeHtml(desc)}</div>` : ''}
+      <div class="card-type" style="color:${color}">${typeLabel}</div>
+      <div class="card-term">${escapeHtml(entity.term || entity.name || '')}</div>
+      ${desc ? `<div class="card-desc">${escapeHtml(desc)}</div>` : ''}
+      <span class="card-time">${timestamp}</span>
     `;
 
     const key = (entity.term || entity.name || '').toLowerCase();
     addThumbsDown(card, key);
-
     return card;
   }
 
@@ -358,20 +441,28 @@ if (!window.__contextExtensionLoaded) {
       const header = document.createElement('div');
       header.id = 'context-sidebar-header';
       header.innerHTML = `
-        <h2>CONTEXT</h2>
-        <button id="context-sidebar-close">&times;</button>
+        <span class="ctx-wordmark">context</span>
+        <div class="ctx-live">
+          <span class="ctx-live-dot"></span>
+          <span class="ctx-live-text">Live</span>
+        </div>
+      `;
+
+      const emptyState = document.createElement('div');
+      emptyState.id = 'context-sidebar-empty';
+      emptyState.innerHTML = `
+        <div class="ctx-empty-dots"><span></span><span></span><span></span></div>
+        <div class="ctx-empty-text">Listening...</div>
       `;
 
       cardContainer = document.createElement('div');
       cardContainer.id = 'context-sidebar-cards';
+      cardContainer.style.display = 'none';
 
       sidebar.appendChild(header);
+      sidebar.appendChild(emptyState);
       sidebar.appendChild(cardContainer);
       document.body.appendChild(sidebar);
-
-      document.getElementById('context-sidebar-close').addEventListener('click', () => {
-        sidebar.classList.remove('open');
-      });
 
       console.log('[CONTENT] Sidebar created');
     } else {
@@ -380,22 +471,32 @@ if (!window.__contextExtensionLoaded) {
     return sidebar;
   }
 
+  function showCardsHideEmpty() {
+    if (hasCards) return;
+    hasCards = true;
+    const empty = document.getElementById('context-sidebar-empty');
+    const cards = document.getElementById('context-sidebar-cards');
+    if (empty) empty.style.display = 'none';
+    if (cards) cards.style.display = 'block';
+  }
+
   function renderSessionDivider(timestamp) {
     if (timestamp === lastSessionStart) return;
     lastSessionStart = timestamp;
 
-    const sidebar = ensureSidebar();
+    ensureSidebar();
+    const cardContainer = document.getElementById('context-sidebar-cards');
     const timeStr = formatTime(new Date(timestamp));
 
     const divider = document.createElement('div');
     divider.className = 'context-session-divider';
-    divider.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;';
     divider.innerHTML =
-      '<hr style="flex:1;border:none;border-top:1px solid #333;margin:0;">' +
-      '<span style="color:#666;font-size:11px;white-space:nowrap;">Session started ' + timeStr + '</span>' +
-      '<hr style="flex:1;border:none;border-top:1px solid #333;margin:0;">';
+      '<hr>' +
+      '<span>Session started ' + timeStr + '</span>' +
+      '<hr>';
 
-    sidebar.prepend(divider);
+    cardContainer.prepend(divider);
+    showCardsHideEmpty();
     console.log('[CONTENT] Session divider added:', timeStr);
   }
 
@@ -408,12 +509,10 @@ if (!window.__contextExtensionLoaded) {
 
     const now = Date.now();
 
-    // Clean expired entries from Map
     for (const [key, ts] of seenTerms) {
       if (now - ts > DEDUP_WINDOW) seenTerms.delete(key);
     }
 
-    // Filter duplicates and ignored terms
     entities = entities.filter(entity => {
       const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
       if (!key) return false;
@@ -431,7 +530,8 @@ if (!window.__contextExtensionLoaded) {
 
     if (entities.length === 0) return;
 
-    // Respect cardsPerChunk setting
+    showCardsHideEmpty();
+
     const limited = entities.slice(0, settings.cardsPerChunk);
 
     limited.forEach(entity => {
@@ -449,7 +549,7 @@ if (!window.__contextExtensionLoaded) {
     chrome.storage.local.remove('pendingEntities');
   }
 
-  // Listen for future updates (no activeTabId check — render whenever pendingEntities exists)
+  // Listen for future updates
   chrome.storage.onChanged.addListener((changes) => {
     console.log('[CONTENT] storage changed:', JSON.stringify(changes));
     if (changes.sessionStart && changes.sessionStart.newValue) {
@@ -461,7 +561,7 @@ if (!window.__contextExtensionLoaded) {
     }
   });
 
-  // Check for pending entities on load (no activeTabId check)
+  // Check for pending entities on load
   chrome.storage.local.get(['pendingEntities', 'sessionStart'], (data) => {
     if (data.sessionStart) {
       renderSessionDivider(data.sessionStart);
@@ -472,7 +572,7 @@ if (!window.__contextExtensionLoaded) {
     }
   });
 
-  // Polling fallback: every 2 seconds, check for pendingEntities and render if found
+  // Polling fallback
   setInterval(() => {
     chrome.storage.local.get(['pendingEntities'], (data) => {
       if (data.pendingEntities && data.pendingEntities.length > 0) {

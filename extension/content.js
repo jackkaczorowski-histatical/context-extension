@@ -122,18 +122,20 @@ if (!window.__contextExtensionLoaded) {
       align-items: center; justify-content: center; gap: 12px;
       background: #0e0e16;
     }
-    .ctx-empty-dots { display: flex; gap: 6px; }
-    .ctx-empty-dots span {
-      width: 5px; height: 5px; border-radius: 50%; background: #3a3a5a;
-      animation: ctx-dot-pulse 1.4s ease-in-out infinite;
+    .ctx-waveform { display: flex; align-items: center; gap: 3px; height: 24px; }
+    .ctx-waveform span {
+      width: 2px; background: #3a3a5a; border-radius: 1px;
+      animation: ctx-wave 1.2s ease-in-out infinite;
     }
-    .ctx-empty-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .ctx-empty-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes ctx-dot-pulse {
-      0%, 80%, 100% { opacity: 0.3; transform: scale(1); }
-      40% { opacity: 1; transform: scale(1.2); }
+    .ctx-waveform span:nth-child(1) { animation-duration: 1.0s; }
+    .ctx-waveform span:nth-child(2) { animation-duration: 0.8s; animation-delay: 0.15s; }
+    .ctx-waveform span:nth-child(3) { animation-duration: 1.1s; animation-delay: 0.3s; }
+    .ctx-waveform span:nth-child(4) { animation-duration: 0.9s; animation-delay: 0.45s; }
+    @keyframes ctx-wave {
+      0%, 100% { height: 8px; }
+      50% { height: 20px; }
     }
-    .ctx-empty-text { font-size: 12px; color: #3a3a5a; }
+    .ctx-empty-text { font-size: 11px; color: #3a3a5a; }
     #cards {
       flex: 1; overflow-y: auto; padding: 0; background: #0e0e16; display: none;
     }
@@ -376,8 +378,8 @@ if (!window.__contextExtensionLoaded) {
     const emptyState = document.createElement('div');
     emptyState.id = 'empty-state';
     emptyState.innerHTML = `
-      <div class="ctx-empty-dots"><span></span><span></span><span></span></div>
-      <div class="ctx-empty-text">Listening...</div>
+      <div class="ctx-waveform"><span></span><span></span><span></span><span></span></div>
+      <div class="ctx-empty-text">Listening for context...</div>
     `;
 
     // Cards container

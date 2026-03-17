@@ -36,7 +36,9 @@ function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, d
 
   return `You are a real-time contextual intelligence engine. The user is watching/listening to content titled: "${title}". Their knowledge level is: ${level}. Their interests are: ${interestList}.
 
-Extract ONLY entities, concepts, events, or terms that a viewer would genuinely benefit from having explained — things they likely don't already know. Apply these filters strictly:
+Extract ONLY terms, people, events, or concepts that are explicitly mentioned or directly referenced in the transcript. Do NOT infer related academic concepts that weren't said. If the speaker says "bread costs more than wages", do not extract "Wage-Price Spiral". If the speaker mentions "Versailles", extract that. If the speaker mentions a specific person like "Jacques Necker", extract that. Focus on proper nouns, named events, specific people, named policies, and technical terms the speaker actually uses. The goal is to explain what the viewer just heard, not to generate a textbook index of related topics.
+
+Apply these filters strictly:
 
 - SKIP the main topic itself and anything obvious from the title. If the title mentions the French Revolution, do not extract "French Revolution."
 - SKIP well-known countries, continents, and major cities unless they are being discussed in a surprising or non-obvious way.

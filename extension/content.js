@@ -130,9 +130,7 @@ if (!window.__contextExtensionLoaded) {
   function firstSentence(str) {
     if (!str) return '';
     const idx = str.indexOf('.');
-    let result = idx === -1 ? str : str.slice(0, idx + 1);
-    if (result.length > 120) result = result.slice(0, 117) + '...';
-    return result;
+    return idx === -1 ? str : str.slice(0, idx + 1);
   }
 
   const SHADOW_CSS = `
@@ -225,7 +223,7 @@ if (!window.__contextExtensionLoaded) {
       position: relative; padding: 8px 16px 8px 18px;
       border-bottom: 1px solid rgba(255,255,255,0.03); border-left: 2px solid #4a4a6a;
       background: #181828; animation: ctx-card-in 0.25s ease-out both;
-      cursor: pointer; user-select: none;
+      cursor: pointer; user-select: none; overflow: hidden;
     }
     .context-card:hover { background: #1e1e32; }
     @keyframes ctx-card-in {
@@ -239,11 +237,13 @@ if (!window.__contextExtensionLoaded) {
     .card-type {
       font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
       text-transform: uppercase; flex-shrink: 0;
+      word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;
     }
     .card-term {
       font-size: 13px; font-weight: 600; color: #e8e8f8;
       flex: 1; min-width: 0; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap;
+      word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;
     }
     .card-time { font-size: 10px; color: #4a4a5a; flex-shrink: 0; }
     .card-seen { font-size: 9px; color: #4a4a5a; flex-shrink: 0; }
@@ -257,7 +257,7 @@ if (!window.__contextExtensionLoaded) {
     .context-card.expanded .card-chevron { transform: rotate(90deg); }
     .card-expand-area { display: none; padding-top: 6px; }
     .context-card.expanded .card-expand-area { display: block; }
-    .card-desc { font-size: 11px; color: #9a9ab0; line-height: 1.55; }
+    .card-desc { font-size: 11px; color: #9a9ab0; line-height: 1.55; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
     .card-source { font-size: 9px; color: #3a3a5a; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: #3a3a5a; margin-top: 4px; }
     .card-desc-loading::after {
@@ -273,7 +273,7 @@ if (!window.__contextExtensionLoaded) {
       background: #0f1a14; box-shadow: inset 2px 0 8px rgba(0, 230, 118, 0.15);
     }
     .context-card.stock-card:hover { background: #112218; }
-    .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; }
+    .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
     .stock-company { font-size: 10px; color: #3a3a5a; margin-bottom: 8px; }
     .stock-price-row { display: flex; align-items: baseline; gap: 8px; }
     .stock-price { font-size: 16px; font-weight: 600; color: #e0e0f0; }

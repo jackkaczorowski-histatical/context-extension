@@ -255,6 +255,7 @@ if (!window.__contextExtensionLoaded) {
     .card-expand-area { display: none; padding-top: 6px; }
     .context-card.expanded .card-expand-area { display: block; }
     .card-desc { font-size: 11px; color: #6a6a8a; line-height: 1.55; }
+    .card-source { font-size: 9px; color: #3a3a5a; margin-top: 4px; font-style: italic; }
     .card-desc-loading::after {
       content: ''; display: inline-block; width: 4px; height: 4px;
       background: #6a6a8a; border-radius: 50%;
@@ -342,6 +343,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-seen { color: #b0b0c0; }
     .light-theme .card-chevron { color: #b0b0c0; }
     .light-theme .card-desc { color: #6a6a8a; }
+    .light-theme .card-source { color: #b0b0c0; }
     .light-theme .stock-ticker { color: #1a1a2e; }
     .light-theme .stock-company { color: #8a8aa0; }
     .light-theme .stock-price { color: #1a1a2e; }
@@ -640,6 +642,7 @@ if (!window.__contextExtensionLoaded) {
       </div>
       <div class="card-expand-area">
         <div class="card-desc"></div>
+        ${entity._kbSource ? '<div class="card-source">Also came up in: ' + escapeHtml(entity._kbSource) + '</div>' : ''}
         <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
       </div>
     `;
@@ -872,8 +875,9 @@ if (!window.__contextExtensionLoaded) {
     if (entities.length === 0) return;
 
     // Check knowledge base for seen-before terms
-    chrome.storage.local.get('knowledgeBase', (kbData) => {
+    chrome.storage.local.get(['knowledgeBase', 'capturingTabTitle'], (kbData) => {
       const kb = kbData.knowledgeBase || {};
+      const currentTitle = kbData.capturingTabTitle || document.title || '';
 
       // Filter out terms seen 3+ times, annotate 1-2 times
       entities = entities.filter(entity => {
@@ -883,7 +887,12 @@ if (!window.__contextExtensionLoaded) {
           console.log('[CONTENT] KB skip (seen', entry.timesSeen, 'times):', term);
           return false;
         }
-        if (entry) entity._kbSeen = true;
+        if (entry) {
+          entity._kbSeen = true;
+          if (entry.source && entry.source !== currentTitle) {
+            entity._kbSource = entry.source;
+          }
+        }
         return true;
       });
 

@@ -40,7 +40,9 @@ Extract 2-5 terms from this transcript that would help the viewer understand wha
 
 Always extract something if the narrator is discussing substantive content. Only return an empty array if the transcript is filler like "let's move on" or "as I was saying." The viewer wants to learn. Give them things to tap on.
 
-Do NOT infer related academic concepts that weren't said — only extract what the speaker actually mentions. SKIP the main topic itself if it's obvious from the title. For expert users, lean toward more obscure or specialist terms. For beginners, cast a wider net.
+CRITICAL: Only extract terms that are explicitly stated or directly referenced in THIS transcript chunk. Do not infer related concepts that weren't mentioned. If the narrator discusses tax farming, extract "tax farming". Do not also extract "assignats" just because they're related to the French Revolution. Each extracted term must be traceable to specific words in the transcript. However, you should still aim for 2-5 extractions per chunk when the content is substantive.
+
+SKIP the main topic itself if it's obvious from the title. For expert users, lean toward more obscure or specialist terms. For beginners, cast a wider net.
 
 For each entity, include a relevance score: 3 = most people wouldn't know this, 2 = moderately well-known, 1 = common knowledge. ${relevanceFilter}
 

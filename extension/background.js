@@ -10,6 +10,37 @@ let bufferTimer = null;
 let sessionEntities = [];
 let sessionTranscript = '';
 let isPaused = false;
+let usageTimer = null;
+
+function getUsageKey() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `usage_${yyyy}-${mm}-${dd}`;
+}
+
+async function incrementUsage(field, amount = 1) {
+  const key = getUsageKey();
+  const data = await chrome.storage.local.get(key);
+  const usage = data[key] || { minutes: 0, transcripts: 0, entities: 0, contextFetches: 0 };
+  usage[field] = (usage[field] || 0) + amount;
+  await chrome.storage.local.set({ [key]: usage });
+}
+
+function startUsageTimer() {
+  if (usageTimer) return;
+  usageTimer = setInterval(() => {
+    if (!isPaused) incrementUsage('minutes');
+  }, 60000);
+}
+
+function stopUsageTimer() {
+  if (usageTimer) {
+    clearInterval(usageTimer);
+    usageTimer = null;
+  }
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
@@ -52,6 +83,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       clearTimeout(bufferTimer);
       bufferTimer = null;
     }
+  } else if (message.type === 'CONTEXT_FETCH') {
+    incrementUsage('contextFetches');
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
@@ -80,6 +113,7 @@ function flushTranscriptBuffer() {
 }
 
 async function startCapture() {
+  startUsageTimer();
   try {
     // Close any existing offscreen document before proceeding
     try {
@@ -180,6 +214,7 @@ async function stopCapture() {
   sessionEntities = [];
   sessionTranscript = '';
   isPaused = false;
+  stopUsageTimer();
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false, sessionHistory: [] });
   console.log('[BACKGROUND] Capture stopped');
@@ -195,6 +230,7 @@ async function processNextTranscript() {
   isProcessing = true;
   const transcript = transcriptQueue.shift();
   console.log('[BACKGROUND] Processing transcript:', transcript);
+  incrementUsage('transcripts');
 
   try {
     // Fetch user profile and engagement history for analyze request
@@ -292,6 +328,7 @@ async function processNextTranscript() {
     const history = histData.sessionHistory || [];
     history.push(...newHistoryEntries);
     await chrome.storage.local.set({ sessionHistory: history });
+    incrementUsage('entities', enrichedEntities.length);
     console.log('[BACKGROUND] Saved pendingEntities to storage, session total:', sessionEntities.length);
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);

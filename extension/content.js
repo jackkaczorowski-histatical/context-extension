@@ -651,6 +651,7 @@ if (!window.__contextExtensionLoaded) {
         descEl.classList.add('card-desc-loading');
 
         chrome.storage.local.get('userProfile', (data) => {
+          if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH' });
           fetch('https://context-extension-zv8d.vercel.app/api/context', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

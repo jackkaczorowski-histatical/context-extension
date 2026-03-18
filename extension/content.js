@@ -732,4 +732,54 @@ if (!window.__contextExtensionLoaded) {
       clearInterval(pollId);
     }
   }, 2000);
+
+  // --- YouTube auto-capture ---
+  if (window.location.hostname.includes('youtube.com') && window.location.pathname === '/watch') {
+    let ytAutoCapturing = false;
+
+    function attachVideoListeners(video) {
+      if (video.dataset.ctxAttached) return;
+      video.dataset.ctxAttached = 'true';
+      console.log('[CONTENT] YouTube video element found, attaching listeners');
+
+      video.addEventListener('play', () => {
+        if (ytAutoCapturing) return;
+        if (!chrome.runtime?.id) return;
+        ytAutoCapturing = true;
+        console.log('[CONTENT] YouTube video playing, auto-starting capture');
+        chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
+        chrome.storage.local.set({ capturing: true });
+      });
+
+      video.addEventListener('pause', () => {
+        if (!ytAutoCapturing) return;
+        if (!chrome.runtime?.id) return;
+        ytAutoCapturing = false;
+        console.log('[CONTENT] YouTube video paused, auto-stopping capture');
+        chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
+        chrome.storage.local.set({ capturing: false });
+      });
+
+      // If video is already playing when we attach
+      if (!video.paused && !ytAutoCapturing) {
+        ytAutoCapturing = true;
+        console.log('[CONTENT] YouTube video already playing, auto-starting capture');
+        chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
+        chrome.storage.local.set({ capturing: true });
+      }
+    }
+
+    // Try to find the video element immediately
+    const existingVideo = document.querySelector('video');
+    if (existingVideo) {
+      attachVideoListeners(existingVideo);
+    }
+
+    // Observe for dynamically added video elements
+    const ytObserver = new MutationObserver(() => {
+      const video = document.querySelector('video');
+      if (video) attachVideoListeners(video);
+    });
+    ytObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
 }

@@ -101,6 +101,12 @@ function initMainPopup() {
     }
   });
 
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.capturing) {
+      setActiveState(!!changes.capturing.newValue);
+    }
+  });
+
   toggleBtn.addEventListener('click', () => {
     isActive = !isActive;
     setActiveState(isActive);

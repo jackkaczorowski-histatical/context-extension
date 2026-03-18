@@ -87,12 +87,23 @@ function initMainPopup() {
   });
 
   toggleBtn.addEventListener('click', () => {
-    isActive = !isActive;
-    setActiveState(isActive);
-
-    const message = isActive ? 'START_CAPTURE' : 'STOP_CAPTURE';
-    chrome.runtime.sendMessage({ type: message });
-    chrome.storage.local.set({ capturing: isActive });
+    if (!isActive) {
+      // Starting: check if already capturing before sending
+      chrome.storage.local.get('capturing', (data) => {
+        if (data.capturing) {
+          setActiveState(true);
+        } else {
+          setActiveState(true);
+          chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
+          chrome.storage.local.set({ capturing: true });
+        }
+      });
+    } else {
+      // Stopping: always send
+      setActiveState(false);
+      chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
+      chrome.storage.local.set({ capturing: false });
+    }
   });
 
   function setActiveState(active) {

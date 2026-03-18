@@ -119,6 +119,10 @@ function flushTranscriptBuffer() {
 }
 
 async function startCapture() {
+  if (capturingTabId !== null) {
+    console.log('[BACKGROUND] Already capturing, ignoring duplicate START_CAPTURE');
+    return;
+  }
   startUsageTimer();
   try {
     // Close any existing offscreen document before proceeding

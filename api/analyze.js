@@ -53,13 +53,15 @@ ${depthInstruction}
 
 For stocks/companies use type "stock" with the ticker symbol. For other entities use appropriate types: "concept", "event", "person", "organization", "commodity".
 
+For each entity, also include a field called "salience" with value "highlight" or "background". A highlight is something the narrator is specifically introducing, explaining, or emphasizing, something the viewer would naturally wonder about. A background entity is something mentioned casually that provides setting or context but isn't the focus. Examples: narrator says "the gabelle, a salt tax that crushed the poor" = highlight. Narrator says "while Britain developed a bond market" = background for Britain, highlight for bond market.
+
 The user's engagement history shows they prefer these entity types: ${formatCounts(tasteProfile?.liked)}. They tend to dismiss: ${formatCounts(tasteProfile?.ignored)}. Weight your extraction toward the types they engage with.
 
 ${previousEntities && previousEntities.length > 0 ? `These terms have already been shown this session: ${previousEntities.join(", ")}. Do not extract these again or close variations. Go deeper with new specific details instead of repeating the same layer.` : ""}
 
 ${sessionContext ? `Here is the full transcript of what has been said so far in this video: ${sessionContext}. Use this to understand the narrative arc and what the viewer has already heard. Extract only new terms that add to the viewer's understanding given everything discussed so far. Don't extract things that were already explained by the narrator.` : ""}
 
-Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
+Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null, "salience": "highlight" }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
 }
 
 module.exports = async function handler(req, res) {

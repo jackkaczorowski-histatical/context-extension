@@ -636,34 +636,57 @@ if (!window.__contextExtensionLoaded) {
 
     if (entities.length === 0) return;
 
-    showCardsHideEmpty();
+    // Split into highlights (shown in sidebar) and background (recap only)
+    const highlights = entities.filter(e => e.salience !== 'background');
+    const background = entities.filter(e => e.salience === 'background');
 
-    // Hide listening indicator and reset timer
-    if (shadowRoot) {
-      const li = shadowRoot.getElementById('listening-indicator');
-      if (li) li.classList.remove('visible');
+    // Store background entities in sessionHistory only
+    if (background.length > 0) {
+      chrome.storage.local.get('sessionHistory', (hData) => {
+        const history = hData.sessionHistory || [];
+        background.forEach(e => {
+          const term = e.term || e.name || '';
+          if (term) history.push({ term, type: e.type || 'other', timestamp: Date.now(), description: '', salience: 'background' });
+        });
+        chrome.storage.local.set({ sessionHistory: history });
+      });
+      termCount += background.length;
+      console.log('[CONTENT] Stored', background.length, 'background entities for recap');
     }
-    if (listeningTimer) clearTimeout(listeningTimer);
-    listeningTimer = setTimeout(() => {
-      if (shadowRoot && hasCards) {
+
+    if (highlights.length > 0) {
+      showCardsHideEmpty();
+
+      // Hide listening indicator and reset timer
+      if (shadowRoot) {
         const li = shadowRoot.getElementById('listening-indicator');
-        if (li) li.classList.add('visible');
+        if (li) li.classList.remove('visible');
       }
-    }, 20000);
+      if (listeningTimer) clearTimeout(listeningTimer);
+      listeningTimer = setTimeout(() => {
+        if (shadowRoot && hasCards) {
+          const li = shadowRoot.getElementById('listening-indicator');
+          if (li) li.classList.add('visible');
+        }
+      }, 20000);
 
-    const limited = entities.slice(0, settings.cardsPerChunk);
+      const limited = highlights.slice(0, settings.cardsPerChunk);
 
-    limited.forEach(entity => {
-      const card = entity.type === 'stock'
-        ? createStockCard(entity)
-        : createGenericCard(entity);
+      limited.forEach(entity => {
+        const card = entity.type === 'stock'
+          ? createStockCard(entity)
+          : createGenericCard(entity);
 
-      cards.prepend(card);
-      termCount++;
-      console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
-    });
+        cards.prepend(card);
+        termCount++;
+        console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
+      });
 
-    updateBadge(limited.length);
+      updateBadge(limited.length);
+    } else {
+      // Still update badge count for background entities but don't pulse
+      updateBadge(0);
+    }
 
     chrome.storage.local.remove('pendingEntities');
   }

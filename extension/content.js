@@ -756,78 +756,106 @@ if (!window.__contextExtensionLoaded) {
     }
   }, 2000);
 
-  // --- YouTube auto-capture ---
-  if (window.location.hostname.includes('youtube.com') && window.location.pathname === '/watch') {
-    let ytAutoCapturing = false;
+  // --- Auto-capture: detect playing media on any site ---
+  const isYouTube = window.location.hostname.includes('youtube.com') && window.location.pathname === '/watch';
+  let autoCapturing = false;
+  let autoPaused = false;
+  let autoStartDebounce = null;
 
-    let ytPaused = false;
+  function isLongMedia(el) {
+    return el.duration && el.duration > 60;
+  }
 
-    function attachVideoListeners(video) {
-      if (video.dataset.ctxAttached) return;
-      video.dataset.ctxAttached = 'true';
-      console.log('[CONTENT] YouTube video element found, attaching listeners');
+  function anyMediaPlaying() {
+    const els = document.querySelectorAll('video, audio');
+    for (const el of els) {
+      if (!el.paused && !el.ended && el.dataset.ctxAttached && isLongMedia(el)) return true;
+    }
+    return false;
+  }
 
-      video.addEventListener('play', () => {
-        if (!chrome.runtime?.id) return;
-        if (!ytAutoCapturing) {
-          ytAutoCapturing = true;
-          ytPaused = false;
-          console.log('[CONTENT] YouTube video playing, auto-starting capture');
-          chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
-          chrome.storage.local.set({ capturing: true });
-        } else if (ytPaused) {
-          ytPaused = false;
-          console.log('[CONTENT] YouTube video resumed, resuming capture');
-          chrome.runtime.sendMessage({ type: 'RESUME_CAPTURE' });
-        }
-      });
+  function handleMediaPlay(el) {
+    if (!chrome.runtime?.id) return;
+    if (!isLongMedia(el)) {
+      console.log('[CONTENT] Ignoring short media element, duration:', el.duration);
+      return;
+    }
 
-      video.addEventListener('pause', () => {
-        if (!ytAutoCapturing || ytPaused) return;
-        if (!chrome.runtime?.id) return;
-        ytPaused = true;
-        console.log('[CONTENT] YouTube video paused');
-        chrome.runtime.sendMessage({ type: 'PAUSE_CAPTURE' });
-      });
-
-      video.addEventListener('ended', () => {
-        if (!ytAutoCapturing) return;
-        if (!chrome.runtime?.id) return;
-        ytAutoCapturing = false;
-        ytPaused = false;
-        console.log('[CONTENT] YouTube video ended, stopping capture');
-        chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
-        chrome.storage.local.set({ capturing: false });
-      });
-
-      video.addEventListener('seeked', () => {
-        if (!ytAutoCapturing) return;
-        if (!chrome.runtime?.id) return;
-        console.log('[CONTENT] YouTube video seeked, clearing buffer');
-        chrome.runtime.sendMessage({ type: 'SEEK_DETECTED' });
-      });
-
-      // If video is already playing when we attach
-      if (!video.paused && !ytAutoCapturing) {
-        ytAutoCapturing = true;
-        ytPaused = false;
-        console.log('[CONTENT] YouTube video already playing, auto-starting capture');
+    if (!autoCapturing) {
+      // Debounce to avoid ads
+      if (autoStartDebounce) clearTimeout(autoStartDebounce);
+      autoStartDebounce = setTimeout(() => {
+        autoStartDebounce = null;
+        // Re-check the element is still playing and long enough
+        if (el.paused || el.ended || !isLongMedia(el)) return;
+        if (autoCapturing) return;
+        autoCapturing = true;
+        autoPaused = false;
+        console.log('[CONTENT] Media playing, auto-starting capture');
         chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
         chrome.storage.local.set({ capturing: true });
-      }
+      }, 2000);
+    } else if (autoPaused) {
+      autoPaused = false;
+      console.log('[CONTENT] Media resumed');
+      chrome.runtime.sendMessage({ type: 'RESUME_CAPTURE' });
     }
-
-    // Try to find the video element immediately
-    const existingVideo = document.querySelector('video');
-    if (existingVideo) {
-      attachVideoListeners(existingVideo);
-    }
-
-    // Observe for dynamically added video elements
-    const ytObserver = new MutationObserver(() => {
-      const video = document.querySelector('video');
-      if (video) attachVideoListeners(video);
-    });
-    ytObserver.observe(document.documentElement, { childList: true, subtree: true });
   }
+
+  function handleMediaPause() {
+    if (!autoCapturing || autoPaused) return;
+    if (!chrome.runtime?.id) return;
+    // Check if any other tracked media is still playing
+    if (anyMediaPlaying()) return;
+    autoPaused = true;
+    console.log('[CONTENT] All media paused');
+    chrome.runtime.sendMessage({ type: 'PAUSE_CAPTURE' });
+  }
+
+  function handleMediaEnded() {
+    if (!chrome.runtime?.id) return;
+    // Check if any other tracked media is still playing
+    if (anyMediaPlaying()) return;
+    if (!autoCapturing) return;
+    autoCapturing = false;
+    autoPaused = false;
+    console.log('[CONTENT] All media ended, stopping capture');
+    chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
+    chrome.storage.local.set({ capturing: false });
+  }
+
+  function attachMediaListeners(el) {
+    if (el.dataset.ctxAttached) return;
+    el.dataset.ctxAttached = 'true';
+    const tag = el.tagName.toLowerCase();
+    console.log('[CONTENT] Attaching listeners to', tag, 'element');
+
+    el.addEventListener('play', () => handleMediaPlay(el));
+    el.addEventListener('pause', () => handleMediaPause());
+    el.addEventListener('ended', () => handleMediaEnded());
+
+    // YouTube-specific: seek detection
+    if (isYouTube) {
+      el.addEventListener('seeked', () => {
+        if (!autoCapturing) return;
+        if (!chrome.runtime?.id) return;
+        console.log('[CONTENT] Media seeked, clearing buffer');
+        chrome.runtime.sendMessage({ type: 'SEEK_DETECTED' });
+      });
+    }
+
+    // If already playing when we attach
+    if (!el.paused && !el.ended) {
+      handleMediaPlay(el);
+    }
+  }
+
+  // Attach to existing media elements
+  document.querySelectorAll('video, audio').forEach(el => attachMediaListeners(el));
+
+  // Observe for dynamically added media elements
+  const mediaObserver = new MutationObserver(() => {
+    document.querySelectorAll('video, audio').forEach(el => attachMediaListeners(el));
+  });
+  mediaObserver.observe(document.documentElement, { childList: true, subtree: true });
 }

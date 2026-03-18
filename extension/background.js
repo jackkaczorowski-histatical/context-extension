@@ -12,6 +12,7 @@ let sessionTranscript = '';
 let isPaused = false;
 let usageTimer = null;
 let lastTranscriptSave = 0;
+let bufferStartTime = 0;
 
 function getUsageKey() {
   const d = new Date();
@@ -89,6 +90,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
+    if (!transcriptBuffer) bufferStartTime = Date.now();
     transcriptBuffer += (transcriptBuffer ? ' ' : '') + message.transcript;
     sessionTranscript += (sessionTranscript ? ' ' : '') + message.transcript;
     const now = Date.now();
@@ -110,7 +112,15 @@ function flushTranscriptBuffer() {
     bufferTimer = null;
   }
   const text = transcriptBuffer.trim();
+  if (text.length > 0 && text.length < 80 && Date.now() - bufferStartTime < 20000) {
+    console.log('[BACKGROUND] Buffer too short (' + text.length + ' chars), deferring flush');
+    bufferTimer = setTimeout(() => {
+      flushTranscriptBuffer();
+    }, 5000);
+    return;
+  }
   transcriptBuffer = '';
+  bufferStartTime = 0;
   if (text.length > 0) {
     console.log('[BACKGROUND] Flushing buffer:', text.length, 'chars');
     transcriptQueue.push(text);

@@ -190,6 +190,10 @@ if (!window.__contextExtensionLoaded) {
       0%, 100% { opacity: 0.3; }
       50% { opacity: 1; }
     }
+    .context-card.stock-card {
+      background: #0f1a14; box-shadow: inset 2px 0 8px rgba(0, 230, 118, 0.15);
+    }
+    .context-card.stock-card:hover { background: #112218; }
     .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; }
     .stock-company { font-size: 10px; color: #3a3a5a; margin-bottom: 8px; }
     .stock-price-row { display: flex; align-items: baseline; gap: 8px; }
@@ -295,7 +299,7 @@ if (!window.__contextExtensionLoaded) {
 
   function createStockCard(entity) {
     const card = document.createElement('div');
-    card.className = 'context-card';
+    card.className = 'context-card stock-card expanded';
     const color = getTypeColor('stock');
     card.style.borderLeftColor = color;
 
@@ -303,31 +307,40 @@ if (!window.__contextExtensionLoaded) {
     const companyName = escapeHtml(entity.companyName || entity.name || '');
     const timestamp = formatTime(new Date());
 
+    let expandContent;
     if (entity.price != null && entity.price !== '') {
       const price = parseFloat(entity.price);
       const changeVal = parseFloat(entity.change) || 0;
       const changeClass = changeVal >= 0 ? 'positive' : 'negative';
       const changePrefix = changeVal >= 0 ? '+' : '';
-
-      card.innerHTML = `
-        <div class="card-type" style="color:${color}">STOCK</div>
-        <div class="stock-ticker">${ticker}</div>
+      expandContent = `
         <div class="stock-company">${companyName}</div>
         <div class="stock-price-row">
           <span class="stock-price">$${price.toFixed(2)}</span>
           <span class="stock-change ${changeClass}">${changePrefix}${changeVal.toFixed(2)}</span>
         </div>
-        <span class="card-time">${timestamp}</span>
       `;
     } else {
-      card.innerHTML = `
-        <div class="card-type" style="color:${color}">STOCK</div>
-        <div class="stock-ticker">${ticker}</div>
+      expandContent = `
         <div class="stock-company">${companyName}</div>
-        <div class="card-desc">${escapeHtml(firstSentence(entity.description || ''))}</div>
-        <span class="card-time">${timestamp}</span>
+        ${entity.description ? `<div class="card-desc">${escapeHtml(firstSentence(entity.description))}</div>` : ''}
       `;
     }
+
+    card.innerHTML = `
+      <div class="card-row">
+        <span class="card-type" style="color:${color}">STOCK</span>
+        <span class="card-term">${ticker}</span>
+        <span class="card-time">${timestamp}</span>
+        <span class="card-chevron">&#x203A;</span>
+      </div>
+      <div class="card-expand-area">${expandContent}</div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.card-actions') || e.target.closest('a')) return;
+      card.classList.toggle('expanded');
+    });
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
     addCardButtons(card, key, entity);

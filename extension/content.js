@@ -319,6 +319,21 @@ if (!window.__contextExtensionLoaded) {
       100% { box-shadow: none; }
     }
 
+    /* ─── Preview card ─── */
+    .ctx-preview-card {
+      display: none; padding: 10px 16px; background: #12121f;
+      border-left: 2px solid #5a5aff; border-bottom: 1px solid rgba(255,255,255,0.03);
+      flex-shrink: 0;
+    }
+    .ctx-preview-card.visible { display: block; }
+    .ctx-preview-title {
+      font-size: 10px; font-weight: 600; color: #7070ff;
+      margin-bottom: 6px;
+    }
+    .ctx-preview-term {
+      font-size: 10px; color: #5a5a7a; line-height: 1.6;
+    }
+
     /* ─── Ask bar ─── */
     .ctx-ask-bar {
       flex-shrink: 0; padding: 10px 12px; background: #0a0a12;
@@ -394,6 +409,9 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-wiki-link { color: #8a8aa0; }
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
     .light-theme .feedback-msg { color: #9a9ab0; }
+    .light-theme .ctx-preview-card { background: #f0f0fa; }
+    .light-theme .ctx-preview-title { color: #5a5adf; }
+    .light-theme .ctx-preview-term { color: #8a8aa0; }
     .light-theme .ctx-ask-bar { background: #f0f0f5; border-top-color: rgba(0,0,0,0.06); }
     .light-theme .ctx-ask-input { background: #ffffff; border-color: rgba(0,0,0,0.1); color: #1a1a2e; }
     .light-theme .ctx-ask-input::placeholder { color: #b0b0c0; }
@@ -860,9 +878,37 @@ if (!window.__contextExtensionLoaded) {
     listeningIndicator.id = 'listening-indicator';
     listeningIndicator.innerHTML = '<span class="li-dot"></span><span class="li-text">Listening for new terms...</span>';
 
+    // Preview card (knowledge base match)
+    const previewCard = document.createElement('div');
+    previewCard.className = 'ctx-preview-card';
+
     // Cards container
     const cardContainer = document.createElement('div');
     cardContainer.id = 'cards';
+
+    // Check knowledgeBase for terms related to page title
+    chrome.storage.local.get('knowledgeBase', (kbData) => {
+      const kb = kbData.knowledgeBase || {};
+      const entries = Object.values(kb);
+      if (entries.length === 0) return;
+
+      const title = document.title.toLowerCase();
+      const matches = entries.filter(e => {
+        const term = (e.term || '').toLowerCase();
+        return term.length >= 3 && title.includes(term);
+      });
+
+      if (matches.length >= 2) {
+        const shown = matches.slice(0, 3);
+        let html = '<div class="ctx-preview-title">You\'ve explored related topics before</div>';
+        shown.forEach(m => {
+          const source = m.source ? ' (from ' + escapeHtml(m.source) + ')' : '';
+          html += '<div class="ctx-preview-term">' + escapeHtml(m.term) + source + '</div>';
+        });
+        previewCard.innerHTML = html;
+        previewCard.classList.add('visible');
+      }
+    });
 
     // Ask response area
     const askResponse = document.createElement('div');
@@ -922,6 +968,7 @@ if (!window.__contextExtensionLoaded) {
     sidebar.appendChild(header);
     sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
+    sidebar.appendChild(previewCard);
     sidebar.appendChild(emptyState);
     sidebar.appendChild(cardContainer);
     sidebar.appendChild(askResponse);

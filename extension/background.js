@@ -9,6 +9,7 @@ let transcriptBuffer = '';
 let bufferTimer = null;
 let sessionEntities = [];
 let sessionTranscript = '';
+let isPaused = false;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
@@ -29,7 +30,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       pendingStreamId = null;
     }
+  } else if (message.type === 'PAUSE_CAPTURE') {
+    console.log('[BACKGROUND] Capture paused');
+    isPaused = true;
+    if (bufferTimer) {
+      clearTimeout(bufferTimer);
+      bufferTimer = null;
+    }
+  } else if (message.type === 'RESUME_CAPTURE') {
+    console.log('[BACKGROUND] Capture resumed');
+    isPaused = false;
+    if (transcriptBuffer.trim().length > 0 && !bufferTimer) {
+      bufferTimer = setTimeout(() => {
+        flushTranscriptBuffer();
+      }, 12000);
+    }
+  } else if (message.type === 'SEEK_DETECTED') {
+    console.log('[BACKGROUND] Seek detected, clearing transcript buffer');
+    transcriptBuffer = '';
+    if (bufferTimer) {
+      clearTimeout(bufferTimer);
+      bufferTimer = null;
+    }
   } else if (message.type === 'TRANSCRIPT') {
+    if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
     transcriptBuffer += (transcriptBuffer ? ' ' : '') + message.transcript;
     sessionTranscript += (sessionTranscript ? ' ' : '') + message.transcript;
@@ -155,6 +179,7 @@ async function stopCapture() {
   pendingStreamId = null;
   sessionEntities = [];
   sessionTranscript = '';
+  isPaused = false;
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false, sessionHistory: [] });
   console.log('[BACKGROUND] Capture stopped');

@@ -737,32 +737,57 @@ if (!window.__contextExtensionLoaded) {
   if (window.location.hostname.includes('youtube.com') && window.location.pathname === '/watch') {
     let ytAutoCapturing = false;
 
+    let ytPaused = false;
+
     function attachVideoListeners(video) {
       if (video.dataset.ctxAttached) return;
       video.dataset.ctxAttached = 'true';
       console.log('[CONTENT] YouTube video element found, attaching listeners');
 
       video.addEventListener('play', () => {
-        if (ytAutoCapturing) return;
         if (!chrome.runtime?.id) return;
-        ytAutoCapturing = true;
-        console.log('[CONTENT] YouTube video playing, auto-starting capture');
-        chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
-        chrome.storage.local.set({ capturing: true });
+        if (!ytAutoCapturing) {
+          ytAutoCapturing = true;
+          ytPaused = false;
+          console.log('[CONTENT] YouTube video playing, auto-starting capture');
+          chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
+          chrome.storage.local.set({ capturing: true });
+        } else if (ytPaused) {
+          ytPaused = false;
+          console.log('[CONTENT] YouTube video resumed, resuming capture');
+          chrome.runtime.sendMessage({ type: 'RESUME_CAPTURE' });
+        }
       });
 
       video.addEventListener('pause', () => {
+        if (!ytAutoCapturing || ytPaused) return;
+        if (!chrome.runtime?.id) return;
+        ytPaused = true;
+        console.log('[CONTENT] YouTube video paused');
+        chrome.runtime.sendMessage({ type: 'PAUSE_CAPTURE' });
+      });
+
+      video.addEventListener('ended', () => {
         if (!ytAutoCapturing) return;
         if (!chrome.runtime?.id) return;
         ytAutoCapturing = false;
-        console.log('[CONTENT] YouTube video paused, auto-stopping capture');
+        ytPaused = false;
+        console.log('[CONTENT] YouTube video ended, stopping capture');
         chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
         chrome.storage.local.set({ capturing: false });
+      });
+
+      video.addEventListener('seeked', () => {
+        if (!ytAutoCapturing) return;
+        if (!chrome.runtime?.id) return;
+        console.log('[CONTENT] YouTube video seeked, clearing buffer');
+        chrome.runtime.sendMessage({ type: 'SEEK_DETECTED' });
       });
 
       // If video is already playing when we attach
       if (!video.paused && !ytAutoCapturing) {
         ytAutoCapturing = true;
+        ytPaused = false;
         console.log('[CONTENT] YouTube video already playing, auto-starting capture');
         chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
         chrome.storage.local.set({ capturing: true });

@@ -397,7 +397,18 @@ if (!window.__contextExtensionLoaded) {
           .then(res => res.ok ? res.json() : Promise.reject(res))
           .then(contextData => {
             descEl.classList.remove('card-desc-loading');
-            descEl.textContent = firstSentence(contextData.description || '');
+            const desc = firstSentence(contextData.description || '');
+            descEl.textContent = desc;
+            // Update sessionHistory with description
+            const termName = entity.term || entity.name || '';
+            chrome.storage.local.get('sessionHistory', (hData) => {
+              const history = hData.sessionHistory || [];
+              const entry = history.find(h => h.term === termName && !h.description);
+              if (entry) {
+                entry.description = desc;
+                chrome.storage.local.set({ sessionHistory: history });
+              }
+            });
           })
           .catch(() => {
             descEl.classList.remove('card-desc-loading');

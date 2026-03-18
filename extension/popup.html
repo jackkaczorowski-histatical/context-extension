@@ -363,6 +363,161 @@
       box-shadow: none;
     }
 
+    /* ─── Session recap ─── */
+    #recapSection {
+      display: none;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    #recapSection.visible { display: block; }
+
+    .recap-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .recap-count {
+      font-size: 11px;
+      color: #5a5a7a;
+    }
+
+    .recap-count strong {
+      color: #b0b0d0;
+      font-weight: 600;
+    }
+
+    #viewRecapBtn {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #7a7aaa;
+      font-size: 10px;
+      font-family: inherit;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    #viewRecapBtn:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #b0b0d0;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* ─── Recap overlay ─── */
+    #recapOverlay {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      min-height: 100%;
+      background: #0e0e16;
+      z-index: 20;
+      padding: 16px 16px 12px;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #recapOverlay.open {
+      display: flex;
+    }
+
+    .recap-overlay-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    .recap-overlay-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e0e0f0;
+    }
+
+    .recap-close-btn {
+      background: none;
+      border: none;
+      color: #3a3a5a;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+
+    .recap-close-btn:hover { color: #8a8aaa; }
+
+    #recapList {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+
+    #recapList::-webkit-scrollbar { width: 3px; }
+    #recapList::-webkit-scrollbar-track { background: transparent; }
+    #recapList::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
+
+    .recap-group-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 8px 0 4px;
+    }
+
+    .recap-term {
+      font-size: 11px;
+      color: #b0b0d0;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .recap-term-desc {
+      font-size: 10px;
+      color: #4a4a6a;
+      margin-top: 1px;
+    }
+
+    .recap-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .recap-action-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.02);
+      color: #7a7aaa;
+      font-size: 10px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .recap-action-btn:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #b0b0d0;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .recap-action-btn.copied {
+      color: #00e676;
+      border-color: rgba(0, 230, 118, 0.3);
+    }
+
     #onboarding.overlay {
       position: absolute;
       top: 0;
@@ -419,6 +574,13 @@
 
     <button id="toggleBtn">Start listening</button>
 
+    <div id="recapSection">
+      <div class="recap-header">
+        <span class="recap-count"><strong id="recapCount">0</strong> terms detected</span>
+        <button id="viewRecapBtn">View recap</button>
+      </div>
+    </div>
+
     <div class="popup-footer">
       <button class="footer-btn" id="settingsGearBtn"><span class="icon">&#9881;</span> Settings</button>
       <button class="footer-btn" id="editPrefsBtn"><span class="icon">&#9998;</span> Preferences</button>
@@ -451,6 +613,18 @@
         <span class="setting-label">Auto-hide (30s)</span>
         <div class="toggle-switch" id="autoHideToggle"></div>
       </div>
+    </div>
+  </div>
+
+  <div id="recapOverlay">
+    <div class="recap-overlay-header">
+      <span class="recap-overlay-title">Session Recap</span>
+      <button class="recap-close-btn" id="recapCloseBtn">&#x2715;</button>
+    </div>
+    <div id="recapList"></div>
+    <div class="recap-actions">
+      <button class="recap-action-btn" id="copyRecapBtn">Copy to clipboard</button>
+      <button class="recap-action-btn" id="exportGuideBtn">Export study guide</button>
     </div>
   </div>
 

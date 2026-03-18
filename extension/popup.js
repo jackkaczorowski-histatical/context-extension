@@ -204,4 +204,137 @@ function initMainPopup() {
     autoHideToggle.classList.toggle('on', currentSettings.autoHide);
     saveSettings();
   });
+
+  // --- Session recap ---
+  const recapSection = document.getElementById('recapSection');
+  const recapCount = document.getElementById('recapCount');
+  const viewRecapBtn = document.getElementById('viewRecapBtn');
+  const recapOverlay = document.getElementById('recapOverlay');
+  const recapCloseBtn = document.getElementById('recapCloseBtn');
+  const recapList = document.getElementById('recapList');
+  const copyRecapBtn = document.getElementById('copyRecapBtn');
+  const exportGuideBtn = document.getElementById('exportGuideBtn');
+
+  const TYPE_COLORS = {
+    event: '#ff9500', concept: '#7070ff', person: '#00d4aa',
+    people: '#00d4aa', stock: '#00e676', organization: '#4d9fff',
+    commodity: '#ff9500'
+  };
+
+  function updateRecapSection() {
+    chrome.storage.local.get(['sessionHistory', 'capturing'], (data) => {
+      const history = data.sessionHistory || [];
+      if (history.length > 0 || data.capturing) {
+        recapSection.classList.add('visible');
+        recapCount.textContent = history.length;
+      } else {
+        recapSection.classList.remove('visible');
+      }
+    });
+  }
+
+  updateRecapSection();
+
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.sessionHistory || changes.capturing) {
+      updateRecapSection();
+    }
+  });
+
+  viewRecapBtn.addEventListener('click', () => {
+    chrome.storage.local.get('sessionHistory', (data) => {
+      const history = data.sessionHistory || [];
+      renderRecapList(history);
+      recapOverlay.classList.add('open');
+    });
+  });
+
+  recapCloseBtn.addEventListener('click', () => {
+    recapOverlay.classList.remove('open');
+  });
+
+  function renderRecapList(history) {
+    recapList.innerHTML = '';
+    if (history.length === 0) {
+      recapList.innerHTML = '<div style="font-size:11px;color:#3a3a5a;text-align:center;padding:20px 0;">No terms yet</div>';
+      return;
+    }
+
+    const grouped = {};
+    history.forEach(entry => {
+      const t = (entry.type || 'other').toLowerCase();
+      if (!grouped[t]) grouped[t] = [];
+      grouped[t].push(entry);
+    });
+
+    Object.keys(grouped).sort().forEach(type => {
+      const label = document.createElement('div');
+      label.className = 'recap-group-label';
+      label.style.color = TYPE_COLORS[type] || '#4a4a6a';
+      label.textContent = type.toUpperCase();
+      recapList.appendChild(label);
+
+      grouped[type].forEach(entry => {
+        const el = document.createElement('div');
+        el.className = 'recap-term';
+        el.textContent = entry.term;
+        if (entry.description) {
+          const desc = document.createElement('div');
+          desc.className = 'recap-term-desc';
+          desc.textContent = entry.description;
+          el.appendChild(desc);
+        }
+        recapList.appendChild(el);
+      });
+    });
+  }
+
+  function buildRecapText(history) {
+    const grouped = {};
+    history.forEach(entry => {
+      const t = (entry.type || 'other').toUpperCase();
+      if (!grouped[t]) grouped[t] = [];
+      grouped[t].push(entry);
+    });
+    let text = '';
+    Object.keys(grouped).sort().forEach(type => {
+      text += `${type}\n`;
+      grouped[type].forEach(e => {
+        text += `  ${e.term}${e.description ? ' — ' + e.description : ''}\n`;
+      });
+      text += '\n';
+    });
+    return text.trim();
+  }
+
+  copyRecapBtn.addEventListener('click', () => {
+    chrome.storage.local.get('sessionHistory', (data) => {
+      const text = buildRecapText(data.sessionHistory || []);
+      navigator.clipboard.writeText(text).then(() => {
+        copyRecapBtn.textContent = 'Copied!';
+        copyRecapBtn.classList.add('copied');
+        setTimeout(() => {
+          copyRecapBtn.textContent = 'Copy to clipboard';
+          copyRecapBtn.classList.remove('copied');
+        }, 1500);
+      });
+    });
+  });
+
+  exportGuideBtn.addEventListener('click', () => {
+    chrome.storage.local.get(['sessionHistory', 'capturingTabTitle'], (data) => {
+      const history = data.sessionHistory || [];
+      const title = data.capturingTabTitle || 'Untitled Video';
+      let guide = `STUDY GUIDE: ${title}\n${'='.repeat(40)}\n\n`;
+      guide += buildRecapText(history);
+      navigator.clipboard.writeText(guide).then(() => {
+        exportGuideBtn.textContent = 'Copied!';
+        exportGuideBtn.classList.add('copied');
+        setTimeout(() => {
+          exportGuideBtn.textContent = 'Export study guide';
+          exportGuideBtn.classList.remove('copied');
+        }, 1500);
+      });
+    });
+  });
 }

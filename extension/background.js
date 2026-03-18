@@ -79,10 +79,11 @@ async function startCapture() {
     capturingTabTitle = tab.title || '';
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
 
-    // Store activeTabId, URL, and sessionStart for content script
+    // Store activeTabId, URL, title, and sessionStart for content script
     chrome.storage.local.set({
       activeTabId: tab.id,
       activeTabUrl: tab.url,
+      capturingTabTitle: capturingTabTitle,
       sessionStart: Date.now()
     });
 
@@ -155,7 +156,7 @@ async function stopCapture() {
   sessionEntities = [];
   sessionTranscript = '';
   chrome.storage.local.remove('activeTabId');
-  chrome.storage.local.set({ capturing: false });
+  chrome.storage.local.set({ capturing: false, sessionHistory: [] });
   console.log('[BACKGROUND] Capture stopped');
 }
 
@@ -253,10 +254,19 @@ async function processNextTranscript() {
     // Step 3: Save entities to storage (content script picks them up via onChanged)
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
     await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingTimestamp: Date.now() });
+    const newHistoryEntries = [];
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
-      if (term) sessionEntities.push(term);
+      if (term) {
+        sessionEntities.push(term);
+        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: '' });
+      }
     });
+    // Append to sessionHistory in storage
+    const histData = await chrome.storage.local.get('sessionHistory');
+    const history = histData.sessionHistory || [];
+    history.push(...newHistoryEntries);
+    await chrome.storage.local.set({ sessionHistory: history });
     console.log('[BACKGROUND] Saved pendingEntities to storage, session total:', sessionEntities.length);
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);

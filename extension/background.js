@@ -58,7 +58,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         console.log('[BACKGROUND] Sent START_RECORDING to offscreen document');
       } catch (e) {
-        console.error('[BACKGROUND] Failed to send START_RECORDING:', e.message || e);
+        /* ignore — offscreen doc may not be ready */
       }
       pendingStreamId = null;
     }
@@ -176,7 +176,7 @@ async function startCapture() {
             });
             console.log('[BACKGROUND] Sent START_RECORDING to existing offscreen document');
           } catch (e) {
-            console.error('[BACKGROUND] Failed to send to existing offscreen:', e.message || e);
+            /* ignore — offscreen doc may not be ready */
           }
         } else {
           console.log('[BACKGROUND] Creating offscreen document');

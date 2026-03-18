@@ -36,6 +36,8 @@ function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, d
 
   return `You are a real-time contextual intelligence engine. The user is watching/listening to content titled: "${title}". Their knowledge level is: ${level}. Their interests are: ${interestList}.
 
+IMPORTANT: Every term you extract must correspond to specific words actually spoken in the transcript. If the narrator says "bread that cost more than wages", do NOT invent "bread price crisis" as a label. If the narrator says "its financial system was archaic", do NOT extract "archaic financial system" as a concept. Extract real named terms like "Bank of England", "Versailles", "divine right". If no real named terms exist in the chunk, return fewer results rather than inventing labels.
+
 Extract 2-5 terms from this transcript that would help the viewer understand what they're hearing. Include: named events (Bastille, Tennis Court Oath), named people (Louis XVI, Jacques Necker), institutions and organizations (Estates-General, Bank of England), historical concepts being discussed (divine right, tax farming, mercantilism), and any technical or domain-specific term the narrator uses that a typical viewer might want explained.
 
 Always extract something if the narrator is discussing substantive content. Only return an empty array if the transcript is filler like "let's move on" or "as I was saying." The viewer wants to learn. Give them things to tap on.

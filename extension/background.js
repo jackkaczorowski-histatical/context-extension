@@ -11,6 +11,7 @@ let sessionEntities = [];
 let sessionTranscript = '';
 let isPaused = false;
 let usageTimer = null;
+let lastTranscriptSave = 0;
 
 function getUsageKey() {
   const d = new Date();
@@ -90,7 +91,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
     transcriptBuffer += (transcriptBuffer ? ' ' : '') + message.transcript;
     sessionTranscript += (sessionTranscript ? ' ' : '') + message.transcript;
-    chrome.storage.local.set({ sessionTranscript });
+    const now = Date.now();
+    if (now - lastTranscriptSave > 5000) {
+      lastTranscriptSave = now;
+      chrome.storage.local.set({ sessionTranscript });
+    }
     if (!bufferTimer) {
       bufferTimer = setTimeout(() => {
         flushTranscriptBuffer();
@@ -205,6 +210,9 @@ async function stopCapture() {
 
   // Flush any remaining buffered transcript
   flushTranscriptBuffer();
+
+  // Save final sessionTranscript before clearing
+  chrome.storage.local.set({ sessionTranscript });
 
   // Increment session count
   try {

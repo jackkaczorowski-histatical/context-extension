@@ -259,6 +259,7 @@ if (!window.__contextExtensionLoaded) {
     .context-card.expanded .card-expand-area { display: block; }
     .card-desc { font-size: 11px; color: #6a6a8a; line-height: 1.55; }
     .card-source { font-size: 9px; color: #3a3a5a; margin-top: 4px; font-style: italic; }
+    .card-popularity { font-size: 9px; color: #3a3a5a; margin-top: 4px; }
     .card-desc-loading::after {
       content: ''; display: inline-block; width: 4px; height: 4px;
       background: #6a6a8a; border-radius: 50%;
@@ -401,6 +402,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-chevron { color: #b0b0c0; }
     .light-theme .card-desc { color: #6a6a8a; }
     .light-theme .card-source { color: #b0b0c0; }
+    .light-theme .card-popularity { color: #b0b0c0; }
     .light-theme .stock-ticker { color: #1a1a2e; }
     .light-theme .stock-company { color: #8a8aa0; }
     .light-theme .stock-price { color: #1a1a2e; }
@@ -764,6 +766,24 @@ if (!window.__contextExtensionLoaded) {
                 chrome.storage.local.set({ sessionHistory: history });
               }
             });
+            // Track popularity
+            fetch('https://context-extension-zv8d.vercel.app/api/popularity', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ videoUrl: window.location.href, term: termName })
+            })
+            .then(r => r.ok ? r.json() : null)
+            .then(popData => {
+              if (popData && popData.count > 5) {
+                const expandArea = card.querySelector('.card-expand-area');
+                const popEl = document.createElement('div');
+                popEl.className = 'card-popularity';
+                popEl.textContent = '\uD83D\uDD25 frequently explored';
+                const wikiLink = expandArea.querySelector('.card-wiki-link');
+                expandArea.insertBefore(popEl, wikiLink);
+              }
+            })
+            .catch(() => {});
           })
           .catch(() => {
             descEl.classList.remove('card-desc-loading');

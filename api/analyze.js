@@ -82,7 +82,7 @@ module.exports = async function handler(req, res) {
   }
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
-  const interests = userProfile?.interests || [];
+  const interests = userProfile?.interests?.length > 0 ? userProfile.interests : ["Finance & Economics", "History & Culture", "Politics & Law", "Science & Technology", "Business & Markets", "Arts & Society"];
   const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext);
 
   try {

@@ -1,4 +1,4 @@
-// --- Onboarding ---
+// --- Preferences overlay ---
 const onboardingEl = document.getElementById('onboarding');
 const mainPopupEl = document.getElementById('mainPopup');
 const getStartedBtn = document.getElementById('getStartedBtn');
@@ -7,7 +7,7 @@ const interestCheckboxes = document.querySelectorAll('#interestCheckboxes input'
 
 let selectedLevel = null;
 
-// Wire up onboarding controls once (they stay in the DOM)
+// Wire up preference controls
 levelButtons.forEach(btn => {
   btn.addEventListener('click', () => {
     levelButtons.forEach(b => b.classList.remove('selected'));
@@ -25,39 +25,20 @@ getStartedBtn.addEventListener('click', () => {
   ).map(cb => cb.value);
 
   const userProfile = { knowledgeLevel: selectedLevel, interests };
-  chrome.storage.local.set({ userProfile, onboardingComplete: true }, () => {
+  chrome.storage.local.set({ userProfile }, () => {
     onboardingEl.style.display = 'none';
     onboardingEl.classList.remove('overlay');
-    if (mainPopupEl.style.display === 'none') {
-      showMainPopup();
-    }
   });
 });
 
-// Decide which view to show on open
-chrome.storage.local.get('onboardingComplete', (data) => {
-  if (data.onboardingComplete) {
-    showMainPopup();
-  } else {
-    showOnboarding(false);
-  }
-});
-
-function showOnboarding(isOverlay) {
-  // Reset state
+function showPreferences() {
   selectedLevel = null;
   getStartedBtn.disabled = true;
   levelButtons.forEach(b => b.classList.remove('selected'));
   interestCheckboxes.forEach(cb => { cb.checked = false; });
 
   onboardingEl.style.display = 'block';
-
-  if (isOverlay) {
-    onboardingEl.classList.add('overlay');
-  } else {
-    onboardingEl.classList.remove('overlay');
-    mainPopupEl.style.display = 'none';
-  }
+  onboardingEl.classList.add('overlay');
 
   // Pre-fill from saved profile
   chrome.storage.local.get('userProfile', (data) => {
@@ -77,11 +58,9 @@ function showOnboarding(isOverlay) {
   });
 }
 
-function showMainPopup() {
-  onboardingEl.style.display = 'none';
-  mainPopupEl.style.display = 'block';
-  initMainPopup();
-}
+// Always show main popup directly
+mainPopupEl.style.display = 'block';
+initMainPopup();
 
 let mainPopupInitialized = false;
 
@@ -133,7 +112,7 @@ function initMainPopup() {
 
   // --- Edit preferences ---
   document.getElementById('editPrefsBtn').addEventListener('click', () => {
-    showOnboarding(true);
+    showPreferences();
   });
 
   // --- Settings panel ---

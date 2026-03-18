@@ -114,6 +114,17 @@
       filter: brightness(1.08);
     }
 
+    /* ─── Learning stats ─── */
+    #learningStats {
+      display: none;
+      font-size: 10px;
+      color: #3a3a5a;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    #learningStats.visible { display: block; }
+
     /* ─── Footer links ─── */
     .popup-footer {
       display: flex;
@@ -573,6 +584,8 @@
     </div>
 
     <button id="toggleBtn">Start listening</button>
+
+    <div id="learningStats"></div>
 
     <div id="recapSection">
       <div class="recap-header">

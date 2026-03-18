@@ -205,6 +205,14 @@ async function stopCapture() {
   // Flush any remaining buffered transcript
   flushTranscriptBuffer();
 
+  // Increment session count
+  try {
+    const scData = await chrome.storage.local.get('sessionCount');
+    await chrome.storage.local.set({ sessionCount: (scData.sessionCount || 0) + 1 });
+  } catch (e) {
+    console.error('[BACKGROUND] Session count error:', e.message || e);
+  }
+
   // Save session entities to persistent knowledge base
   try {
     const histData = await chrome.storage.local.get(['sessionHistory', 'knowledgeBase']);

@@ -110,6 +110,50 @@ function initMainPopup() {
     }
   }
 
+  // --- Learning stats ---
+  const learningStatsEl = document.getElementById('learningStats');
+
+  function updateLearningStats() {
+    chrome.storage.local.get(['knowledgeBase', 'sessionCount'], (data) => {
+      const kb = data.knowledgeBase || {};
+      const entries = Object.values(kb);
+      if (entries.length === 0) {
+        learningStatsEl.classList.remove('visible');
+        return;
+      }
+      const termCount = entries.length;
+      const sessions = data.sessionCount || 0;
+
+      // Find top topic by counting entity types
+      const typeCounts = {};
+      entries.forEach(e => {
+        const t = (e.type || 'other').toLowerCase();
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+      });
+      const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0][0];
+      const typeLabels = {
+        concept: 'concepts', event: 'history', person: 'people',
+        people: 'people', stock: 'finance', organization: 'organizations',
+        commodity: 'commodities', other: 'general'
+      };
+      const topLabel = typeLabels[topType] || topType;
+
+      let parts = [`${termCount} term${termCount !== 1 ? 's' : ''}`];
+      if (sessions > 0) parts.push(`${sessions} session${sessions !== 1 ? 's' : ''}`);
+      parts.push(`mostly ${topLabel}`);
+      learningStatsEl.textContent = parts.join(' · ');
+      learningStatsEl.classList.add('visible');
+    });
+  }
+
+  updateLearningStats();
+
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.knowledgeBase || changes.sessionCount) {
+      updateLearningStats();
+    }
+  });
+
   // --- Edit preferences ---
   document.getElementById('editPrefsBtn').addEventListener('click', () => {
     showPreferences();

@@ -17,6 +17,7 @@ if (!window.__contextExtensionLoaded) {
   let autoHideTimer = null;
   let shadowRoot = null;
   let hostEl = null;
+  let listeningTimer = null;
 
   const TYPE_COLORS = {
     event: '#ff9500',
@@ -136,6 +137,17 @@ if (!window.__contextExtensionLoaded) {
       50% { height: 20px; }
     }
     .ctx-empty-text { font-size: 11px; color: #3a3a5a; }
+    #listening-indicator {
+      display: none; align-items: center; gap: 6px;
+      padding: 6px 16px; background: #0e0e16;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    #listening-indicator.visible { display: flex; }
+    #listening-indicator .li-dot {
+      width: 4px; height: 4px; border-radius: 50%; background: #2a2a3a;
+      animation: ctx-pulse 2s ease-in-out infinite;
+    }
+    #listening-indicator .li-text { font-size: 10px; color: #2a2a3a; }
     #cards {
       flex: 1; overflow-y: auto; padding: 0; background: #0e0e16; display: none;
     }
@@ -470,11 +482,17 @@ if (!window.__contextExtensionLoaded) {
       <div class="ctx-empty-text">Listening for context...</div>
     `;
 
+    // Listening indicator
+    const listeningIndicator = document.createElement('div');
+    listeningIndicator.id = 'listening-indicator';
+    listeningIndicator.innerHTML = '<span class="li-dot"></span><span class="li-text">Listening for new terms...</span>';
+
     // Cards container
     const cardContainer = document.createElement('div');
     cardContainer.id = 'cards';
 
     sidebar.appendChild(header);
+    sidebar.appendChild(listeningIndicator);
     sidebar.appendChild(emptyState);
     sidebar.appendChild(cardContainer);
     shadowRoot.appendChild(sidebar);
@@ -544,6 +562,19 @@ if (!window.__contextExtensionLoaded) {
     if (entities.length === 0) return;
 
     showCardsHideEmpty();
+
+    // Hide listening indicator and reset timer
+    if (shadowRoot) {
+      const li = shadowRoot.getElementById('listening-indicator');
+      if (li) li.classList.remove('visible');
+    }
+    if (listeningTimer) clearTimeout(listeningTimer);
+    listeningTimer = setTimeout(() => {
+      if (shadowRoot && hasCards) {
+        const li = shadowRoot.getElementById('listening-indicator');
+        if (li) li.classList.add('visible');
+      }
+    }, 20000);
 
     const limited = entities.slice(0, settings.cardsPerChunk);
 

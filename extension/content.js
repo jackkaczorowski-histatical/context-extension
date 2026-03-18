@@ -742,7 +742,7 @@ if (!window.__contextExtensionLoaded) {
         descEl.classList.add('card-desc-loading');
 
         chrome.storage.local.get('userProfile', (data) => {
-          if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH' });
+          try { if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH' }); } catch (e) {}
           fetch('https://context-extension-zv8d.vercel.app/api/context', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1261,13 +1261,13 @@ if (!window.__contextExtensionLoaded) {
         autoCapturing = true;
         autoPaused = false;
         console.log('[CONTENT] Media playing, auto-starting capture');
-        chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
+        try { chrome.runtime.sendMessage({ type: 'START_CAPTURE' }); } catch (e) {}
         chrome.storage.local.set({ capturing: true });
       }, 2000);
     } else if (autoPaused) {
       autoPaused = false;
       console.log('[CONTENT] Media resumed');
-      chrome.runtime.sendMessage({ type: 'RESUME_CAPTURE' });
+      try { chrome.runtime.sendMessage({ type: 'RESUME_CAPTURE' }); } catch (e) {}
     }
   }
 
@@ -1278,7 +1278,7 @@ if (!window.__contextExtensionLoaded) {
     if (anyMediaPlaying()) return;
     autoPaused = true;
     console.log('[CONTENT] All media paused');
-    chrome.runtime.sendMessage({ type: 'PAUSE_CAPTURE' });
+    try { chrome.runtime.sendMessage({ type: 'PAUSE_CAPTURE' }); } catch (e) {}
   }
 
   function handleMediaEnded() {
@@ -1289,7 +1289,7 @@ if (!window.__contextExtensionLoaded) {
     autoCapturing = false;
     autoPaused = false;
     console.log('[CONTENT] All media ended, stopping capture');
-    chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
+    try { chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' }); } catch (e) {}
     chrome.storage.local.set({ capturing: false });
   }
 
@@ -1309,7 +1309,7 @@ if (!window.__contextExtensionLoaded) {
         if (!autoCapturing) return;
         if (!chrome.runtime?.id) return;
         console.log('[CONTENT] Media seeked, clearing buffer');
-        chrome.runtime.sendMessage({ type: 'SEEK_DETECTED' });
+        try { chrome.runtime.sendMessage({ type: 'SEEK_DETECTED' }); } catch (e) {}
       });
     }
 

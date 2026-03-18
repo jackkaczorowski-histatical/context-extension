@@ -18,6 +18,9 @@ if (!window.__contextExtensionLoaded) {
   let shadowRoot = null;
   let hostEl = null;
   let listeningTimer = null;
+  let badgeEl = null;
+  let badgeShadow = null;
+  let termCount = 0;
 
   const TYPE_COLORS = {
     event: '#ff9500',
@@ -233,6 +236,77 @@ if (!window.__contextExtensionLoaded) {
     .card-wiki-link:hover { color: #7a7aaa; }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
   `;
+
+  const BADGE_CSS = `
+    :host { display: block; }
+    .ctx-badge {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: box-shadow 0.3s ease, border-color 0.2s;
+      user-select: none;
+    }
+    .ctx-badge:hover {
+      border-color: rgba(255,255,255,0.15);
+      background: #1e1e32;
+    }
+    .ctx-badge.pulse {
+      animation: badge-glow 1.5s ease-out;
+    }
+    @keyframes badge-glow {
+      0% { box-shadow: 0 0 12px rgba(0,230,118,0.4); }
+      100% { box-shadow: none; }
+    }
+    .ctx-badge-count {
+      font-size: 13px; font-weight: 600; color: #e0e0f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1;
+    }
+  `;
+
+  function ensureBadge() {
+    if (badgeShadow) return;
+
+    badgeEl = document.createElement('div');
+    badgeEl.id = 'context-badge-host';
+    badgeEl.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;';
+
+    badgeShadow = badgeEl.attachShadow({ mode: 'open' });
+
+    const style = document.createElement('style');
+    style.textContent = BADGE_CSS;
+    badgeShadow.appendChild(style);
+
+    const badge = document.createElement('div');
+    badge.className = 'ctx-badge';
+    badge.innerHTML = '<span class="ctx-badge-count">0</span>';
+    badge.addEventListener('click', () => {
+      if (!hostEl) return;
+      if (hostEl.dataset.open === 'true') {
+        closeSidebar();
+      } else {
+        openSidebar();
+        resetAutoHide();
+      }
+    });
+    badgeShadow.appendChild(badge);
+    document.body.appendChild(badgeEl);
+  }
+
+  function updateBadge(newCards) {
+    if (!badgeShadow) return;
+    const countEl = badgeShadow.querySelector('.ctx-badge-count');
+    if (countEl) countEl.textContent = termCount;
+
+    if (newCards > 0) {
+      const badge = badgeShadow.querySelector('.ctx-badge');
+      if (badge) {
+        badge.classList.remove('pulse');
+        void badge.offsetWidth;
+        badge.classList.add('pulse');
+      }
+    }
+  }
 
   function getHostPosition() {
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
@@ -498,6 +572,7 @@ if (!window.__contextExtensionLoaded) {
     shadowRoot.appendChild(sidebar);
     document.body.appendChild(hostEl);
 
+    ensureBadge();
     console.log('[CONTENT] Shadow DOM sidebar created');
     return cardContainer;
   }
@@ -584,11 +659,11 @@ if (!window.__contextExtensionLoaded) {
         : createGenericCard(entity);
 
       cards.prepend(card);
+      termCount++;
       console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
     });
 
-    openSidebar();
-    resetAutoHide();
+    updateBadge(limited.length);
 
     chrome.storage.local.remove('pendingEntities');
   }

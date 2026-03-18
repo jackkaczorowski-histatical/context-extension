@@ -149,23 +149,47 @@ if (!window.__contextExtensionLoaded) {
     .session-divider hr { flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.04); margin: 0; }
     .session-divider span { color: #3a3a5a; font-size: 10px; white-space: nowrap; }
     .context-card {
-      position: relative; padding: 13px 16px 11px 18px;
+      position: relative; padding: 8px 16px 8px 18px;
       border-bottom: 1px solid rgba(255,255,255,0.03); border-left: 2px solid #4a4a6a;
       background: #121220; animation: ctx-card-in 0.25s ease-out both;
+      cursor: pointer; user-select: none;
     }
     .context-card:hover { background: #14142a; }
     @keyframes ctx-card-in {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .context-card.collapsed { animation: none; }
+    .context-card.collapsed { animation: none; cursor: default; }
+    .card-row {
+      display: flex; align-items: center; gap: 8px;
+    }
     .card-type {
       font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; margin-bottom: 3px;
+      text-transform: uppercase; flex-shrink: 0;
     }
-    .card-term { font-size: 13px; font-weight: 600; color: #d0d0e8; margin-bottom: 4px; }
+    .card-term {
+      font-size: 13px; font-weight: 600; color: #d0d0e8;
+      flex: 1; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .card-time { font-size: 10px; color: #2a2a3a; flex-shrink: 0; }
+    .card-chevron {
+      font-size: 12px; color: #3a3a5a; flex-shrink: 0;
+      transition: transform 0.2s ease; line-height: 1;
+    }
+    .context-card.expanded .card-chevron { transform: rotate(90deg); }
+    .card-expand-area { display: none; padding-top: 6px; }
+    .context-card.expanded .card-expand-area { display: block; }
     .card-desc { font-size: 11px; color: #6a6a8a; line-height: 1.55; }
-    .card-time { font-size: 10px; color: #2a2a3a; float: right; margin-top: 4px; }
+    .card-desc-loading::after {
+      content: ''; display: inline-block; width: 4px; height: 4px;
+      background: #6a6a8a; border-radius: 50%;
+      animation: ctx-dot-pulse 1s ease-in-out infinite;
+    }
+    @keyframes ctx-dot-pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
     .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; }
     .stock-company { font-size: 10px; color: #3a3a5a; margin-bottom: 8px; }
     .stock-price-row { display: flex; align-items: baseline; gap: 8px; }
@@ -174,10 +198,10 @@ if (!window.__contextExtensionLoaded) {
     .stock-change.positive { color: #00e676; }
     .stock-change.negative { color: #ff5252; }
     .card-actions {
-      position: absolute; top: 10px; right: 10px; display: flex; gap: 4px;
-      opacity: 0; transition: opacity 0.15s;
+      position: absolute; top: 8px; right: 10px; display: flex; gap: 4px;
+      opacity: 0; transition: opacity 0.15s; pointer-events: none;
     }
-    .context-card:hover .card-actions { opacity: 1; }
+    .context-card.expanded:hover .card-actions { opacity: 1; pointer-events: auto; }
     .thumbs-up-btn, .thumbs-down-btn {
       background: none; border: none; color: #2a2a3a; font-size: 10px;
       cursor: pointer; padding: 2px 4px; border-radius: 3px; line-height: 1;
@@ -188,7 +212,7 @@ if (!window.__contextExtensionLoaded) {
     .thumbs-up-ok { color: #00e676; font-size: 9px; padding: 2px 4px; line-height: 1; }
     .card-wiki-link {
       font-size: 10px; color: #3a3a5a; text-decoration: none;
-      transition: color 0.15s; float: left; margin-top: 4px;
+      transition: color 0.15s; display: inline-block; margin-top: 4px;
     }
     .card-wiki-link:hover { color: #7a7aaa; }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
@@ -236,7 +260,8 @@ if (!window.__contextExtensionLoaded) {
     upBtn.className = 'thumbs-up-btn';
     upBtn.innerHTML = '&#x1F44D;';
     upBtn.title = 'Useful';
-    upBtn.addEventListener('click', () => {
+    upBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       chrome.storage.local.get('likedEntities', (data) => {
         const liked = data.likedEntities || [];
         liked.push({ type: entity.type || 'other', term: key, timestamp: Date.now() });
@@ -254,7 +279,8 @@ if (!window.__contextExtensionLoaded) {
     downBtn.className = 'thumbs-down-btn';
     downBtn.innerHTML = '&#x1F44E;';
     downBtn.title = 'Not useful';
-    downBtn.addEventListener('click', () => {
+    downBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       ignoreList.add(key);
       chrome.storage.local.set({ ignoreList: Array.from(ignoreList) });
       card.innerHTML = '<div class="feedback-msg">Thanks for the feedback</div>';
@@ -316,19 +342,57 @@ if (!window.__contextExtensionLoaded) {
     card.style.borderLeftColor = color;
 
     const timestamp = formatTime(new Date());
-    const desc = firstSentence(entity.description || '');
     const typeLabel = (type || 'OTHER').toUpperCase();
+    const termText = escapeHtml(entity.term || entity.name || '');
 
     const wikiTerm = (entity.term || entity.name || '').replace(/ /g, '_');
     const wikiUrl = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(wikiTerm);
 
     card.innerHTML = `
-      <div class="card-type" style="color:${color}">${typeLabel}</div>
-      <div class="card-term">${escapeHtml(entity.term || entity.name || '')}</div>
-      ${desc ? `<div class="card-desc">${escapeHtml(desc)}</div>` : ''}
-      <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
-      <span class="card-time">${timestamp}</span>
+      <div class="card-row">
+        <span class="card-type" style="color:${color}">${typeLabel}</span>
+        <span class="card-term">${termText}</span>
+        <span class="card-time">${timestamp}</span>
+        <span class="card-chevron">&#x203A;</span>
+      </div>
+      <div class="card-expand-area">
+        <div class="card-desc"></div>
+        <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
+      </div>
     `;
+
+    let descFetched = false;
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.card-actions') || e.target.closest('a')) return;
+      card.classList.toggle('expanded');
+
+      if (card.classList.contains('expanded') && !descFetched) {
+        descFetched = true;
+        const descEl = card.querySelector('.card-desc');
+        descEl.classList.add('card-desc-loading');
+
+        chrome.storage.local.get('userProfile', (data) => {
+          fetch('https://context-extension-zv8d.vercel.app/api/context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              term: entity.term || entity.name || '',
+              userProfile: data.userProfile || null
+            })
+          })
+          .then(res => res.ok ? res.json() : Promise.reject(res))
+          .then(contextData => {
+            descEl.classList.remove('card-desc-loading');
+            descEl.textContent = firstSentence(contextData.description || '');
+          })
+          .catch(() => {
+            descEl.classList.remove('card-desc-loading');
+            descEl.textContent = 'Could not load description';
+          });
+        });
+      }
+    });
 
     const key = (entity.term || entity.name || '').toLowerCase();
     addCardButtons(card, key, entity);

@@ -7,6 +7,8 @@ let isProcessing = false;
 const transcriptQueue = [];
 let transcriptBuffer = '';
 let bufferTimer = null;
+let sessionEntities = [];
+let sessionTranscript = '';
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
@@ -30,6 +32,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'TRANSCRIPT') {
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
     transcriptBuffer += (transcriptBuffer ? ' ' : '') + message.transcript;
+    sessionTranscript += (sessionTranscript ? ' ' : '') + message.transcript;
     if (!bufferTimer) {
       bufferTimer = setTimeout(() => {
         flushTranscriptBuffer();
@@ -149,6 +152,8 @@ async function stopCapture() {
   capturingTabId = null;
   capturingTabTitle = null;
   pendingStreamId = null;
+  sessionEntities = [];
+  sessionTranscript = '';
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');
@@ -191,7 +196,7 @@ async function processNextTranscript() {
       analyzeRes = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, depth }),
+        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000) }),
         signal: analyzeController.signal
       });
     } finally {
@@ -214,7 +219,7 @@ async function processNextTranscript() {
       return;
     }
 
-    // Step 2: Enrich entities — stocks get price data, others get descriptions
+    // Step 2: Enrich entities — stocks get price data, others pass through as-is
     const enrichedEntities = await Promise.all(
       entities.map(async (entity) => {
         if (entity.type === 'stock') {
@@ -240,31 +245,6 @@ async function processNextTranscript() {
           } catch (e) {
             console.error('[BACKGROUND] Stock fetch error:', e.message || e);
           }
-        } else if (!entity.description) {
-          try {
-            const term = entity.term || entity.name || '';
-            const profileData = await chrome.storage.local.get('userProfile');
-            const ctxController = new AbortController();
-            const ctxTimeout = setTimeout(() => ctxController.abort(), 10000);
-            let contextRes;
-            try {
-              contextRes = await fetch(`${API_BASE}/context`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ term, userProfile: profileData.userProfile || null }),
-                signal: ctxController.signal
-              });
-            } finally {
-              clearTimeout(ctxTimeout);
-            }
-            if (contextRes.ok) {
-              const contextData = await contextRes.json();
-              console.log('[BACKGROUND] Context response for', term, ':', JSON.stringify(contextData));
-              return { ...entity, description: contextData.description || '' };
-            }
-          } catch (e) {
-            console.error('[BACKGROUND] Context fetch error:', e.message || e);
-          }
         }
         return entity;
       })
@@ -273,7 +253,11 @@ async function processNextTranscript() {
     // Step 3: Save entities to storage (content script picks them up via onChanged)
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
     await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingTimestamp: Date.now() });
-    console.log('[BACKGROUND] Saved pendingEntities to storage');
+    enrichedEntities.forEach(e => {
+      const term = e.term || e.name || '';
+      if (term) sessionEntities.push(term);
+    });
+    console.log('[BACKGROUND] Saved pendingEntities to storage, session total:', sessionEntities.length);
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
   }

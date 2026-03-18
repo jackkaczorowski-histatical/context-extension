@@ -10,7 +10,7 @@ function formatCounts(counts) {
   return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
 }
 
-function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth) {
+function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext) {
   const title = pageTitle || "unknown content";
   const level = knowledgeLevel || "intermediate";
   const interestList = interests && interests.length > 0 ? interests.join(", ") : "general topics";
@@ -55,6 +55,10 @@ For stocks/companies use type "stock" with the ticker symbol. For other entities
 
 The user's engagement history shows they prefer these entity types: ${formatCounts(tasteProfile?.liked)}. They tend to dismiss: ${formatCounts(tasteProfile?.ignored)}. Weight your extraction toward the types they engage with.
 
+${previousEntities && previousEntities.length > 0 ? `These terms have already been shown this session: ${previousEntities.join(", ")}. Do not extract these again or close variations. Go deeper with new specific details instead of repeating the same layer.` : ""}
+
+${sessionContext ? `Here is the full transcript of what has been said so far in this video: ${sessionContext}. Use this to understand the narrative arc and what the viewer has already heard. Extract only new terms that add to the viewer's understanding given everything discussed so far. Don't extract things that were already explained by the narrator.` : ""}
+
 Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
 }
 
@@ -68,7 +72,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { transcript, pageTitle, userProfile, tasteProfile, depth } = req.body || {};
+  const { transcript, pageTitle, userProfile, tasteProfile, depth, previousEntities, sessionContext } = req.body || {};
 
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -77,7 +81,7 @@ module.exports = async function handler(req, res) {
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
   const interests = userProfile?.interests || [];
-  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth);
+  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

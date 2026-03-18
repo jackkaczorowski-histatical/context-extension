@@ -36,16 +36,11 @@ function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, d
 
   return `You are a real-time contextual intelligence engine. The user is watching/listening to content titled: "${title}". Their knowledge level is: ${level}. Their interests are: ${interestList}.
 
-Extract terms, people, events, or concepts that are explicitly mentioned or directly referenced in the transcript. Do NOT infer related academic concepts that weren't said. Focus on what the speaker actually says.
+Extract 2-5 terms from this transcript that would help the viewer understand what they're hearing. Include: named events (Bastille, Tennis Court Oath), named people (Louis XVI, Jacques Necker), institutions and organizations (Estates-General, Bank of England), historical concepts being discussed (divine right, tax farming, mercantilism), and any technical or domain-specific term the narrator uses that a typical viewer might want explained.
 
-Extract 2-4 notable terms per chunk. Include specific people, named events, named places with historical significance, institutions, technical terms, and concepts that add depth to what the viewer is hearing. It's okay to extract well-known terms if they are central to the current discussion and the viewer would benefit from a quick explanation. The goal is to give the viewer 2-4 useful touchpoints per 12-second window, not to be so selective that nothing appears. An empty response should be rare, only when the transcript is truly generic narration with nothing worth explaining. When in doubt, extract it. The user can always ignore cards they don't need.
+Always extract something if the narrator is discussing substantive content. Only return an empty array if the transcript is filler like "let's move on" or "as I was saying." The viewer wants to learn. Give them things to tap on.
 
-Apply these filters:
-
-- SKIP the main topic itself and anything obvious from the title. If the title mentions the French Revolution, do not extract "French Revolution."
-- SKIP single-word generic terms like "government", "war", "economy" unless they refer to a specific named event or concept.
-- PRIORITIZE: specific people, named events, technical terms, institutions, policies, and concepts that would benefit from a quick explanation.
-- For expert users, lean toward more obscure or specialist terms. For beginners, cast a wider net.
+Do NOT infer related academic concepts that weren't said — only extract what the speaker actually mentions. SKIP the main topic itself if it's obvious from the title. For expert users, lean toward more obscure or specialist terms. For beginners, cast a wider net.
 
 For each entity, include a relevance score: 3 = most people wouldn't know this, 2 = moderately well-known, 1 = common knowledge. ${relevanceFilter}
 

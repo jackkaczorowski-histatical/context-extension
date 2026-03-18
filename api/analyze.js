@@ -10,7 +10,7 @@ function formatCounts(counts) {
   return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
 }
 
-function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext) {
+function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms) {
   const title = pageTitle || "unknown content";
   const level = knowledgeLevel || "intermediate";
   const interestList = interests && interests.length > 0 ? interests.join(", ") : "general topics";
@@ -61,6 +61,8 @@ ${previousEntities && previousEntities.length > 0 ? `These terms have already be
 
 ${sessionContext ? `Here is the full transcript of what has been said so far in this video: ${sessionContext}. Use this to understand the narrative arc and what the viewer has already heard. Extract only new terms that add to the viewer's understanding given everything discussed so far. Don't extract things that were already explained by the narrator.` : ""}
 
+${knownTerms && knownTerms.length > 0 ? `The user has seen these terms in previous sessions: ${knownTerms.join(", ")}. Do not extract terms the user already knows unless they are being discussed in a significantly different context. The user is building knowledge over time. Focus on what is NEW to them.` : ""}
+
 Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null, "salience": "highlight" }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
 }
 
@@ -74,7 +76,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { transcript, pageTitle, userProfile, tasteProfile, depth, previousEntities, sessionContext } = req.body || {};
+  const { transcript, pageTitle, userProfile, tasteProfile, depth, previousEntities, sessionContext, knownTerms } = req.body || {};
 
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -83,7 +85,7 @@ module.exports = async function handler(req, res) {
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
   const interests = userProfile?.interests?.length > 0 ? userProfile.interests : ["Finance & Economics", "History & Culture", "Politics & Law", "Science & Technology", "Business & Markets", "Arts & Society"];
-  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext);
+  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

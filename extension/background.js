@@ -205,6 +205,37 @@ async function stopCapture() {
   // Flush any remaining buffered transcript
   flushTranscriptBuffer();
 
+  // Save session entities to persistent knowledge base
+  try {
+    const histData = await chrome.storage.local.get(['sessionHistory', 'knowledgeBase']);
+    const sessionHist = histData.sessionHistory || [];
+    const kb = histData.knowledgeBase || {};
+    const title = capturingTabTitle || '';
+    sessionHist.forEach(entry => {
+      const term = entry.term;
+      if (!term) return;
+      const key = term.toLowerCase();
+      if (kb[key]) {
+        kb[key].timesSeen++;
+        kb[key].source = title;
+        if (entry.description) kb[key].expanded = true;
+      } else {
+        kb[key] = {
+          term,
+          type: entry.type || 'other',
+          firstSeen: entry.timestamp || Date.now(),
+          timesSeen: 1,
+          expanded: !!entry.description,
+          source: title
+        };
+      }
+    });
+    await chrome.storage.local.set({ knowledgeBase: kb });
+    console.log('[BACKGROUND] Knowledge base updated, total terms:', Object.keys(kb).length);
+  } catch (e) {
+    console.error('[BACKGROUND] Knowledge base update error:', e.message || e);
+  }
+
   // Small delay after closing offscreen doc before resetting state
   await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -234,7 +265,7 @@ async function processNextTranscript() {
 
   try {
     // Fetch user profile and engagement history for analyze request
-    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList', 'extensionSettings']);
+    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase']);
     const userProfile = storageData.userProfile || null;
 
     // Build taste profile from engagement history
@@ -249,6 +280,7 @@ async function processNextTranscript() {
     });
     const tasteProfile = { liked: likedCounts, ignored: ignoredCounts };
     const depth = (storageData.extensionSettings && storageData.extensionSettings.depth) || 2;
+    const knownTerms = Object.values(storageData.knowledgeBase || {}).map(e => e.term);
 
     // Step 1: Analyze
     const analyzeController = new AbortController();
@@ -258,7 +290,7 @@ async function processNextTranscript() {
       analyzeRes = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000) }),
+        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms }),
         signal: analyzeController.signal
       });
     } finally {

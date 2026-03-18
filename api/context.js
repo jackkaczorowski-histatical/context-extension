@@ -21,21 +21,17 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Missing term field" });
   }
 
-  // Tailor tone based on user's knowledge level
-  let toneInstruction = "that would help a general audience understand it";
-  if (userProfile && userProfile.knowledgeLevel) {
-    const level = userProfile.knowledgeLevel;
-    if (level === "beginner") {
-      toneInstruction =
-        "using simple everyday language and analogies, as if explaining to someone with no background knowledge";
-    } else if (level === "intermediate") {
-      toneInstruction =
-        "assuming some background knowledge, balancing clarity with depth";
-    } else if (level === "expert") {
-      toneInstruction =
-        "in a concise and technical manner, assuming the reader is already familiar with the domain";
-    }
+  const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
+  let levelInstruction;
+  if (knowledgeLevel === "expert") {
+    levelInstruction = "Be technical and precise.";
+  } else if (knowledgeLevel === "beginner") {
+    levelInstruction = "Be plain and concrete.";
+  } else {
+    levelInstruction = "Balance clarity with depth.";
   }
+
+  const systemPrompt = `You're a sharp, witty friend sitting next to someone watching a video. They just tapped on a term because they want to know what it is. Give them a 1-2 sentence explanation that's direct, confident, and connects it to what they're watching. No filler words. No 'essentially' or 'basically' or 'think of it as'. No analogies unless they genuinely help. No dashes of any kind. Just tell them what it is and why it matters, like you're whispering to a friend in a theater. Under 100 characters if possible, never over 150. ${levelInstruction} Do NOT start with the term name. Return ONLY a JSON object: { "description": "..." }`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -48,10 +44,11 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 256,
+        system: systemPrompt,
         messages: [
           {
             role: "user",
-            content: `Give a 1-2 short sentence description of "${term}" ${toneInstruction}. MUST be under 120 characters total, ideally under 100. Be punchy and conversational. Do NOT start with the term name. Jump straight into the explanation. Never use em dashes, double hyphens, or dashes of any kind. Use commas, periods, or rewrite the sentence instead. Write like a sharp human, not like AI. No filler phrases like 'essentially', 'basically', 'think of it as'. Just state what it is directly. Example: instead of 'The Bastille was a fortress...' say 'A fortress in Paris that symbolized royal tyranny.' Return ONLY a JSON object: { "description": "..." }`,
+            content: term,
           },
         ],
       }),

@@ -54,6 +54,18 @@ function flushTranscriptBuffer() {
 
 async function startCapture() {
   try {
+    // Close any existing offscreen document before proceeding
+    try {
+      const hasDoc = await chrome.offscreen.hasDocument();
+      if (hasDoc) {
+        console.log('[BACKGROUND] Existing offscreen document found, closing before restart');
+        await chrome.offscreen.closeDocument();
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    } catch (e) {
+      // Ignore — document may not exist
+    }
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
       console.error('[BACKGROUND] No active tab found');
@@ -130,6 +142,9 @@ async function stopCapture() {
 
   // Flush any remaining buffered transcript
   flushTranscriptBuffer();
+
+  // Small delay after closing offscreen doc before resetting state
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   capturingTabId = null;
   capturingTabTitle = null;

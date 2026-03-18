@@ -43,6 +43,7 @@ Apply these filters strictly:
 - SKIP the main topic itself and anything obvious from the title. If the title mentions the French Revolution, do not extract "French Revolution."
 - SKIP well-known countries, continents, and major cities unless they are being discussed in a surprising or non-obvious way.
 - SKIP generic/common terms like "government", "war", "economy" unless they refer to a specific named event or concept.
+- Do NOT extract generic terms like "Britain", "France", "18th century France", "French Monarchy", "Sovereign Debt", "Unfair taxation", or "Paper money devaluation". These are surface-level concepts any viewer already understands from context. Only extract specific named things: a specific person (like "Jacques Necker" or "Louis XVI"), a specific event (like "Tennis Court Oath"), a specific policy (like "gabelle salt tax"), a specific institution (like "Estates-General"), or a genuinely technical term (like "assignats"). If the transcript is just general narration without specific named entities, return an empty array. It is better to return nothing than to return obvious or generic results.
 - PRIORITIZE: specific historical figures not widely known, technical financial terms, obscure events, named policies/laws/treaties, specific organizations, and domain jargon the viewer might not know.
 - For expert users, only extract truly obscure or specialist terms. For beginners, cast a wider net but still skip the obvious.
 

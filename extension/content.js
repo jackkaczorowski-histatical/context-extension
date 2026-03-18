@@ -1033,7 +1033,7 @@ if (!window.__contextExtensionLoaded) {
 
   function renderCards(entities) {
     if (!entities || entities.length === 0) return;
-    console.log('[CONTENT] renderCards received:', entities.map(e => e.term + '/' + e.salience));
+    console.log('[CONTENT] renderCards received:', entities.map(e => e.term));
 
     ensureSidebar();
     const cards = shadowRoot.getElementById('cards');
@@ -1060,6 +1060,7 @@ if (!window.__contextExtensionLoaded) {
     });
 
     console.log('[CONTENT] After dedup filter:', entities.map(e => e.term));
+    console.log('[CONTENT] Rendering entities:', entities.map(e => e.term));
 
     if (entities.length === 0) return;
 
@@ -1116,15 +1117,10 @@ if (!window.__contextExtensionLoaded) {
         ? createStockCard(entity)
         : createGenericCard(entity);
 
-      // Dim background-salience cards
-      if (entity.salience === 'background') {
-        card.style.opacity = '0.7';
-      }
-
       if (sidebarClosed) card.classList.add('missed');
       cards.prepend(card);
       termCount++;
-      console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name, '(' + (entity.salience || 'highlight') + ')');
+      console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
     });
 
     // Show "What did I miss?" if enough missed cards
@@ -1134,13 +1130,11 @@ if (!window.__contextExtensionLoaded) {
       if (mb) mb.classList.toggle('visible', missedCount > 3);
     }
 
-    const highlightCount = limited.filter(e => e.salience !== 'background').length;
-    updateBadge(highlightCount);
+    updateBadge(limited.length);
 
-    // Show toast for first highlight if sidebar is closed
-    const firstHighlight = limited.find(e => e.salience !== 'background');
-    if (hostEl && hostEl.dataset.open !== 'true' && firstHighlight) {
-      showToast(firstHighlight);
+    // Show toast for first entity if sidebar is closed
+    if (hostEl && hostEl.dataset.open !== 'true' && limited.length > 0) {
+      showToast(limited[0]);
     }
 
     chrome.storage.local.remove('pendingEntities');

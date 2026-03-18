@@ -1033,7 +1033,7 @@ if (!window.__contextExtensionLoaded) {
 
   function renderCards(entities) {
     if (!entities || entities.length === 0) return;
-    console.log('[CONTENT] renderCards:', entities.length, 'entities');
+    console.log('[CONTENT] renderCards received:', entities.map(e => e.term + '/' + e.salience));
 
     ensureSidebar();
     const cards = shadowRoot.getElementById('cards');
@@ -1058,6 +1058,8 @@ if (!window.__contextExtensionLoaded) {
       seenTerms.set(key, now);
       return true;
     });
+
+    console.log('[CONTENT] After dedup filter:', entities.map(e => e.term));
 
     if (entities.length === 0) return;
 
@@ -1091,70 +1093,54 @@ if (!window.__contextExtensionLoaded) {
 
   function renderCardsInner(entities, cards) {
 
-    // Split into highlights (shown in sidebar) and background (recap only)
-    const highlights = entities.filter(e => e.salience !== 'background');
-    const background = entities.filter(e => e.salience === 'background');
+    showCardsHideEmpty();
 
-    // Store background entities in sessionHistory only
-    if (background.length > 0) {
-      chrome.storage.local.get('sessionHistory', (hData) => {
-        const history = hData.sessionHistory || [];
-        background.forEach(e => {
-          const term = e.term || e.name || '';
-          if (term) history.push({ term, type: e.type || 'other', timestamp: Date.now(), description: '', salience: 'background' });
-        });
-        chrome.storage.local.set({ sessionHistory: history });
-      });
-      termCount += background.length;
-      console.log('[CONTENT] Stored', background.length, 'background entities for recap');
+    // Hide listening indicator and reset timer
+    if (shadowRoot) {
+      const li = shadowRoot.getElementById('listening-indicator');
+      if (li) li.classList.remove('visible');
+    }
+    if (listeningTimer) clearTimeout(listeningTimer);
+    listeningTimer = setTimeout(() => {
+      if (shadowRoot && hasCards) {
+        const li = shadowRoot.getElementById('listening-indicator');
+        if (li) li.classList.add('visible');
+      }
+    }, 20000);
+
+    const limited = entities.slice(0, settings.cardsPerChunk);
+    const sidebarClosed = !hostEl || hostEl.dataset.open !== 'true';
+
+    limited.forEach(entity => {
+      const card = entity.type === 'stock'
+        ? createStockCard(entity)
+        : createGenericCard(entity);
+
+      // Dim background-salience cards
+      if (entity.salience === 'background') {
+        card.style.opacity = '0.7';
+      }
+
+      if (sidebarClosed) card.classList.add('missed');
+      cards.prepend(card);
+      termCount++;
+      console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name, '(' + (entity.salience || 'highlight') + ')');
+    });
+
+    // Show "What did I miss?" if enough missed cards
+    if (sidebarClosed && shadowRoot) {
+      const missedCount = cards.querySelectorAll('.context-card.missed').length;
+      const mb = shadowRoot.getElementById('missed-bar');
+      if (mb) mb.classList.toggle('visible', missedCount > 3);
     }
 
-    if (highlights.length > 0) {
-      showCardsHideEmpty();
+    const highlightCount = limited.filter(e => e.salience !== 'background').length;
+    updateBadge(highlightCount);
 
-      // Hide listening indicator and reset timer
-      if (shadowRoot) {
-        const li = shadowRoot.getElementById('listening-indicator');
-        if (li) li.classList.remove('visible');
-      }
-      if (listeningTimer) clearTimeout(listeningTimer);
-      listeningTimer = setTimeout(() => {
-        if (shadowRoot && hasCards) {
-          const li = shadowRoot.getElementById('listening-indicator');
-          if (li) li.classList.add('visible');
-        }
-      }, 20000);
-
-      const limited = highlights.slice(0, settings.cardsPerChunk);
-      const sidebarClosed = !hostEl || hostEl.dataset.open !== 'true';
-
-      limited.forEach(entity => {
-        const card = entity.type === 'stock'
-          ? createStockCard(entity)
-          : createGenericCard(entity);
-
-        if (sidebarClosed) card.classList.add('missed');
-        cards.prepend(card);
-        termCount++;
-        console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
-      });
-
-      // Show "What did I miss?" if enough missed cards
-      if (sidebarClosed && shadowRoot) {
-        const missedCount = cards.querySelectorAll('.context-card.missed').length;
-        const mb = shadowRoot.getElementById('missed-bar');
-        if (mb) mb.classList.toggle('visible', missedCount > 3);
-      }
-
-      updateBadge(limited.length);
-
-      // Show toast for first highlight if sidebar is closed
-      if (hostEl && hostEl.dataset.open !== 'true' && limited.length > 0) {
-        showToast(limited[0]);
-      }
-    } else {
-      // Still update badge count for background entities but don't pulse
-      updateBadge(0);
+    // Show toast for first highlight if sidebar is closed
+    const firstHighlight = limited.find(e => e.salience !== 'background');
+    if (hostEl && hostEl.dataset.open !== 'true' && firstHighlight) {
+      showToast(firstHighlight);
     }
 
     chrome.storage.local.remove('pendingEntities');

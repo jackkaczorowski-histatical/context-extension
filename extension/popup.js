@@ -58,11 +58,11 @@ function showPreferences() {
   });
 }
 
+let mainPopupInitialized = false;
+
 // Always show main popup directly
 mainPopupEl.style.display = 'block';
 initMainPopup();
-
-let mainPopupInitialized = false;
 
 function initMainPopup() {
   if (mainPopupInitialized) return;

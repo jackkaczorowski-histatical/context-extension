@@ -319,6 +319,42 @@ if (!window.__contextExtensionLoaded) {
       100% { box-shadow: none; }
     }
 
+    /* ─── Ask bar ─── */
+    .ctx-ask-bar {
+      flex-shrink: 0; padding: 10px 12px; background: #0a0a12;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .ctx-ask-input {
+      width: 100%; height: 32px; background: #1a1a28;
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;
+      padding: 0 10px; font-size: 11px; color: #e0e0f0;
+      font-family: inherit; outline: none;
+      transition: border-color 0.2s;
+    }
+    .ctx-ask-input::placeholder { color: #3a3a5a; }
+    .ctx-ask-input:focus { border-color: rgba(90,90,255,0.4); }
+    .ctx-ask-response {
+      display: none; padding: 10px 12px; font-size: 11px; color: #8a8aaa;
+      line-height: 1.5; max-height: 150px; overflow-y: auto; background: #0a0a12;
+      border-top: 1px solid rgba(255,255,255,0.04); position: relative;
+    }
+    .ctx-ask-response.visible { display: block; }
+    .ctx-ask-response::-webkit-scrollbar { width: 3px; }
+    .ctx-ask-response::-webkit-scrollbar-track { background: transparent; }
+    .ctx-ask-response::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
+    .ctx-ask-clear {
+      position: absolute; top: 6px; right: 8px;
+      background: none; border: none; color: #3a3a5a; font-size: 10px;
+      cursor: pointer; padding: 2px 4px; line-height: 1;
+      transition: color 0.15s;
+    }
+    .ctx-ask-clear:hover { color: #8a8aaa; }
+    .ctx-ask-loading::after {
+      content: ''; display: inline-block; width: 4px; height: 4px;
+      background: #6a6a8a; border-radius: 50%;
+      animation: ctx-dot-pulse 1s ease-in-out infinite;
+    }
+
     /* ─── Light theme overrides ─── */
     #sidebar.light-theme { background: #f5f5f8; color: #1a1a2e; }
     .light-theme #header { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.06); }
@@ -358,6 +394,14 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-wiki-link { color: #8a8aa0; }
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
     .light-theme .feedback-msg { color: #9a9ab0; }
+    .light-theme .ctx-ask-bar { background: #f0f0f5; border-top-color: rgba(0,0,0,0.06); }
+    .light-theme .ctx-ask-input { background: #ffffff; border-color: rgba(0,0,0,0.1); color: #1a1a2e; }
+    .light-theme .ctx-ask-input::placeholder { color: #b0b0c0; }
+    .light-theme .ctx-ask-input:focus { border-color: rgba(90,90,255,0.4); }
+    .light-theme .ctx-ask-response { background: #f0f0f5; border-top-color: rgba(0,0,0,0.06); color: #5a5a7a; }
+    .light-theme .ctx-ask-response::-webkit-scrollbar-thumb { background: #d0d0e0; }
+    .light-theme .ctx-ask-clear { color: #b0b0c0; }
+    .light-theme .ctx-ask-clear:hover { color: #5a5a70; }
   `;
 
   const BADGE_CSS = `
@@ -820,11 +864,68 @@ if (!window.__contextExtensionLoaded) {
     const cardContainer = document.createElement('div');
     cardContainer.id = 'cards';
 
+    // Ask response area
+    const askResponse = document.createElement('div');
+    askResponse.className = 'ctx-ask-response';
+
+    const askClear = document.createElement('button');
+    askClear.className = 'ctx-ask-clear';
+    askClear.textContent = '\u2715';
+    askClear.addEventListener('click', () => {
+      askResponse.textContent = '';
+      askResponse.classList.remove('visible');
+    });
+
+    // Ask bar
+    const askBar = document.createElement('div');
+    askBar.className = 'ctx-ask-bar';
+    const askInput = document.createElement('input');
+    askInput.className = 'ctx-ask-input';
+    askInput.type = 'text';
+    askInput.placeholder = 'Ask about this video...';
+    askBar.appendChild(askInput);
+
+    askInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && askInput.value.trim()) {
+        const question = askInput.value.trim();
+        askInput.value = '';
+
+        askResponse.textContent = '';
+        askResponse.classList.add('visible', 'ctx-ask-loading');
+        askResponse.appendChild(askClear);
+
+        chrome.storage.local.get(['sessionTranscript', 'capturingTabTitle'], (data) => {
+          fetch('https://context-extension-zv8d.vercel.app/api/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question,
+              sessionTranscript: data.sessionTranscript || '',
+              videoTitle: data.capturingTabTitle || document.title || ''
+            })
+          })
+          .then(res => res.ok ? res.json() : Promise.reject(res))
+          .then(result => {
+            askResponse.classList.remove('ctx-ask-loading');
+            askResponse.textContent = result.answer || 'No answer available';
+            askResponse.appendChild(askClear);
+          })
+          .catch(() => {
+            askResponse.classList.remove('ctx-ask-loading');
+            askResponse.textContent = 'Could not get an answer';
+            askResponse.appendChild(askClear);
+          });
+        });
+      }
+    });
+
     sidebar.appendChild(header);
     sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
     sidebar.appendChild(emptyState);
     sidebar.appendChild(cardContainer);
+    sidebar.appendChild(askResponse);
+    sidebar.appendChild(askBar);
     shadowRoot.appendChild(sidebar);
     document.body.appendChild(hostEl);
 

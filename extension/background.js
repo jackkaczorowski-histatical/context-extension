@@ -90,6 +90,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
     transcriptBuffer += (transcriptBuffer ? ' ' : '') + message.transcript;
     sessionTranscript += (sessionTranscript ? ' ' : '') + message.transcript;
+    chrome.storage.local.set({ sessionTranscript });
     if (!bufferTimer) {
       bufferTimer = setTimeout(() => {
         flushTranscriptBuffer();
@@ -312,7 +313,7 @@ async function stopCapture() {
   isPaused = false;
   stopUsageTimer();
   chrome.storage.local.remove('activeTabId');
-  chrome.storage.local.set({ capturing: false, sessionHistory: [] });
+  chrome.storage.local.set({ capturing: false, sessionHistory: [], sessionTranscript: '' });
   console.log('[BACKGROUND] Capture stopped');
 }
 

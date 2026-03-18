@@ -138,19 +138,19 @@ if (!window.__contextExtensionLoaded) {
   const SHADOW_CSS = `
     :host {
       display: block;
-      background: #0e0e16;
+      background: #12121c;
     }
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     #sidebar {
-      width: 100%; height: 100%; background: #0e0e16;
+      width: 100%; height: 100%; background: #12121c;
       display: flex; flex-direction: column; overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #e0e0f0;
     }
     #header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 12px 12px 16px; background: #0e0e16;
-      border-bottom: 1px solid rgba(255,255,255,0.04); flex-shrink: 0;
+      padding: 12px 12px 12px 16px; background: #12121c;
+      border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
     }
     .ctx-wordmark { font-size: 13px; font-weight: 600; color: #e0e0f0; letter-spacing: -0.01em; }
     .ctx-header-right { display: flex; align-items: center; gap: 10px; }
@@ -182,7 +182,7 @@ if (!window.__contextExtensionLoaded) {
     #empty-state {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 12px;
-      background: #0e0e16;
+      background: #12121c;
     }
     .ctx-waveform { display: flex; align-items: center; gap: 3px; height: 24px; }
     .ctx-waveform span {
@@ -197,37 +197,37 @@ if (!window.__contextExtensionLoaded) {
       0%, 100% { height: 8px; }
       50% { height: 20px; }
     }
-    .ctx-empty-text { font-size: 11px; color: #3a3a5a; }
+    .ctx-empty-text { font-size: 11px; color: #6a6a8a; }
     #listening-indicator {
       display: none; align-items: center; gap: 6px;
-      padding: 6px 16px; background: #0e0e16;
+      padding: 6px 16px; background: #12121c;
       border-bottom: 1px solid rgba(255,255,255,0.03);
     }
     #listening-indicator.visible { display: flex; }
     #listening-indicator .li-dot {
-      width: 4px; height: 4px; border-radius: 50%; background: #2a2a3a;
+      width: 4px; height: 4px; border-radius: 50%; background: #5a5a7a;
       animation: ctx-pulse 2s ease-in-out infinite;
     }
-    #listening-indicator .li-text { font-size: 10px; color: #2a2a3a; }
+    #listening-indicator .li-text { font-size: 10px; color: #5a5a7a; }
     #cards {
-      flex: 1; overflow-y: auto; padding: 0; background: #0e0e16; display: none;
+      flex: 1; overflow-y: auto; padding: 0; background: #12121c; display: none;
     }
     #cards::-webkit-scrollbar { width: 3px; }
     #cards::-webkit-scrollbar-track { background: transparent; }
     #cards::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
     .session-divider {
       display: flex; align-items: center; gap: 10px;
-      padding: 10px 16px; background: #0e0e16;
+      padding: 10px 16px; background: #12121c;
     }
     .session-divider hr { flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.04); margin: 0; }
-    .session-divider span { color: #3a3a5a; font-size: 10px; white-space: nowrap; }
+    .session-divider span { color: #5a5a7a; font-size: 10px; white-space: nowrap; }
     .context-card {
       position: relative; padding: 8px 16px 8px 18px;
       border-bottom: 1px solid rgba(255,255,255,0.03); border-left: 2px solid #4a4a6a;
-      background: #121220; animation: ctx-card-in 0.25s ease-out both;
+      background: #181828; animation: ctx-card-in 0.25s ease-out both;
       cursor: pointer; user-select: none;
     }
-    .context-card:hover { background: #14142a; }
+    .context-card:hover { background: #1e1e32; }
     @keyframes ctx-card-in {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
@@ -241,12 +241,12 @@ if (!window.__contextExtensionLoaded) {
       text-transform: uppercase; flex-shrink: 0;
     }
     .card-term {
-      font-size: 13px; font-weight: 600; color: #d0d0e8;
+      font-size: 13px; font-weight: 600; color: #e8e8f8;
       flex: 1; min-width: 0; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap;
     }
-    .card-time { font-size: 10px; color: #2a2a3a; flex-shrink: 0; }
-    .card-seen { font-size: 9px; color: #2a2a3a; flex-shrink: 0; }
+    .card-time { font-size: 10px; color: #4a4a5a; flex-shrink: 0; }
+    .card-seen { font-size: 9px; color: #4a4a5a; flex-shrink: 0; }
     .card-rectx { font-size: 9px; color: #7070ff; flex-shrink: 0; }
     .context-card.recontextualized { border-left-color: #7070ff; background: rgba(112, 112, 255, 0.04); }
     .context-card.recontextualized:hover { background: rgba(112, 112, 255, 0.08); }
@@ -257,7 +257,7 @@ if (!window.__contextExtensionLoaded) {
     .context-card.expanded .card-chevron { transform: rotate(90deg); }
     .card-expand-area { display: none; padding-top: 6px; }
     .context-card.expanded .card-expand-area { display: block; }
-    .card-desc { font-size: 11px; color: #6a6a8a; line-height: 1.55; }
+    .card-desc { font-size: 11px; color: #9a9ab0; line-height: 1.55; }
     .card-source { font-size: 9px; color: #3a3a5a; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: #3a3a5a; margin-top: 4px; }
     .card-desc-loading::after {
@@ -300,7 +300,7 @@ if (!window.__contextExtensionLoaded) {
     .card-wiki-link:hover { color: #7a7aaa; }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
     #missed-bar {
-      display: none; padding: 6px 16px; background: #0e0e16;
+      display: none; padding: 6px 16px; background: #12121c;
       border-bottom: 1px solid rgba(255,255,255,0.03); flex-shrink: 0;
     }
     #missed-bar.visible { display: block; }
@@ -373,34 +373,34 @@ if (!window.__contextExtensionLoaded) {
 
     /* ─── Light theme overrides ─── */
     #sidebar.light-theme { background: #f5f5f8; color: #1a1a2e; }
-    .light-theme #header { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.06); }
+    .light-theme #header { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.1); }
     .light-theme .ctx-wordmark { color: #1a1a2e; }
     .light-theme .ctx-close-btn, .light-theme .ctx-export-btn { color: #9a9ab0; }
     .light-theme .ctx-close-btn:hover, .light-theme .ctx-export-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
     .light-theme #empty-state { background: #f5f5f8; }
     .light-theme .ctx-waveform span { background: #c0c0d0; }
-    .light-theme .ctx-empty-text { color: #9a9ab0; }
+    .light-theme .ctx-empty-text { color: #7a7a9a; }
     .light-theme #cards { background: #f5f5f8; }
     .light-theme #cards::-webkit-scrollbar-thumb { background: #d0d0e0; }
     .light-theme #listening-indicator { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
-    .light-theme #listening-indicator .li-dot { background: #b0b0c0; }
-    .light-theme #listening-indicator .li-text { color: #b0b0c0; }
+    .light-theme #listening-indicator .li-dot { background: #9a9ab0; }
+    .light-theme #listening-indicator .li-text { color: #9a9ab0; }
     .light-theme #missed-bar { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
     .light-theme .session-divider { background: #f5f5f8; }
     .light-theme .session-divider hr { border-top-color: rgba(0,0,0,0.06); }
-    .light-theme .session-divider span { color: #9a9ab0; }
+    .light-theme .session-divider span { color: #7a7a9a; }
     .light-theme .context-card { background: #ffffff; border-bottom-color: rgba(0,0,0,0.06); }
     .light-theme .context-card:hover { background: #f0f0f5; }
     .light-theme .context-card.stock-card { background: #f0faf4; }
     .light-theme .context-card.stock-card:hover { background: #e8f5ee; }
     .light-theme .card-term { color: #1a1a2e; }
-    .light-theme .card-time { color: #b0b0c0; }
-    .light-theme .card-seen { color: #b0b0c0; }
+    .light-theme .card-time { color: #9a9ab0; }
+    .light-theme .card-seen { color: #9a9ab0; }
     .light-theme .card-rectx { color: #5a5adf; }
     .light-theme .context-card.recontextualized { background: rgba(90, 90, 223, 0.05); }
     .light-theme .context-card.recontextualized:hover { background: rgba(90, 90, 223, 0.09); }
     .light-theme .card-chevron { color: #b0b0c0; }
-    .light-theme .card-desc { color: #6a6a8a; }
+    .light-theme .card-desc { color: #5a5a7a; }
     .light-theme .card-source { color: #b0b0c0; }
     .light-theme .card-popularity { color: #b0b0c0; }
     .light-theme .stock-ticker { color: #1a1a2e; }

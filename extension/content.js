@@ -235,6 +235,26 @@ if (!window.__contextExtensionLoaded) {
     }
     .card-wiki-link:hover { color: #7a7aaa; }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
+    #missed-bar {
+      display: none; padding: 6px 16px; background: #0e0e16;
+      border-bottom: 1px solid rgba(255,255,255,0.03); flex-shrink: 0;
+    }
+    #missed-bar.visible { display: block; }
+    #missed-btn {
+      font-size: 10px; color: #00e676; background: rgba(0,230,118,0.08);
+      border: none; border-radius: 12px; padding: 3px 10px;
+      cursor: pointer; font-family: inherit; font-weight: 500;
+      transition: background 0.15s;
+    }
+    #missed-btn:hover { background: rgba(0,230,118,0.15); }
+    .context-card.missed { }
+    .context-card.missed-glow {
+      animation: missed-highlight 1.5s ease-out;
+    }
+    @keyframes missed-highlight {
+      0% { box-shadow: inset 3px 0 10px rgba(0,230,118,0.3); }
+      100% { box-shadow: none; }
+    }
   `;
 
   const BADGE_CSS = `
@@ -610,6 +630,30 @@ if (!window.__contextExtensionLoaded) {
       <div class="ctx-empty-text">Listening for context...</div>
     `;
 
+    // "What did I miss?" bar
+    const missedBar = document.createElement('div');
+    missedBar.id = 'missed-bar';
+    missedBar.innerHTML = '<button id="missed-btn">What did I miss?</button>';
+    missedBar.querySelector('#missed-btn').addEventListener('click', () => {
+      const cardsEl = shadowRoot.getElementById('cards');
+      const missedCards = cardsEl.querySelectorAll('.context-card.missed');
+      if (missedCards.length > 0) {
+        // Scroll to the oldest missed card (last in DOM since prepended)
+        const oldest = missedCards[missedCards.length - 1];
+        oldest.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Glow all missed cards
+        missedCards.forEach(c => {
+          c.classList.add('missed-glow');
+          c.classList.remove('missed');
+        });
+        // Clean up after animation
+        setTimeout(() => {
+          cardsEl.querySelectorAll('.missed-glow').forEach(c => c.classList.remove('missed-glow'));
+        }, 1500);
+      }
+      missedBar.classList.remove('visible');
+    });
+
     // Listening indicator
     const listeningIndicator = document.createElement('div');
     listeningIndicator.id = 'listening-indicator';
@@ -620,6 +664,7 @@ if (!window.__contextExtensionLoaded) {
     cardContainer.id = 'cards';
 
     sidebar.appendChild(header);
+    sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
     sidebar.appendChild(emptyState);
     sidebar.appendChild(cardContainer);
@@ -725,16 +770,25 @@ if (!window.__contextExtensionLoaded) {
       }, 20000);
 
       const limited = highlights.slice(0, settings.cardsPerChunk);
+      const sidebarClosed = !hostEl || hostEl.dataset.open !== 'true';
 
       limited.forEach(entity => {
         const card = entity.type === 'stock'
           ? createStockCard(entity)
           : createGenericCard(entity);
 
+        if (sidebarClosed) card.classList.add('missed');
         cards.prepend(card);
         termCount++;
         console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
       });
+
+      // Show "What did I miss?" if enough missed cards
+      if (sidebarClosed && shadowRoot) {
+        const missedCount = cards.querySelectorAll('.context-card.missed').length;
+        const mb = shadowRoot.getElementById('missed-bar');
+        if (mb) mb.classList.toggle('visible', missedCount > 3);
+      }
 
       updateBadge(limited.length);
 

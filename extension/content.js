@@ -247,6 +247,9 @@ if (!window.__contextExtensionLoaded) {
     }
     .card-time { font-size: 10px; color: #2a2a3a; flex-shrink: 0; }
     .card-seen { font-size: 9px; color: #2a2a3a; flex-shrink: 0; }
+    .card-rectx { font-size: 9px; color: #7070ff; flex-shrink: 0; }
+    .context-card.recontextualized { border-left-color: #7070ff; background: rgba(112, 112, 255, 0.04); }
+    .context-card.recontextualized:hover { background: rgba(112, 112, 255, 0.08); }
     .card-chevron {
       font-size: 12px; color: #3a3a5a; flex-shrink: 0;
       transition: transform 0.2s ease; line-height: 1;
@@ -341,6 +344,9 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-term { color: #1a1a2e; }
     .light-theme .card-time { color: #b0b0c0; }
     .light-theme .card-seen { color: #b0b0c0; }
+    .light-theme .card-rectx { color: #5a5adf; }
+    .light-theme .context-card.recontextualized { background: rgba(90, 90, 223, 0.05); }
+    .light-theme .context-card.recontextualized:hover { background: rgba(90, 90, 223, 0.09); }
     .light-theme .card-chevron { color: #b0b0c0; }
     .light-theme .card-desc { color: #6a6a8a; }
     .light-theme .card-source { color: #b0b0c0; }
@@ -621,7 +627,13 @@ if (!window.__contextExtensionLoaded) {
     card.className = 'context-card';
     const type = entity.type || 'other';
     const color = getTypeColor(type);
-    card.style.borderLeftColor = color;
+    const isRectx = !!entity.recontextualized;
+
+    if (isRectx) {
+      card.classList.add('recontextualized');
+    } else {
+      card.style.borderLeftColor = color;
+    }
 
     const timestamp = formatTime(new Date());
     const typeLabel = (type || 'OTHER').toUpperCase();
@@ -630,11 +642,18 @@ if (!window.__contextExtensionLoaded) {
     const wikiTerm = (entity.term || entity.name || '').replace(/ /g, '_');
     const wikiUrl = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(wikiTerm);
 
-    const seenTag = entity._kbSeen ? '<span class="card-seen">seen before</span>' : '';
+    const typeBadge = isRectx
+      ? `<span class="card-type" style="color:#7070ff">&#x21BB; ${typeLabel}</span><span class="card-rectx">new context</span>`
+      : `<span class="card-type" style="color:${color}">${typeLabel}</span>`;
+    const seenTag = !isRectx && entity._kbSeen ? '<span class="card-seen">seen before</span>' : '';
+
+    const sourceLine = isRectx && entity._kbSource
+      ? '<div class="card-source">Previously seen in: ' + escapeHtml(entity._kbSource) + '</div>'
+      : (entity._kbSource ? '<div class="card-source">Also came up in: ' + escapeHtml(entity._kbSource) + '</div>' : '');
 
     card.innerHTML = `
       <div class="card-row">
-        <span class="card-type" style="color:${color}">${typeLabel}</span>
+        ${typeBadge}
         <span class="card-term">${termText}</span>
         ${seenTag}
         <span class="card-time">${timestamp}</span>
@@ -642,7 +661,7 @@ if (!window.__contextExtensionLoaded) {
       </div>
       <div class="card-expand-area">
         <div class="card-desc"></div>
-        ${entity._kbSource ? '<div class="card-source">Also came up in: ' + escapeHtml(entity._kbSource) + '</div>' : ''}
+        ${sourceLine}
         <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
       </div>
     `;
@@ -883,12 +902,12 @@ if (!window.__contextExtensionLoaded) {
       entities = entities.filter(entity => {
         const term = (entity.term || entity.name || '').toLowerCase();
         const entry = kb[term];
-        if (entry && entry.timesSeen >= 3) {
+        if (entry && entry.timesSeen >= 3 && !entity.recontextualized) {
           console.log('[CONTENT] KB skip (seen', entry.timesSeen, 'times):', term);
           return false;
         }
         if (entry) {
-          entity._kbSeen = true;
+          if (!entity.recontextualized) entity._kbSeen = true;
           if (entry.source && entry.source !== currentTitle) {
             entity._kbSource = entry.source;
           }

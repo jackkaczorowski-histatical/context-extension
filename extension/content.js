@@ -444,6 +444,14 @@ if (!window.__contextExtensionLoaded) {
       0% { box-shadow: 0 0 12px rgba(0,230,118,0.4); }
       100% { box-shadow: none; }
     }
+    .ctx-badge.media-detected {
+      animation: badge-media-pulse 2s ease-in-out infinite;
+      border-color: rgba(90,90,255,0.4);
+    }
+    @keyframes badge-media-pulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(90,90,255,0.3); }
+      50% { box-shadow: 0 0 14px rgba(90,90,255,0.5); }
+    }
     .ctx-badge-count {
       font-size: 13px; font-weight: 600; color: #e0e0f0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -491,6 +499,22 @@ if (!window.__contextExtensionLoaded) {
     badge.className = 'ctx-badge';
     badge.innerHTML = '<span class="ctx-badge-count">0</span>';
     badge.addEventListener('click', () => {
+      // If media detected but not yet capturing, start capture on click
+      if (mediaDetected && !autoCapturing) {
+        autoCapturing = true;
+        autoPaused = false;
+        mediaDetected = false;
+        console.log('[CONTENT] User clicked badge, starting capture');
+        try { chrome.runtime.sendMessage({ type: 'START_CAPTURE' }); } catch (e) {}
+        chrome.storage.local.set({ capturing: true });
+        badge.classList.remove('media-detected');
+        const countEl = badge.querySelector('.ctx-badge-count');
+        if (countEl) countEl.textContent = '0';
+        ensureSidebar();
+        openSidebar();
+        resetAutoHide();
+        return;
+      }
       if (!hostEl) return;
       if (hostEl.dataset.open === 'true') {
         closeSidebar();
@@ -1210,6 +1234,7 @@ if (!window.__contextExtensionLoaded) {
   let autoCapturing = false;
   let autoPaused = false;
   let autoStartDebounce = null;
+  let mediaDetected = false;
 
   function isLongMedia(el) {
     return el.duration && el.duration > 60;
@@ -1230,19 +1255,25 @@ if (!window.__contextExtensionLoaded) {
       return;
     }
 
-    if (!autoCapturing) {
+    if (!autoCapturing && !mediaDetected) {
       // Debounce to avoid ads
       if (autoStartDebounce) clearTimeout(autoStartDebounce);
       autoStartDebounce = setTimeout(() => {
         autoStartDebounce = null;
         // Re-check the element is still playing and long enough
         if (el.paused || el.ended || !isLongMedia(el)) return;
-        if (autoCapturing) return;
-        autoCapturing = true;
-        autoPaused = false;
-        console.log('[CONTENT] Media playing, auto-starting capture');
-        try { chrome.runtime.sendMessage({ type: 'START_CAPTURE' }); } catch (e) {}
-        chrome.storage.local.set({ capturing: true });
+        if (autoCapturing || mediaDetected) return;
+        mediaDetected = true;
+        console.log('[CONTENT] Media detected, showing badge prompt');
+        ensureBadge();
+        if (badgeShadow) {
+          const badge = badgeShadow.querySelector('.ctx-badge');
+          if (badge) {
+            badge.classList.add('media-detected');
+            const countEl = badge.querySelector('.ctx-badge-count');
+            if (countEl) countEl.textContent = '\u25B6';
+          }
+        }
       }, 2000);
     } else if (autoPaused) {
       autoPaused = false;

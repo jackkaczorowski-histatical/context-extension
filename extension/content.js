@@ -160,12 +160,21 @@ if (!window.__contextExtensionLoaded) {
       animation: ctx-pulse 2s ease-in-out infinite;
     }
     .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
-    .ctx-close-btn {
+    .ctx-close-btn, .ctx-export-btn {
       background: none; border: none; color: #3a3a5a; font-size: 16px;
       cursor: pointer; padding: 2px 6px; border-radius: 4px;
       line-height: 1; transition: color 0.15s, background 0.15s;
+      position: relative;
     }
-    .ctx-close-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
+    .ctx-close-btn:hover, .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
+    .ctx-export-btn { font-size: 13px; }
+    .ctx-export-tooltip {
+      position: absolute; top: -24px; left: 50%; transform: translateX(-50%);
+      background: #00e676; color: #0a0a12; font-size: 9px; font-weight: 600;
+      padding: 2px 6px; border-radius: 4px; white-space: nowrap;
+      pointer-events: none; opacity: 0; transition: opacity 0.2s;
+    }
+    .ctx-export-tooltip.visible { opacity: 1; }
     @keyframes ctx-pulse {
       0%, 100% { opacity: 1; box-shadow: 0 0 4px #00e676; }
       50% { opacity: 0.4; box-shadow: 0 0 8px #00e676; }
@@ -309,8 +318,8 @@ if (!window.__contextExtensionLoaded) {
     #sidebar.light-theme { background: #f5f5f8; color: #1a1a2e; }
     .light-theme #header { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.06); }
     .light-theme .ctx-wordmark { color: #1a1a2e; }
-    .light-theme .ctx-close-btn { color: #9a9ab0; }
-    .light-theme .ctx-close-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
+    .light-theme .ctx-close-btn, .light-theme .ctx-export-btn { color: #9a9ab0; }
+    .light-theme .ctx-close-btn:hover, .light-theme .ctx-export-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
     .light-theme #empty-state { background: #f5f5f8; }
     .light-theme .ctx-waveform span { background: #c0c0d0; }
     .light-theme .ctx-empty-text { color: #9a9ab0; }
@@ -709,6 +718,7 @@ if (!window.__contextExtensionLoaded) {
           <span class="ctx-live-dot"></span>
           <span class="ctx-live-text">Live</span>
         </div>
+        <button class="ctx-export-btn" title="Copy study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button>
         <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
       </div>
     `;
@@ -716,6 +726,29 @@ if (!window.__contextExtensionLoaded) {
     // Wire up close button
     header.querySelector('.ctx-close-btn').addEventListener('click', () => {
       closeSidebar();
+    });
+
+    // Wire up export button
+    header.querySelector('.ctx-export-btn').addEventListener('click', () => {
+      const title = document.title || 'Untitled';
+      const url = window.location.href;
+
+      chrome.storage.local.get('sessionHistory', (data) => {
+        const history = data.sessionHistory || [];
+        let md = `# ${title}\n${url}\n\n## Key Terms\n\n`;
+        history.forEach(entry => {
+          const type = (entry.type || 'other').charAt(0).toUpperCase() + (entry.type || 'other').slice(1);
+          md += `**${entry.term}** (${type})\n`;
+          if (entry.description) md += `${entry.description}\n`;
+          md += '\n';
+        });
+
+        navigator.clipboard.writeText(md.trim()).then(() => {
+          const tooltip = header.querySelector('.ctx-export-tooltip');
+          tooltip.classList.add('visible');
+          setTimeout(() => tooltip.classList.remove('visible'), 1500);
+        });
+      });
     });
 
     // Empty state

@@ -262,6 +262,21 @@ if (!window.__contextExtensionLoaded) {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1;
     }
+    .ctx-toast {
+      position: fixed; bottom: 65px; right: 20px;
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px; padding: 8px 12px; border-left: 3px solid #4a4a6a;
+      cursor: pointer; opacity: 0; transition: opacity 0.3s ease;
+      pointer-events: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 200px;
+    }
+    .ctx-toast.visible { opacity: 1; pointer-events: auto; }
+    .ctx-toast.fading { opacity: 0; transition: opacity 0.5s ease; }
+    .ctx-toast-term {
+      font-size: 12px; font-weight: 600; color: #e0e0f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
   `;
 
   function ensureBadge() {
@@ -306,6 +321,45 @@ if (!window.__contextExtensionLoaded) {
         badge.classList.add('pulse');
       }
     }
+  }
+
+  let toastTimer = null;
+
+  function showToast(entity) {
+    if (!badgeShadow) return;
+    // Don't show if sidebar is open
+    if (hostEl && hostEl.dataset.open === 'true') return;
+
+    // Remove existing toast
+    const existing = badgeShadow.querySelector('.ctx-toast');
+    if (existing) existing.remove();
+    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+
+    const color = getTypeColor(entity.type);
+    const toast = document.createElement('div');
+    toast.className = 'ctx-toast';
+    toast.style.borderLeftColor = color;
+    toast.innerHTML = `<div class="ctx-toast-term">${escapeHtml(entity.term || entity.name || '')}</div>`;
+    toast.addEventListener('click', () => {
+      toast.remove();
+      if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+      openSidebar();
+      resetAutoHide();
+    });
+    badgeShadow.appendChild(toast);
+
+    // Fade in
+    requestAnimationFrame(() => {
+      toast.classList.add('visible');
+    });
+
+    // Fade out after 3s
+    toastTimer = setTimeout(() => {
+      toast.classList.add('fading');
+      toast.classList.remove('visible');
+      setTimeout(() => { toast.remove(); }, 500);
+      toastTimer = null;
+    }, 3000);
   }
 
   function getHostPosition() {
@@ -683,6 +737,11 @@ if (!window.__contextExtensionLoaded) {
       });
 
       updateBadge(limited.length);
+
+      // Show toast for first highlight if sidebar is closed
+      if (hostEl && hostEl.dataset.open !== 'true' && limited.length > 0) {
+        showToast(limited[0]);
+      }
     } else {
       // Still update badge count for background entities but don't pulse
       updateBadge(0);

@@ -36,16 +36,16 @@ function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, d
 
   return `You are a real-time contextual intelligence engine. The user is watching/listening to content titled: "${title}". Their knowledge level is: ${level}. Their interests are: ${interestList}.
 
-Extract ONLY terms, people, events, or concepts that are explicitly mentioned or directly referenced in the transcript. Do NOT infer related academic concepts that weren't said. If the speaker says "bread costs more than wages", do not extract "Wage-Price Spiral". If the speaker mentions "Versailles", extract that. If the speaker mentions a specific person like "Jacques Necker", extract that. Focus on proper nouns, named events, specific people, named policies, and technical terms the speaker actually uses. The goal is to explain what the viewer just heard, not to generate a textbook index of related topics.
+Extract terms, people, events, or concepts that are explicitly mentioned or directly referenced in the transcript. Do NOT infer related academic concepts that weren't said. Focus on what the speaker actually says.
 
-Apply these filters strictly:
+Extract 2-4 notable terms per chunk. Include specific people, named events, named places with historical significance, institutions, technical terms, and concepts that add depth to what the viewer is hearing. It's okay to extract well-known terms if they are central to the current discussion and the viewer would benefit from a quick explanation. The goal is to give the viewer 2-4 useful touchpoints per 12-second window, not to be so selective that nothing appears. An empty response should be rare, only when the transcript is truly generic narration with nothing worth explaining. When in doubt, extract it. The user can always ignore cards they don't need.
+
+Apply these filters:
 
 - SKIP the main topic itself and anything obvious from the title. If the title mentions the French Revolution, do not extract "French Revolution."
-- SKIP well-known countries, continents, and major cities unless they are being discussed in a surprising or non-obvious way.
-- SKIP generic/common terms like "government", "war", "economy" unless they refer to a specific named event or concept.
-- Do NOT extract generic terms like "Britain", "France", "18th century France", "French Monarchy", "Sovereign Debt", "Unfair taxation", or "Paper money devaluation". These are surface-level concepts any viewer already understands from context. Only extract specific named things: a specific person (like "Jacques Necker" or "Louis XVI"), a specific event (like "Tennis Court Oath"), a specific policy (like "gabelle salt tax"), a specific institution (like "Estates-General"), or a genuinely technical term (like "assignats"). If the transcript is just general narration without specific named entities, return an empty array. It is better to return nothing than to return obvious or generic results.
-- PRIORITIZE: specific historical figures not widely known, technical financial terms, obscure events, named policies/laws/treaties, specific organizations, and domain jargon the viewer might not know.
-- For expert users, only extract truly obscure or specialist terms. For beginners, cast a wider net but still skip the obvious.
+- SKIP single-word generic terms like "government", "war", "economy" unless they refer to a specific named event or concept.
+- PRIORITIZE: specific people, named events, technical terms, institutions, policies, and concepts that would benefit from a quick explanation.
+- For expert users, lean toward more obscure or specialist terms. For beginners, cast a wider net.
 
 For each entity, include a relevance score: 3 = most people wouldn't know this, 2 = moderately well-known, 1 = common knowledge. ${relevanceFilter}
 

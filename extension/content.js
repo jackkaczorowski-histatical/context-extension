@@ -246,6 +246,7 @@ if (!window.__contextExtensionLoaded) {
       text-overflow: ellipsis; white-space: nowrap;
     }
     .card-time { font-size: 10px; color: #2a2a3a; flex-shrink: 0; }
+    .card-seen { font-size: 9px; color: #2a2a3a; flex-shrink: 0; }
     .card-chevron {
       font-size: 12px; color: #3a3a5a; flex-shrink: 0;
       transition: transform 0.2s ease; line-height: 1;
@@ -338,6 +339,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .context-card.stock-card:hover { background: #e8f5ee; }
     .light-theme .card-term { color: #1a1a2e; }
     .light-theme .card-time { color: #b0b0c0; }
+    .light-theme .card-seen { color: #b0b0c0; }
     .light-theme .card-chevron { color: #b0b0c0; }
     .light-theme .card-desc { color: #6a6a8a; }
     .light-theme .stock-ticker { color: #1a1a2e; }
@@ -626,10 +628,13 @@ if (!window.__contextExtensionLoaded) {
     const wikiTerm = (entity.term || entity.name || '').replace(/ /g, '_');
     const wikiUrl = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(wikiTerm);
 
+    const seenTag = entity._kbSeen ? '<span class="card-seen">seen before</span>' : '';
+
     card.innerHTML = `
       <div class="card-row">
         <span class="card-type" style="color:${color}">${typeLabel}</span>
         <span class="card-term">${termText}</span>
+        ${seenTag}
         <span class="card-time">${timestamp}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>
@@ -865,6 +870,30 @@ if (!window.__contextExtensionLoaded) {
     });
 
     if (entities.length === 0) return;
+
+    // Check knowledge base for seen-before terms
+    chrome.storage.local.get('knowledgeBase', (kbData) => {
+      const kb = kbData.knowledgeBase || {};
+
+      // Filter out terms seen 3+ times, annotate 1-2 times
+      entities = entities.filter(entity => {
+        const term = (entity.term || entity.name || '').toLowerCase();
+        const entry = kb[term];
+        if (entry && entry.timesSeen >= 3) {
+          console.log('[CONTENT] KB skip (seen', entry.timesSeen, 'times):', term);
+          return false;
+        }
+        if (entry) entity._kbSeen = true;
+        return true;
+      });
+
+      if (entities.length === 0) return;
+
+      renderCardsInner(entities, cards);
+    });
+  }
+
+  function renderCardsInner(entities, cards) {
 
     // Split into highlights (shown in sidebar) and background (recap only)
     const highlights = entities.filter(e => e.salience !== 'background');

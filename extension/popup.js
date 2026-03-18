@@ -110,6 +110,39 @@ function initMainPopup() {
     }
   }
 
+  // --- Weekly digest ---
+  const digestCard = document.getElementById('digestCard');
+  const digestText = document.getElementById('digestText');
+  const digestDismiss = document.getElementById('digestDismiss');
+
+  function updateDigest() {
+    chrome.storage.local.get('weeklyDigest', (data) => {
+      const digest = data.weeklyDigest;
+      if (!digest || digest.dismissed) {
+        digestCard.classList.remove('visible');
+        return;
+      }
+      digestText.textContent = `This week: ${digest.newTerms} new term${digest.newTerms !== 1 ? 's' : ''} from ${digest.videoCount} video${digest.videoCount !== 1 ? 's' : ''}. Mostly ${digest.topicSummary}.`;
+      digestCard.classList.add('visible');
+    });
+  }
+
+  updateDigest();
+
+  digestDismiss.addEventListener('click', () => {
+    chrome.storage.local.get('weeklyDigest', (data) => {
+      if (data.weeklyDigest) {
+        data.weeklyDigest.dismissed = true;
+        chrome.storage.local.set({ weeklyDigest: data.weeklyDigest });
+      }
+    });
+    digestCard.classList.remove('visible');
+  });
+
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.weeklyDigest) updateDigest();
+  });
+
   // --- Learning stats ---
   const learningStatsEl = document.getElementById('learningStats');
 

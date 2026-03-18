@@ -244,6 +244,63 @@ async function stopCapture() {
     console.error('[BACKGROUND] Knowledge base update error:', e.message || e);
   }
 
+  // Check if weekly digest is due (7+ days since last)
+  try {
+    const digestData = await chrome.storage.local.get(['lastDigestDate', 'knowledgeBase']);
+    const kb = digestData.knowledgeBase || {};
+    const lastDigest = digestData.lastDigestDate || 0;
+    const now = Date.now();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    if (now - lastDigest >= sevenDays && Object.keys(kb).length > 0) {
+      const entries = Object.values(kb);
+      const weekAgo = now - sevenDays;
+
+      // New terms this week
+      const newThisWeek = entries.filter(e => e.firstSeen >= weekAgo);
+
+      // Top 5 most-expanded terms
+      const expanded = entries.filter(e => e.expanded).sort((a, b) => b.timesSeen - a.timesSeen).slice(0, 5);
+
+      // Videos by term count
+      const videoCounts = {};
+      entries.forEach(e => {
+        if (e.source) videoCounts[e.source] = (videoCounts[e.source] || 0) + 1;
+      });
+      const topVideos = Object.entries(videoCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const videoCount = Object.keys(videoCounts).length;
+
+      // Dominant topics
+      const typeCounts = {};
+      entries.forEach(e => {
+        const t = (e.type || 'other').toLowerCase();
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+      });
+      const topTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t);
+
+      const typeLabels = {
+        concept: 'concepts', event: 'history', person: 'people',
+        people: 'people', stock: 'finance', organization: 'organizations',
+        commodity: 'commodities', other: 'general'
+      };
+      const topicSummary = topTypes.map(t => typeLabels[t] || t).join(' & ');
+
+      const weeklyDigest = {
+        date: now,
+        newTerms: newThisWeek.length,
+        videoCount,
+        topicSummary,
+        topExpanded: expanded.map(e => e.term),
+        topVideos: topVideos.map(([title, count]) => ({ title, count })),
+        dismissed: false
+      };
+
+      await chrome.storage.local.set({ weeklyDigest, lastDigestDate: now });
+      console.log('[BACKGROUND] Weekly digest generated:', newThisWeek.length, 'new terms from', videoCount, 'videos');
+    }
+  } catch (e) {
+    console.error('[BACKGROUND] Digest generation error:', e.message || e);
+  }
+
   // Small delay after closing offscreen doc before resetting state
   await new Promise(resolve => setTimeout(resolve, 500));
 

@@ -63,6 +63,55 @@ if (!window.__contextExtensionLoaded) {
     }
   });
 
+  function detectSiteTheme() {
+    let bg = 'rgb(0, 0, 0)';
+    for (const el of [document.body, document.documentElement]) {
+      if (!el) continue;
+      const c = getComputedStyle(el).backgroundColor;
+      if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') { bg = c; break; }
+    }
+    const match = bg.match(/\d+/g);
+    if (!match) return false;
+    const [r, g, b] = match.map(Number);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+    return luminance > 128;
+  }
+
+  function applyTheme() {
+    const light = detectSiteTheme();
+    if (light === isLightTheme) return;
+    isLightTheme = light;
+    console.log('[CONTENT] Theme detected:', light ? 'light' : 'dark');
+
+    // Update sidebar
+    if (shadowRoot) {
+      const sidebar = shadowRoot.getElementById('sidebar');
+      if (sidebar) sidebar.classList.toggle('light-theme', light);
+    }
+    // Update host element background
+    if (hostEl) {
+      applySidebarPosition();
+    }
+    // Update badge
+    if (badgeShadow) {
+      const badge = badgeShadow.querySelector('.ctx-badge');
+      if (badge) badge.classList.toggle('light', light);
+    }
+  }
+
+  // Detect theme on load (defer to allow styles to apply)
+  setTimeout(applyTheme, 500);
+
+  // Re-check on SPA navigation
+  let lastUrl = window.location.href;
+  const urlObserver = new MutationObserver(() => {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      setTimeout(applyTheme, 500);
+    }
+  });
+  urlObserver.observe(document.documentElement, { childList: true, subtree: true });
+
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -255,6 +304,41 @@ if (!window.__contextExtensionLoaded) {
       0% { box-shadow: inset 3px 0 10px rgba(0,230,118,0.3); }
       100% { box-shadow: none; }
     }
+
+    /* ─── Light theme overrides ─── */
+    #sidebar.light-theme { background: #f5f5f8; color: #1a1a2e; }
+    .light-theme #header { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.06); }
+    .light-theme .ctx-wordmark { color: #1a1a2e; }
+    .light-theme .ctx-close-btn { color: #9a9ab0; }
+    .light-theme .ctx-close-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
+    .light-theme #empty-state { background: #f5f5f8; }
+    .light-theme .ctx-waveform span { background: #c0c0d0; }
+    .light-theme .ctx-empty-text { color: #9a9ab0; }
+    .light-theme #cards { background: #f5f5f8; }
+    .light-theme #cards::-webkit-scrollbar-thumb { background: #d0d0e0; }
+    .light-theme #listening-indicator { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
+    .light-theme #listening-indicator .li-dot { background: #b0b0c0; }
+    .light-theme #listening-indicator .li-text { color: #b0b0c0; }
+    .light-theme #missed-bar { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
+    .light-theme .session-divider { background: #f5f5f8; }
+    .light-theme .session-divider hr { border-top-color: rgba(0,0,0,0.06); }
+    .light-theme .session-divider span { color: #9a9ab0; }
+    .light-theme .context-card { background: #ffffff; border-bottom-color: rgba(0,0,0,0.06); }
+    .light-theme .context-card:hover { background: #f0f0f5; }
+    .light-theme .context-card.stock-card { background: #f0faf4; }
+    .light-theme .context-card.stock-card:hover { background: #e8f5ee; }
+    .light-theme .card-term { color: #1a1a2e; }
+    .light-theme .card-time { color: #b0b0c0; }
+    .light-theme .card-chevron { color: #b0b0c0; }
+    .light-theme .card-desc { color: #6a6a8a; }
+    .light-theme .stock-ticker { color: #1a1a2e; }
+    .light-theme .stock-company { color: #8a8aa0; }
+    .light-theme .stock-price { color: #1a1a2e; }
+    .light-theme .card-actions { }
+    .light-theme .thumbs-up-btn, .light-theme .thumbs-down-btn { color: #b0b0c0; }
+    .light-theme .card-wiki-link { color: #8a8aa0; }
+    .light-theme .card-wiki-link:hover { color: #5a5a70; }
+    .light-theme .feedback-msg { color: #9a9ab0; }
   `;
 
   const BADGE_CSS = `
@@ -297,6 +381,14 @@ if (!window.__contextExtensionLoaded) {
       font-size: 12px; font-weight: 600; color: #e0e0f0;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    /* Light theme */
+    .ctx-badge.light { background: #ffffff; border-color: rgba(0,0,0,0.08); }
+    .ctx-badge.light:hover { background: #f5f5f8; border-color: rgba(0,0,0,0.12); }
+    .ctx-badge.light .ctx-badge-count { color: #1a1a2e; }
+    .ctx-toast.light {
+      background: #ffffff; border-color: rgba(0,0,0,0.06);
+    }
+    .ctx-toast.light .ctx-toast-term { color: #1a1a2e; }
   `;
 
   function ensureBadge() {
@@ -357,7 +449,7 @@ if (!window.__contextExtensionLoaded) {
 
     const color = getTypeColor(entity.type);
     const toast = document.createElement('div');
-    toast.className = 'ctx-toast';
+    toast.className = 'ctx-toast' + (isLightTheme ? ' light' : '');
     toast.style.borderLeftColor = color;
     toast.innerHTML = `<div class="ctx-toast-term">${escapeHtml(entity.term || entity.name || '')}</div>`;
     toast.addEventListener('click', () => {
@@ -382,11 +474,15 @@ if (!window.__contextExtensionLoaded) {
     }, 3000);
   }
 
+  let isLightTheme = false;
+
   function getHostPosition() {
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
-    const border = pos === 'right' ? 'border-left:1px solid #1e1e2e;' : 'border-right:1px solid #1e1e2e;';
+    const borderColor = isLightTheme ? '#e0e0e8' : '#1e1e2e';
+    const border = pos === 'right' ? `border-left:1px solid ${borderColor};` : `border-right:1px solid ${borderColor};`;
+    const bg = isLightTheme ? '#f5f5f8' : '#0e0e16';
     const translate = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
-    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;${border}background:#0e0e16;transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
+    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
   }
 
   function applySidebarPosition() {
@@ -672,6 +768,7 @@ if (!window.__contextExtensionLoaded) {
     document.body.appendChild(hostEl);
 
     ensureBadge();
+    applyTheme();
     console.log('[CONTENT] Shadow DOM sidebar created');
     return cardContainer;
   }

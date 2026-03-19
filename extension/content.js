@@ -24,6 +24,8 @@ if (!window.__contextExtensionLoaded) {
   let askIdleTimer = null;
   let askSuggestionCount = 0;
   let lastRenderedTerm = '';
+  const isYouTubeSite = window.location.hostname.includes('youtube.com');
+  const sidebarWidth = isYouTubeSite ? 240 : 280;
 
   const TYPE_COLORS = {
     event: '#ff9500',
@@ -539,7 +541,7 @@ if (!window.__contextExtensionLoaded) {
       100% { height: 9px; }
     }
     .ctx-toast {
-      position: fixed; bottom: 65px; right: 20px;
+      position: fixed; bottom: 65px; right: ${isYouTubeSite ? 12 : 20}px;
       background: #1a1a2e; border: 1px solid rgba(255,255,255,0.06);
       border-radius: 8px; padding: 8px 12px; border-left: 3px solid #4a4a6a;
       cursor: pointer; opacity: 0; transition: opacity 0.3s ease;
@@ -570,7 +572,8 @@ if (!window.__contextExtensionLoaded) {
 
     badgeEl = document.createElement('div');
     badgeEl.id = 'context-badge-host';
-    badgeEl.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;';
+    const badgeRight = isYouTubeSite ? 12 : 20;
+    badgeEl.style.cssText = `position:fixed;bottom:20px;right:${badgeRight}px;z-index:2147483647;`;
 
     badgeShadow = badgeEl.attachShadow({ mode: 'open' });
 
@@ -674,7 +677,7 @@ if (!window.__contextExtensionLoaded) {
     const border = pos === 'right' ? `border-left:1px solid ${borderColor};` : `border-right:1px solid ${borderColor};`;
     const bg = isLightTheme ? '#f5f5f8' : '#0e0e16';
     const translate = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
-    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
+    return `position:fixed;top:0;${pos}:0;width:${sidebarWidth}px;height:100vh;z-index:2147483647;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
   }
 
   function applySidebarPosition() {

@@ -232,7 +232,7 @@ if (!window.__contextExtensionLoaded) {
     }
     .context-card.collapsed { animation: none; cursor: default; }
     .card-row {
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;
     }
     .card-type {
       font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
@@ -241,9 +241,8 @@ if (!window.__contextExtensionLoaded) {
     }
     .card-term {
       font-size: 13px; font-weight: 600; color: #e8e8f8;
-      flex: 1; min-width: 0; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
-      word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;
+      flex: 1; min-width: 0;
+      word-wrap: break-word; overflow-wrap: break-word;
     }
     .card-time { font-size: 10px; color: #4a4a5a; flex-shrink: 0; }
     .card-seen { font-size: 9px; color: #4a4a5a; flex-shrink: 0; }

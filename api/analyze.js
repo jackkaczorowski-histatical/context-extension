@@ -67,9 +67,14 @@ Never extract country names (France, Britain, Spain etc) or continent names (Eur
 
 Only extract terms that genuinely need explanation for the viewer. Ask: would someone watching this video pause and think "wait, what is that?" If the answer is no, don't extract it. "Bank of England" in a video about France — yes, the viewer might wonder about it. "Nobility" — no, everyone knows what nobility means.
 
+DESCRIPTION RULES: Each description must be ONE sentence only. Maximum 120 characters. No exceptions. Count your characters. Connect it to the video topic when possible. Instead of generic definitions, explain why this term matters in context.
+Correct length: "Britain's central bank, gave them a war-financing edge France lacked." (68 chars)
+Correct length: "Private collectors who bought tax rights from the king and squeezed peasants." (75 chars)
+TOO LONG: "The royal palace and seat of French monarchy where wealth and power masked the financial crisis brewing beneath. Its grandeur symbolized the disconnect between royal excess." — cut to: "Royal palace symbolizing monarchy's excess while France went bankrupt." (69 chars)
+
 The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}
 
-Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|stock|organization", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "one to two sentences, 80-150 characters. Connect the description to the video topic when possible. Instead of generic definitions, explain why this term matters in context. Example: instead of 'British financial institution established in 1694' write 'Britain's central bank created in 1694 that gave them a huge advantage in war financing, something France never had.'" }] }. Max 5 per chunk. Return { "entities": [] } when no named terms exist. It is completely fine to return empty arrays.`;
+Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|stock|organization", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "one sentence, max 120 chars" }] }. Max 5 per chunk. Return { "entities": [] } when no named terms exist. It is completely fine to return empty arrays.`;
 }
 
 module.exports = async function handler(req, res) {

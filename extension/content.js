@@ -257,6 +257,11 @@ if (!window.__contextExtensionLoaded) {
     .card-expand-area { display: none; padding-top: 6px; }
     .context-card.expanded .card-expand-area { display: block; }
     .card-desc { font-size: 11px; color: #9a9ab0; line-height: 1.55; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
+    .card-thumbnail {
+      width: 100%; max-height: 120px; object-fit: cover; border-radius: 6px;
+      margin-bottom: 8px; opacity: 0; transition: opacity 0.3s ease;
+    }
+    .card-thumbnail.loaded { opacity: 1; }
     .card-source { font-size: 9px; color: #3a3a5a; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: #3a3a5a; margin-top: 4px; }
     .card-desc-loading::after {
@@ -400,6 +405,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .context-card.recontextualized:hover { background: rgba(90, 90, 223, 0.09); }
     .light-theme .card-chevron { color: #b0b0c0; }
     .light-theme .card-desc { color: #5a5a7a; }
+    .light-theme .card-thumbnail { border: 1px solid rgba(0,0,0,0.06); }
     .light-theme .card-source { color: #b0b0c0; }
     .light-theme .card-popularity { color: #b0b0c0; }
     .light-theme .stock-ticker { color: #1a1a2e; }
@@ -779,6 +785,25 @@ if (!window.__contextExtensionLoaded) {
             descEl.classList.remove('card-desc-loading');
             const desc = firstSentence(contextData.description || '');
             descEl.textContent = desc;
+            // Fetch Wikipedia thumbnail
+            if (!card.dataset.thumbUrl) {
+              const termForWiki = entity.term || entity.name || '';
+              fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(termForWiki))
+                .then(r => r.ok ? r.json() : null)
+                .then(wikiData => {
+                  if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source) {
+                    card.dataset.thumbUrl = wikiData.thumbnail.source;
+                    const img = document.createElement('img');
+                    img.className = 'card-thumbnail';
+                    img.src = wikiData.thumbnail.source;
+                    img.alt = termForWiki;
+                    img.addEventListener('load', () => img.classList.add('loaded'));
+                    const expandArea = card.querySelector('.card-expand-area');
+                    expandArea.insertBefore(img, expandArea.firstChild);
+                  }
+                })
+                .catch(() => {});
+            }
             // Update sessionHistory with description
             const termName = entity.term || entity.name || '';
             chrome.storage.local.get('sessionHistory', (hData) => {

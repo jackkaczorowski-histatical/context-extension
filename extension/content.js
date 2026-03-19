@@ -1199,6 +1199,50 @@ if (!window.__contextExtensionLoaded) {
     lastSessionStart = timestamp;
   }
 
+  function resetSidebar() {
+    hasCards = false;
+    termCount = 0;
+    seenTerms.clear();
+    lastRenderedTerm = '';
+    if (askIdleTimer) { clearTimeout(askIdleTimer); askIdleTimer = null; }
+    if (listeningTimer) { clearTimeout(listeningTimer); listeningTimer = null; }
+
+    if (shadowRoot) {
+      const cards = shadowRoot.getElementById('cards');
+      if (cards) {
+        cards.innerHTML = '';
+        cards.style.display = 'none';
+      }
+      const empty = shadowRoot.getElementById('empty-state');
+      if (empty) empty.style.display = '';
+      const li = shadowRoot.getElementById('listening-indicator');
+      if (li) li.classList.remove('visible');
+      // Clear any session summary
+      const summary = shadowRoot.querySelector('.ctx-session-summary');
+      if (summary) summary.remove();
+      // Reset ask bar
+      const askInput = shadowRoot.querySelector('.ctx-ask-input');
+      if (askInput) {
+        askInput.value = '';
+        askInput.placeholder = 'Ask about this video...';
+        askInput.dataset.hasSuggestion = 'false';
+      }
+      const askResponse = shadowRoot.querySelector('.ctx-ask-response');
+      if (askResponse) {
+        askResponse.textContent = '';
+        askResponse.classList.remove('visible');
+      }
+    }
+
+    // Update badge count
+    if (badgeShadow) {
+      const countEl = badgeShadow.querySelector('.ctx-badge-count');
+      if (countEl) countEl.textContent = '0';
+    }
+
+    console.log('[CONTENT] Sidebar state reset for new session');
+  }
+
   function resetAskIdleTimer() {
     if (askIdleTimer) clearTimeout(askIdleTimer);
     askIdleTimer = setTimeout(() => {
@@ -1336,11 +1380,15 @@ if (!window.__contextExtensionLoaded) {
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.sessionStart && changes.sessionStart.newValue) {
       isActiveTab((active) => {
-        if (active) trackSessionStart(changes.sessionStart.newValue);
+        if (active) {
+          trackSessionStart(changes.sessionStart.newValue);
+          resetSidebar();
+        }
       });
     }
     if (changes.capturing) {
       if (changes.capturing.newValue === true) {
+        ensureBadge();
         setBadgeCapturing(true, false);
       } else if (changes.capturing.newValue === false) {
         setBadgeCapturing(false, false);

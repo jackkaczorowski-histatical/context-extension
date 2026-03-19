@@ -494,14 +494,12 @@ if (!window.__contextExtensionLoaded) {
       0% { border-color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.4); }
       100% { border-color: rgba(255,255,255,0.08); box-shadow: none; }
     }
-    .ctx-badge.media-detected {
-      animation: badge-media-pulse 2s ease-in-out infinite;
-      border-color: rgba(90,90,255,0.4);
+    .ctx-badge-play {
+      display: none; font-size: 12px; color: #6a6a8a; line-height: 1;
     }
-    @keyframes badge-media-pulse {
-      0%, 100% { box-shadow: 0 0 6px rgba(90,90,255,0.3); }
-      50% { box-shadow: 0 0 14px rgba(90,90,255,0.5); }
-    }
+    .ctx-badge.not-capturing .ctx-badge-play { display: block; }
+    .ctx-badge.not-capturing .ctx-badge-count { display: none; }
+    .ctx-badge.not-capturing .ctx-badge-waveform { display: none; }
     .ctx-badge-count {
       font-size: 13px; font-weight: 600; color: #e0e0f0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -559,6 +557,7 @@ if (!window.__contextExtensionLoaded) {
     .ctx-badge.light:hover { background: #f5f5f8; border-color: rgba(0,0,0,0.12); }
     .ctx-badge.light .ctx-badge-count { color: #1a1a2e; }
     .ctx-badge.light.capturing .ctx-badge-count { background: #ffffff; border-color: rgba(0,0,0,0.1); }
+    .ctx-badge.light .ctx-badge-play { color: #b0b0c0; }
     .ctx-toast.light {
       background: #ffffff; border-color: rgba(0,0,0,0.06);
     }
@@ -580,27 +579,10 @@ if (!window.__contextExtensionLoaded) {
 
     const badge = document.createElement('div');
     badge.className = 'ctx-badge';
-    badge.innerHTML = '<div class="ctx-badge-waveform"><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div></div><span class="ctx-badge-count">0</span>';
+    badge.innerHTML = '<span class="ctx-badge-play">\u25B6</span><div class="ctx-badge-waveform"><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div></div><span class="ctx-badge-count">0</span>';
     badge.addEventListener('click', () => {
-      // If media detected but not yet capturing, start capture on click
-      if (mediaDetected && !autoCapturing) {
-        autoCapturing = true;
-        autoPaused = false;
-        mediaDetected = false;
-        console.log('[CONTENT] User clicked badge, starting capture');
-        try { chrome.runtime.sendMessage({ type: 'START_CAPTURE' }); } catch (e) {}
-        chrome.storage.local.set({ capturing: true });
-        badge.classList.remove('media-detected');
-        setBadgeCapturing(true, false);
-        const countEl = badge.querySelector('.ctx-badge-count');
-        if (countEl) countEl.textContent = '0';
-        ensureSidebar();
-        openSidebar();
-        resetAutoHide();
-        return;
-      }
-      if (!hostEl) return;
-      if (hostEl.dataset.open === 'true') {
+      ensureSidebar();
+      if (hostEl && hostEl.dataset.open === 'true') {
         closeSidebar();
       } else {
         openSidebar();
@@ -609,6 +591,15 @@ if (!window.__contextExtensionLoaded) {
     });
     badgeShadow.appendChild(badge);
     document.body.appendChild(badgeEl);
+
+    // Set initial badge state based on capturing flag
+    chrome.storage.local.get('capturing', (data) => {
+      if (data.capturing) {
+        setBadgeCapturing(true, false);
+      } else {
+        badge.classList.add('not-capturing');
+      }
+    });
   }
 
   function updateBadge(newCards) {
@@ -631,6 +622,7 @@ if (!window.__contextExtensionLoaded) {
     const badge = badgeShadow.querySelector('.ctx-badge');
     if (!badge) return;
     badge.classList.toggle('capturing', capturing);
+    badge.classList.toggle('not-capturing', !capturing);
     badge.classList.toggle('paused', capturing && paused);
   }
 
@@ -1450,81 +1442,30 @@ if (!window.__contextExtensionLoaded) {
     }
   }, 2000);
 
-  // --- Auto-capture: detect playing media on any site ---
+  // --- Media detection: show badge on pages with video/audio ---
   const isYouTube = window.location.hostname.includes('youtube.com') && window.location.pathname === '/watch';
-  let autoCapturing = false;
-  let autoPaused = false;
-  let autoStartDebounce = null;
   let mediaDetected = false;
+  let mediaDebounce = null;
 
   function isLongMedia(el) {
     return el.duration && el.duration > 60;
   }
 
-  function anyMediaPlaying() {
-    const els = document.querySelectorAll('video, audio');
-    for (const el of els) {
-      if (!el.paused && !el.ended && el.dataset.ctxAttached && isLongMedia(el)) return true;
-    }
-    return false;
-  }
-
   function handleMediaPlay(el) {
     if (!chrome.runtime?.id) return;
-    if (!isLongMedia(el)) {
-      console.log('[CONTENT] Ignoring short media element, duration:', el.duration);
-      return;
-    }
+    if (!isLongMedia(el)) return;
 
-    if (!autoCapturing && !mediaDetected) {
-      // Debounce to avoid ads
-      if (autoStartDebounce) clearTimeout(autoStartDebounce);
-      autoStartDebounce = setTimeout(() => {
-        autoStartDebounce = null;
-        // Re-check the element is still playing and long enough
+    if (!mediaDetected) {
+      if (mediaDebounce) clearTimeout(mediaDebounce);
+      mediaDebounce = setTimeout(() => {
+        mediaDebounce = null;
         if (el.paused || el.ended || !isLongMedia(el)) return;
-        if (autoCapturing || mediaDetected) return;
+        if (mediaDetected) return;
         mediaDetected = true;
-        console.log('[CONTENT] Media detected, showing badge prompt');
+        console.log('[CONTENT] Media detected, showing badge');
         ensureBadge();
-        if (badgeShadow) {
-          const badge = badgeShadow.querySelector('.ctx-badge');
-          if (badge) {
-            badge.classList.add('media-detected');
-            const countEl = badge.querySelector('.ctx-badge-count');
-            if (countEl) countEl.textContent = '\u25B6';
-          }
-        }
       }, 2000);
-    } else if (autoPaused) {
-      autoPaused = false;
-      console.log('[CONTENT] Media resumed');
-      setBadgeCapturing(true, false);
-      try { chrome.runtime.sendMessage({ type: 'RESUME_CAPTURE' }); } catch (e) {}
     }
-  }
-
-  function handleMediaPause() {
-    if (!autoCapturing || autoPaused) return;
-    if (!chrome.runtime?.id) return;
-    // Check if any other tracked media is still playing
-    if (anyMediaPlaying()) return;
-    autoPaused = true;
-    console.log('[CONTENT] All media paused');
-    setBadgeCapturing(true, true);
-    try { chrome.runtime.sendMessage({ type: 'PAUSE_CAPTURE' }); } catch (e) {}
-  }
-
-  function handleMediaEnded() {
-    if (!chrome.runtime?.id) return;
-    // Check if any other tracked media is still playing
-    if (anyMediaPlaying()) return;
-    if (!autoCapturing) return;
-    autoCapturing = false;
-    autoPaused = false;
-    console.log('[CONTENT] All media ended, stopping capture');
-    try { chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' }); } catch (e) {}
-    chrome.storage.local.set({ capturing: false });
   }
 
   function attachMediaListeners(el) {
@@ -1534,16 +1475,16 @@ if (!window.__contextExtensionLoaded) {
     console.log('[CONTENT] Attaching listeners to', tag, 'element');
 
     el.addEventListener('play', () => handleMediaPlay(el));
-    el.addEventListener('pause', () => handleMediaPause());
-    el.addEventListener('ended', () => handleMediaEnded());
 
     // YouTube-specific: seek detection
     if (isYouTube) {
       el.addEventListener('seeked', () => {
-        if (!autoCapturing) return;
         if (!chrome.runtime?.id) return;
-        console.log('[CONTENT] Media seeked, clearing buffer');
-        try { chrome.runtime.sendMessage({ type: 'SEEK_DETECTED' }); } catch (e) {}
+        chrome.storage.local.get('capturing', (data) => {
+          if (!data.capturing) return;
+          console.log('[CONTENT] Media seeked, clearing buffer');
+          try { chrome.runtime.sendMessage({ type: 'SEEK_DETECTED' }); } catch (e) {}
+        });
       });
     }
 

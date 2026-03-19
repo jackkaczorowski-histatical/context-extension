@@ -449,11 +449,11 @@ if (!window.__contextExtensionLoaded) {
       font-size: 11px; color: #9a9ab0; line-height: 1.6;
     }
     .ctx-session-summary-export {
-      background: rgba(0,230,118,0.1); color: #00e676; border: none;
+      background: rgba(90,90,255,0.15); color: #a0a0ff; border: none;
       border-radius: 8px; padding: 6px 14px; font-size: 11px;
       cursor: pointer; margin-top: 10px; font-family: inherit;
     }
-    .ctx-session-summary-export:hover { background: rgba(0,230,118,0.18); }
+    .ctx-session-summary-export:hover { background: rgba(90,90,255,0.25); }
     .ctx-session-summary-dismiss {
       display: block; font-size: 10px; color: #3a3a5a; margin-top: 8px;
       cursor: pointer; text-decoration: none; background: none; border: none;

@@ -21,6 +21,9 @@ if (!window.__contextExtensionLoaded) {
   let badgeEl = null;
   let badgeShadow = null;
   let termCount = 0;
+  let askIdleTimer = null;
+  let askSuggestionCount = 0;
+  let lastRenderedTerm = '';
 
   const TYPE_COLORS = {
     event: '#ff9500',
@@ -1025,10 +1028,21 @@ if (!window.__contextExtensionLoaded) {
     askInput.placeholder = 'Ask about this video...';
     askBar.appendChild(askInput);
 
+    askInput.addEventListener('focus', () => {
+      if (askInput.dataset.hasSuggestion === 'true' && !askInput.value) {
+        askInput.placeholder = 'Ask about this video...';
+        askInput.dataset.hasSuggestion = 'false';
+      }
+    });
+
     askInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && askInput.value.trim()) {
-        const question = askInput.value.trim();
+      if (e.key === 'Enter') {
+        const typed = askInput.value.trim();
+        const question = typed || (askInput.dataset.hasSuggestion === 'true' ? askInput.placeholder : '');
+        if (!question || question === 'Ask about this video...') return;
         askInput.value = '';
+        askInput.placeholder = 'Ask about this video...';
+        askInput.dataset.hasSuggestion = 'false';
 
         askResponse.textContent = '';
         askResponse.classList.add('visible', 'ctx-ask-loading');
@@ -1103,6 +1117,22 @@ if (!window.__contextExtensionLoaded) {
     cards.prepend(divider);
     showCardsHideEmpty();
     console.log('[CONTENT] Session divider added:', timeStr);
+  }
+
+  function resetAskIdleTimer() {
+    if (askIdleTimer) clearTimeout(askIdleTimer);
+    askIdleTimer = setTimeout(() => {
+      if (!shadowRoot || !lastRenderedTerm) return;
+      const input = shadowRoot.querySelector('.ctx-ask-input');
+      if (!input || input === shadowRoot.activeElement || input.value.trim()) return;
+      const suggestions = [
+        `Try: What is ${lastRenderedTerm}?`,
+        `Try: Why is ${lastRenderedTerm} important?`
+      ];
+      input.placeholder = suggestions[askSuggestionCount % 2];
+      input.dataset.hasSuggestion = 'true';
+      askSuggestionCount++;
+    }, 20000);
   }
 
   function renderCards(entities) {
@@ -1212,6 +1242,12 @@ if (!window.__contextExtensionLoaded) {
     }
 
     chrome.storage.local.remove('pendingEntities');
+
+    // Track last term and reset ask idle timer
+    if (limited.length > 0) {
+      lastRenderedTerm = limited[0].term || limited[0].name || '';
+      resetAskIdleTimer();
+    }
   }
 
   // Listen for future updates

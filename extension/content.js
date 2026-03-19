@@ -144,8 +144,8 @@ if (!window.__contextExtensionLoaded) {
     }
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     #sidebar {
-      width: 100%; height: 100%; background: #12121c;
-      display: flex; flex-direction: column; overflow: hidden;
+      position: relative; width: 100%; height: 100%; background: #12121c;
+      display: flex; flex-direction: column; overflow: hidden; margin: 0; padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #e0e0f0;
     }
@@ -571,7 +571,7 @@ if (!window.__contextExtensionLoaded) {
 
     badgeEl = document.createElement('div');
     badgeEl.id = 'context-badge-host';
-    badgeEl.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;border:2px solid red;';
+    badgeEl.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;';
 
     badgeShadow = badgeEl.attachShadow({ mode: 'open' });
 
@@ -636,7 +636,7 @@ if (!window.__contextExtensionLoaded) {
     if (toastShadow) return;
     toastHost = document.createElement('div');
     toastHost.id = 'context-toast-host';
-    toastHost.style.cssText = 'position:fixed;bottom:65px;right:20px;z-index:2147483647;border:2px solid red;';
+    toastHost.style.cssText = 'position:fixed;bottom:65px;right:20px;z-index:2147483647;';
     toastShadow = toastHost.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = TOAST_CSS;
@@ -689,9 +689,9 @@ if (!window.__contextExtensionLoaded) {
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
     const borderColor = isLightTheme ? '#e0e0e8' : '#1e1e2e';
     const border = pos === 'right' ? `border-left:1px solid ${borderColor};` : `border-right:1px solid ${borderColor};`;
-    const bg = isLightTheme ? '#f5f5f8' : '#0e0e16';
+    const bg = isLightTheme ? '#f5f5f8' : '#12121c';
     const translate = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
-    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;overflow:hidden;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);border:2px solid red;`;
+    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;overflow:hidden;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);margin:0;padding:0;`;
   }
 
   function applySidebarPosition() {

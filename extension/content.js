@@ -427,6 +427,32 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .ctx-ask-response::-webkit-scrollbar-thumb { background: #d0d0e0; }
     .light-theme .ctx-ask-clear { color: #b0b0c0; }
     .light-theme .ctx-ask-clear:hover { color: #5a5a70; }
+    .ctx-session-summary {
+      background: #161630; border: 1px solid rgba(90,90,255,0.15);
+      border-radius: 10px; padding: 16px; margin: 12px;
+    }
+    .ctx-session-summary-header {
+      font-size: 13px; font-weight: 600; color: #e0e0f0; margin-bottom: 10px;
+    }
+    .ctx-session-summary-stats {
+      font-size: 11px; color: #9a9ab0; line-height: 1.6;
+    }
+    .ctx-session-summary-export {
+      background: rgba(0,230,118,0.1); color: #00e676; border: none;
+      border-radius: 8px; padding: 6px 14px; font-size: 11px;
+      cursor: pointer; margin-top: 10px; font-family: inherit;
+    }
+    .ctx-session-summary-export:hover { background: rgba(0,230,118,0.18); }
+    .ctx-session-summary-dismiss {
+      display: block; font-size: 10px; color: #3a3a5a; margin-top: 8px;
+      cursor: pointer; text-decoration: none; background: none; border: none;
+      padding: 0; font-family: inherit;
+    }
+    .ctx-session-summary-dismiss:hover { color: #5a5a7a; }
+    .light-theme .ctx-session-summary { background: #f0f0fa; border-color: rgba(90,90,255,0.12); }
+    .light-theme .ctx-session-summary-header { color: #1a1a2e; }
+    .light-theme .ctx-session-summary-stats { color: #5a5a7a; }
+    .light-theme .ctx-session-summary-dismiss { color: #b0b0c0; }
   `;
 
   const BADGE_CSS = `
@@ -1193,6 +1219,72 @@ if (!window.__contextExtensionLoaded) {
     if (changes.sessionStart && changes.sessionStart.newValue) {
       isActiveTab((active) => {
         if (active) renderSessionDivider(changes.sessionStart.newValue);
+      });
+    }
+    if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
+      isActiveTab((active) => {
+        if (!active) return;
+        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle'], (data) => {
+          const history = data.sessionHistory || [];
+          const kb = data.knowledgeBase || {};
+          const title = data.capturingTabTitle || document.title || 'Untitled Video';
+          const totalTerms = history.length;
+          const expanded = history.filter(h => h.description).length;
+          const knownCount = history.filter(h => {
+            const key = (h.term || '').toLowerCase();
+            return kb[key] && kb[key].timesSeen > 1;
+          }).length;
+
+          const cardsContainer = shadowRoot ? shadowRoot.getElementById('cards') : null;
+          if (!cardsContainer) return;
+
+          // Remove any existing summary
+          const existing = cardsContainer.querySelector('.ctx-session-summary');
+          if (existing) existing.remove();
+
+          const summaryEl = document.createElement('div');
+          summaryEl.className = 'ctx-session-summary';
+          summaryEl.innerHTML = `
+            <div class="ctx-session-summary-header">Session complete</div>
+            <div class="ctx-session-summary-stats">
+              ${totalTerms} terms detected<br>
+              ${expanded} expanded by you<br>
+              ${knownCount} previously known
+            </div>
+            <button class="ctx-session-summary-export">Export study guide</button>
+            <button class="ctx-session-summary-dismiss">Dismiss</button>
+          `;
+
+          summaryEl.querySelector('.ctx-session-summary-export').addEventListener('click', (e) => {
+            e.stopPropagation();
+            let guide = `STUDY GUIDE: ${title}\n${'='.repeat(40)}\n\n`;
+            const grouped = {};
+            history.forEach(entry => {
+              const t = (entry.type || 'other').toUpperCase();
+              if (!grouped[t]) grouped[t] = [];
+              grouped[t].push(entry);
+            });
+            Object.keys(grouped).sort().forEach(type => {
+              guide += `${type}\n`;
+              grouped[type].forEach(ent => {
+                guide += `  ${ent.term}${ent.description ? ' — ' + ent.description : ''}\n`;
+              });
+              guide += '\n';
+            });
+            navigator.clipboard.writeText(guide.trim()).then(() => {
+              const btn = summaryEl.querySelector('.ctx-session-summary-export');
+              btn.textContent = 'Copied!';
+              setTimeout(() => { btn.textContent = 'Export study guide'; }, 1500);
+            });
+          });
+
+          summaryEl.querySelector('.ctx-session-summary-dismiss').addEventListener('click', (e) => {
+            e.stopPropagation();
+            summaryEl.remove();
+          });
+
+          cardsContainer.insertBefore(summaryEl, cardsContainer.firstChild);
+        });
       });
     }
     if (changes.pendingEntities && changes.pendingEntities.newValue) {

@@ -31,7 +31,7 @@ if (!window.__contextExtensionLoaded) {
     concept: '#7070ff',
     person: '#00d4aa',
     people: '#00d4aa',
-    stock: '#00e676',
+    stock: '#ff0000',
     organization: '#4d9fff',
     commodity: '#ff9500'
   };
@@ -158,10 +158,10 @@ if (!window.__contextExtensionLoaded) {
     .ctx-header-right { display: flex; align-items: center; gap: 10px; }
     .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
-      width: 6px; height: 6px; border-radius: 50%; background: #00e676;
+      width: 6px; height: 6px; border-radius: 50%; background: #ff0000;
       animation: ctx-pulse 2s ease-in-out infinite;
     }
-    .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
+    .ctx-live-text { font-size: 10px; color: #ff0000; font-weight: 500; }
     .ctx-close-btn, .ctx-export-btn {
       background: none; border: none; color: #3a3a5a; font-size: 16px;
       cursor: pointer; padding: 2px 6px; border-radius: 4px;
@@ -172,7 +172,7 @@ if (!window.__contextExtensionLoaded) {
     .ctx-export-btn { font-size: 13px; }
     .ctx-export-tooltip {
       position: absolute; top: -24px; left: 50%; transform: translateX(-50%);
-      background: #00e676; color: #0a0a12; font-size: 9px; font-weight: 600;
+      background: #ff0000; color: #0a0a12; font-size: 9px; font-weight: 600;
       padding: 2px 6px; border-radius: 4px; white-space: nowrap;
       pointer-events: none; opacity: 0; transition: opacity 0.2s;
     }
@@ -276,7 +276,7 @@ if (!window.__contextExtensionLoaded) {
       50% { opacity: 1; }
     }
     .context-card.stock-card {
-      background: #0f1a14; box-shadow: inset 2px 0 8px rgba(0, 230, 118, 0.15);
+      background: #0f1a14; box-shadow: inset 2px 0 8px rgba(255, 0, 0, 0.15);
     }
     .context-card.stock-card:hover { background: #112218; }
     .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
@@ -284,7 +284,7 @@ if (!window.__contextExtensionLoaded) {
     .stock-price-row { display: flex; align-items: baseline; gap: 8px; }
     .stock-price { font-size: 16px; font-weight: 600; color: #e0e0f0; }
     .stock-change { font-size: 12px; font-weight: 600; }
-    .stock-change.positive { color: #00e676; }
+    .stock-change.positive { color: #ff0000; }
     .stock-change.negative { color: #ff5252; }
     .reaction-row {
       display: flex; gap: 10px; margin-top: 10px; justify-content: flex-start;
@@ -298,8 +298,8 @@ if (!window.__contextExtensionLoaded) {
     .reaction-btn:hover { transform: scale(1.15); }
     .reaction-known { border: 1px solid #6a6a8a; color: #6a6a8a; }
     .reaction-known:hover { background: rgba(106,106,138,0.15); }
-    .reaction-new { border: 1px solid #00e676; color: #00e676; }
-    .reaction-new:hover { background: rgba(0,230,118,0.1); }
+    .reaction-new { border: 1px solid #ff0000; color: #ff0000; }
+    .reaction-new:hover { background: rgba(255,0,0,0.1); }
     .reaction-advanced { border: 1px solid #ff9500; color: #ff9500; }
     .reaction-advanced:hover { background: rgba(255,149,0,0.1); }
     .reaction-label {
@@ -319,18 +319,18 @@ if (!window.__contextExtensionLoaded) {
     }
     #missed-bar.visible { display: block; }
     #missed-btn {
-      font-size: 10px; color: #00e676; background: rgba(0,230,118,0.08);
+      font-size: 10px; color: #ff0000; background: rgba(255,0,0,0.08);
       border: none; border-radius: 12px; padding: 3px 10px;
       cursor: pointer; font-family: inherit; font-weight: 500;
       transition: background 0.15s;
     }
-    #missed-btn:hover { background: rgba(0,230,118,0.15); }
+    #missed-btn:hover { background: rgba(255,0,0,0.15); }
     .context-card.missed { }
     .context-card.missed-glow {
       animation: missed-highlight 1.5s ease-out;
     }
     @keyframes missed-highlight {
-      0% { box-shadow: inset 3px 0 10px rgba(0,230,118,0.3); }
+      0% { box-shadow: inset 3px 0 10px rgba(255,0,0,0.3); }
       100% { box-shadow: none; }
     }
 
@@ -486,11 +486,11 @@ if (!window.__contextExtensionLoaded) {
       animation: badge-entity-flash 0.6s ease-out;
     }
     @keyframes badge-glow {
-      0% { box-shadow: 0 0 12px rgba(0,230,118,0.4); }
+      0% { box-shadow: 0 0 12px rgba(255,0,0,0.4); }
       100% { box-shadow: none; }
     }
     @keyframes badge-entity-flash {
-      0% { border-color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.4); }
+      0% { border-color: #ff0000; box-shadow: 0 0 10px rgba(255,0,0,0.4); }
       100% { border-color: rgba(255,255,255,0.08); box-shadow: none; }
     }
     .ctx-badge-play {
@@ -516,7 +516,7 @@ if (!window.__contextExtensionLoaded) {
     .ctx-badge.capturing .ctx-badge-waveform { display: flex; }
     .ctx-badge.capturing .ctx-badge-count { }
     .ctx-badge-bar {
-      width: 2px; background: #00e676; border-radius: 1px;
+      width: 2px; background: #ff0000; border-radius: 1px;
       animation-timing-function: ease-in-out; animation-iteration-count: infinite;
       animation-direction: alternate;
     }
@@ -571,7 +571,7 @@ if (!window.__contextExtensionLoaded) {
 
     badgeEl = document.createElement('div');
     badgeEl.id = 'context-badge-host';
-    badgeEl.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;';
+    badgeEl.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;border:2px solid red;';
 
     badgeShadow = badgeEl.attachShadow({ mode: 'open' });
 
@@ -636,7 +636,7 @@ if (!window.__contextExtensionLoaded) {
     if (toastShadow) return;
     toastHost = document.createElement('div');
     toastHost.id = 'context-toast-host';
-    toastHost.style.cssText = 'position:fixed;bottom:65px;right:20px;z-index:2147483647;';
+    toastHost.style.cssText = 'position:fixed;bottom:65px;right:20px;z-index:2147483647;border:2px solid red;';
     toastShadow = toastHost.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = TOAST_CSS;
@@ -691,7 +691,7 @@ if (!window.__contextExtensionLoaded) {
     const border = pos === 'right' ? `border-left:1px solid ${borderColor};` : `border-right:1px solid ${borderColor};`;
     const bg = isLightTheme ? '#f5f5f8' : '#0e0e16';
     const translate = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
-    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;overflow:hidden;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);`;
+    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;overflow:hidden;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);border:2px solid red;`;
   }
 
   function applySidebarPosition() {

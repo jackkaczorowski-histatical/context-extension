@@ -352,21 +352,22 @@ if (!window.__contextExtensionLoaded) {
 
     /* ─── Ask bar ─── */
     .ctx-ask-bar {
-      flex-shrink: 0; padding: 10px 12px; background: #0a0a12;
+      flex-shrink: 0; padding: 10px 12px; background: #161630;
       border-top: 1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
     }
     .ctx-ask-input {
-      width: 100%; height: 32px; background: #1a1a28;
-      border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;
-      padding: 0 10px; font-size: 11px; color: #e0e0f0;
+      width: 100%; height: 36px; background: #1e1e38;
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+      padding: 0 10px; font-size: 12px; color: #e0e0f0;
       font-family: inherit; outline: none;
       transition: border-color 0.2s;
     }
-    .ctx-ask-input::placeholder { color: #3a3a5a; }
+    .ctx-ask-input::placeholder { color: #6a6a8a; }
     .ctx-ask-input:focus { border-color: rgba(90,90,255,0.4); }
     .ctx-ask-response {
       display: none; padding: 10px 12px; font-size: 11px; color: #8a8aaa;
-      line-height: 1.5; max-height: 150px; overflow-y: auto; background: #0a0a12;
+      line-height: 1.5; max-height: 150px; overflow-y: auto; background: #161630;
       border-top: 1px solid rgba(255,255,255,0.04); position: relative;
     }
     .ctx-ask-response.visible { display: block; }
@@ -431,11 +432,11 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .ctx-preview-card { background: #f0f0fa; }
     .light-theme .ctx-preview-title { color: #5a5adf; }
     .light-theme .ctx-preview-term { color: #8a8aa0; }
-    .light-theme .ctx-ask-bar { background: #f0f0f5; border-top-color: rgba(0,0,0,0.06); }
-    .light-theme .ctx-ask-input { background: #ffffff; border-color: rgba(0,0,0,0.1); color: #1a1a2e; }
-    .light-theme .ctx-ask-input::placeholder { color: #b0b0c0; }
+    .light-theme .ctx-ask-bar { background: #f5f5fa; border-top-color: rgba(0,0,0,0.06); box-shadow: 0 -4px 12px rgba(0,0,0,0.06); }
+    .light-theme .ctx-ask-input { background: #ffffff; border-color: rgba(0,0,0,0.12); color: #1a1a2e; }
+    .light-theme .ctx-ask-input::placeholder { color: #9a9ab0; }
     .light-theme .ctx-ask-input:focus { border-color: rgba(90,90,255,0.4); }
-    .light-theme .ctx-ask-response { background: #f0f0f5; border-top-color: rgba(0,0,0,0.06); color: #5a5a7a; }
+    .light-theme .ctx-ask-response { background: #f5f5fa; border-top-color: rgba(0,0,0,0.06); color: #5a5a7a; }
     .light-theme .ctx-ask-response::-webkit-scrollbar-thumb { background: #d0d0e0; }
     .light-theme .ctx-ask-clear { color: #b0b0c0; }
     .light-theme .ctx-ask-clear:hover { color: #5a5a70; }

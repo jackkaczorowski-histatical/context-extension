@@ -844,6 +844,24 @@ if (!window.__contextExtensionLoaded) {
     `;
 
     let descFetched = false;
+    const inlineDesc = entity.description || '';
+
+    // If entity arrived with a description, pre-fill it
+    if (inlineDesc) {
+      descFetched = true;
+      const descEl = card.querySelector('.card-desc');
+      descEl.textContent = firstSentence(inlineDesc);
+      // Update sessionHistory with inline description
+      const termName = entity.term || entity.name || '';
+      chrome.storage.local.get('sessionHistory', (hData) => {
+        const history = hData.sessionHistory || [];
+        const entry = history.find(h => h.term === termName && !h.description);
+        if (entry) {
+          entry.description = firstSentence(inlineDesc);
+          chrome.storage.local.set({ sessionHistory: history });
+        }
+      });
+    }
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-actions') || e.target.closest('a')) return;
@@ -869,25 +887,6 @@ if (!window.__contextExtensionLoaded) {
             descEl.classList.remove('card-desc-loading');
             const desc = firstSentence(contextData.description || '');
             descEl.textContent = desc;
-            // Fetch Wikipedia thumbnail
-            if (!card.dataset.thumbUrl) {
-              const termForWiki = entity.term || entity.name || '';
-              fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(termForWiki))
-                .then(r => r.ok ? r.json() : null)
-                .then(wikiData => {
-                  if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source) {
-                    card.dataset.thumbUrl = wikiData.thumbnail.source;
-                    const img = document.createElement('img');
-                    img.className = 'card-thumbnail';
-                    img.src = wikiData.thumbnail.source;
-                    img.alt = termForWiki;
-                    img.addEventListener('load', () => img.classList.add('loaded'));
-                    const expandArea = card.querySelector('.card-expand-area');
-                    expandArea.insertBefore(img, expandArea.firstChild);
-                  }
-                })
-                .catch(() => {});
-            }
             // Update sessionHistory with description
             const termName = entity.term || entity.name || '';
             chrome.storage.local.get('sessionHistory', (hData) => {
@@ -898,30 +897,56 @@ if (!window.__contextExtensionLoaded) {
                 chrome.storage.local.set({ sessionHistory: history });
               }
             });
-            // Track popularity
-            fetch('https://context-extension-zv8d.vercel.app/api/popularity', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ videoUrl: window.location.href, term: termName })
-            })
-            .then(r => r.ok ? r.json() : null)
-            .then(popData => {
-              if (popData && popData.count > 5) {
-                const expandArea = card.querySelector('.card-expand-area');
-                const popEl = document.createElement('div');
-                popEl.className = 'card-popularity';
-                popEl.textContent = '\uD83D\uDD25 frequently explored';
-                const wikiLink = expandArea.querySelector('.card-wiki-link');
-                expandArea.insertBefore(popEl, wikiLink);
-              }
-            })
-            .catch(() => {});
           })
           .catch(() => {
             descEl.classList.remove('card-desc-loading');
             descEl.textContent = 'Could not load description';
           });
         });
+      }
+
+      // Fetch Wikipedia thumbnail on first expand
+      if (card.classList.contains('expanded') && !card.dataset.thumbUrl && !card.dataset.thumbChecked) {
+        card.dataset.thumbChecked = 'true';
+        const termForWiki = entity.term || entity.name || '';
+        fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(termForWiki))
+          .then(r => r.ok ? r.json() : null)
+          .then(wikiData => {
+            if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source) {
+              card.dataset.thumbUrl = wikiData.thumbnail.source;
+              const img = document.createElement('img');
+              img.className = 'card-thumbnail';
+              img.src = wikiData.thumbnail.source;
+              img.alt = termForWiki;
+              img.addEventListener('load', () => img.classList.add('loaded'));
+              const expandArea = card.querySelector('.card-expand-area');
+              expandArea.insertBefore(img, expandArea.firstChild);
+            }
+          })
+          .catch(() => {});
+      }
+
+      // Track popularity on first expand
+      if (card.classList.contains('expanded') && !card.dataset.popChecked) {
+        card.dataset.popChecked = 'true';
+        const termName = entity.term || entity.name || '';
+        fetch('https://context-extension-zv8d.vercel.app/api/popularity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoUrl: window.location.href, term: termName })
+        })
+        .then(r => r.ok ? r.json() : null)
+        .then(popData => {
+          if (popData && popData.count > 5) {
+            const expandArea = card.querySelector('.card-expand-area');
+            const popEl = document.createElement('div');
+            popEl.className = 'card-popularity';
+            popEl.textContent = '\uD83D\uDD25 frequently explored';
+            const wikiLink = expandArea.querySelector('.card-wiki-link');
+            expandArea.insertBefore(popEl, wikiLink);
+          }
+        })
+        .catch(() => {});
       }
     });
 

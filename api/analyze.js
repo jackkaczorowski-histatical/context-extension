@@ -68,7 +68,9 @@ ${sessionContext ? `Here is the full transcript of what has been said so far in 
 
 ${knownTerms && knownTerms.length > 0 ? `The user has seen these terms in previous sessions: ${knownTerms.join(", ")}. Do not extract terms the user already knows unless they are being discussed in a significantly different context. The user is building knowledge over time. Focus on what is NEW to them. However, if a known term is being discussed in a significantly different context than before, you MAY re-extract it with a note. For example, if the user learned "sovereign debt" from a French Revolution video and now they're watching a video about the 2008 crisis, re-extract it because the context is different and the user would benefit from seeing how the same concept applies in a new situation. In this case, add a field "recontextualized": true to the entity.` : ""}
 
-Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null, "salience": "highlight" }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
+For each entity, include a "description" field: a single factual sentence under 80 characters explaining what it is. Be direct. Do not start with the term name. Example: "French royal palace where Louis XIV consolidated power."
+
+Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null, "salience": "highlight", "description": "..." }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
 }
 
 module.exports = async function handler(req, res) {
@@ -102,7 +104,7 @@ module.exports = async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 256,
+        max_tokens: 512,
         system: systemPrompt,
         messages: [{ role: "user", content: transcript }],
       }),

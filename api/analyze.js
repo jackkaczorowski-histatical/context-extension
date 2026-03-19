@@ -13,64 +13,35 @@ function formatCounts(counts) {
 function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms, reactionProfile) {
   const title = pageTitle || "unknown content";
   const level = knowledgeLevel || "intermediate";
-  const interestList = interests && interests.length > 0 ? interests.join(", ") : "general topics";
-  const d = depth || 2;
+  const prevList = previousEntities && previousEntities.length > 0 ? previousEntities.join(", ") : "";
 
-  let relevanceFilter;
-  if (level === "beginner") {
-    relevanceFilter = "Return all entities (relevance 1, 2, and 3). Cast a wider net, but still skip the truly obvious.";
-  } else if (level === "expert") {
-    relevanceFilter = "Only return entities with relevance 3 — truly obscure or specialist terms. Skip anything a well-read person would know.";
-  } else {
-    relevanceFilter = "Only return entities with relevance 2 or 3. Skip common knowledge.";
-  }
+  return `You extract named terms from video transcripts. You ONLY extract words that literally appear in the transcript.
 
-  let depthInstruction;
-  if (d === 1) {
-    depthInstruction = "Depth is set to Surface: only show the most accessible, widely relevant entities. Stick to relevance 1-2. Skip anything niche or specialist.";
-  } else if (d === 3) {
-    depthInstruction = "Depth is set to Deep Cuts: include obscure, specialist, and niche terms that only a dedicated learner would want. Include all relevance levels including very obscure.";
-  } else {
-    depthInstruction = "Depth is set to Balanced: show a mix of moderately known and lesser-known entities. Stick to relevance 2-3.";
-  }
+EXAMPLES:
 
-  return `You are a real-time contextual intelligence engine. The user is watching/listening to content titled: "${title}". Their knowledge level is: ${level}. Their interests are: ${interestList}.
+Transcript: "a furious crowd in Paris stormed the Bastille"
+Good: Bastille
+Bad: French Revolution (not said), Parisian uprising (not said)
 
-RULE ZERO — READ THIS FIRST: You may ONLY extract terms that would have their own Wikipedia article. Test each term: would someone type this into Wikipedia and find a dedicated page? 'Bastille' = YES (has Wikipedia article). 'divine right' = YES (has article 'Divine right of kings'). 'Versailles' = YES. 'Bank of England' = YES. 'ledger' = NO (generic word). 'French state bankruptcy' = NO (not a Wikipedia article). 'structural problem' = NO. 'reckless borrowing' = NO. 'inflation' = NO (too generic). If the term fails the Wikipedia test, DO NOT extract it.
+Transcript: "Wrapped in pageantry wealth and divine right beneath the chandeliers of Versailles"
+Good: divine right, Versailles
+Bad: Divine Right of Kings (narrator said "divine right"), Palace of Versailles (narrator said "Versailles")
 
-STRICT RULE: Only extract proper nouns, named entities, and established terminology that would have their own Wikipedia article or dictionary definition. Examples of GOOD extractions: Bastille, Bank of England, divine right, Versailles, Louis XVI, Seven Years War, Estates-General. Examples of BAD extractions that you must NEVER return: reckless borrowing, unfair taxation, state bankruptcy, inflation, structural problem, archaic financial system, paper money spiraling into worthlessness, eighteenth century. These are common English phrases, not extractable terms. If the only things in the transcript are common phrases, return an EMPTY array [].
+Transcript: "it began with debt inflation and bread that cost more than wages"
+Good: [] (no named terms here, just common English words)
+Bad: sovereign debt (not said), inflation crisis (not said), bread riots (not said)
 
-IMPORTANT: Every term you extract must correspond to specific words actually spoken in the transcript. If the narrator says "bread that cost more than wages", do NOT invent "bread price crisis" as a label. If the narrator says "its financial system was archaic", do NOT extract "archaic financial system" as a concept. Extract real named terms like "Bank of England", "Versailles", "divine right". If no real named terms exist in the chunk, return fewer results rather than inventing labels.
+Transcript: "While Britain had created the Bank of England in 1694"
+Good: Bank of England
+Bad: British financial system (not said), central banking (not said)
 
-Extract 2-5 terms from this transcript that would help the viewer understand what they're hearing. Include: named events (Bastille, Tennis Court Oath), named people (Louis XVI, Jacques Necker), institutions and organizations (Estates-General, Bank of England), historical concepts being discussed (divine right, tax farming, mercantilism), and any technical or domain-specific term the narrator uses that a typical viewer might want explained.
+Transcript: "reckless borrowing unfair taxation and paper money spiraling into worthlessness"
+Good: [] (these are descriptions, not named terms)
+Bad: debt spiral (not said), fiscal collapse (not said)
 
-Always extract something if the narrator is discussing substantive content. Only return an empty array if the transcript is filler like "let's move on" or "as I was saying." The viewer wants to learn. Give them things to tap on.
+The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}
 
-CRITICAL: Only extract terms that are explicitly stated or directly referenced in THIS transcript chunk. Do not infer related concepts that weren't mentioned. If the narrator discusses tax farming, extract "tax farming". Do not also extract "assignats" just because they're related to the French Revolution. Each extracted term must be traceable to specific words in the transcript. However, you should still aim for 2-5 extractions per chunk when the content is substantive.
-
-SKIP the main topic itself if it's obvious from the title. For expert users, lean toward more obscure or specialist terms. For beginners, cast a wider net.
-
-For each entity, include a relevance score: 3 = most people wouldn't know this, 2 = moderately well-known, 1 = common knowledge. ${relevanceFilter}
-
-${depthInstruction}
-
-For stocks/companies use type "stock" with the ticker symbol. For other entities use appropriate types: "concept", "event", "person", "organization", "commodity".
-
-For each entity, also include a field called "salience" with value "highlight" or "background". A highlight is something the narrator is specifically introducing, explaining, or emphasizing, something the viewer would naturally wonder about. A background entity is something mentioned casually that provides setting or context but isn't the focus. Examples: narrator says "the gabelle, a salt tax that crushed the poor" = highlight. Narrator says "while Britain developed a bond market" = background for Britain, highlight for bond market.
-
-The user's engagement history shows they prefer these entity types: ${formatCounts(tasteProfile?.liked)}. They tend to dismiss: ${formatCounts(tasteProfile?.ignored)}. Weight your extraction toward the types they engage with.
-
-${reactionProfile ? `The user's self-reported reactions: ${reactionProfile.known || 0} terms marked "knew this", ${reactionProfile.new || 0} marked "new to me", ${reactionProfile.advanced || 0} marked "too advanced". ${reactionProfile.advanced > reactionProfile.new ? "The user finds many terms too advanced — lean toward more accessible, well-known entities." : reactionProfile.known > reactionProfile.new ? "The user already knows most terms — push toward more obscure, specialist entities." : "Good balance — continue with current difficulty level."}` : ""}
-
-${previousEntities && previousEntities.length > 0 ? `These terms have already been shown this session: ${previousEntities.join(", ")}. Do not extract these again or close variations. Go deeper with new specific details instead of repeating the same layer.` : ""}
-
-${sessionContext ? `Here is the full transcript of what has been said so far in this video: ${sessionContext}. Use this to understand the narrative arc and what the viewer has already heard. Extract only new terms that add to the viewer's understanding given everything discussed so far. Don't extract things that were already explained by the narrator. Consider where this transcript chunk falls in the video's narrative structure based on the sessionContext. If this appears to be the introduction (setting up the topic, posing questions), extract fewer entities and focus only on the central topic being introduced. If this is a deep explanation section (specific details, evidence, examples, named people and policies), extract more entities because this is where the richest content lives. If this is a conclusion or summary (wrapping up, drawing lessons, connecting to the present), extract very few entities because the narrator is restating things already covered. Use the sessionContext to judge the narrative position.` : ""}
-
-${knownTerms && knownTerms.length > 0 ? `The user has seen these terms in previous sessions: ${knownTerms.join(", ")}. Do not extract terms the user already knows unless they are being discussed in a significantly different context. The user is building knowledge over time. Focus on what is NEW to them. However, if a known term is being discussed in a significantly different context than before, you MAY re-extract it with a note. For example, if the user learned "sovereign debt" from a French Revolution video and now they're watching a video about the 2008 crisis, re-extract it because the context is different and the user would benefit from seeing how the same concept applies in a new situation. In this case, add a field "recontextualized": true to the entity.` : ""}
-
-For each entity, include a "description" field: a single factual sentence under 80 characters explaining what it is. Be direct. Do not start with the term name. Example: "French royal palace where Louis XIV consolidated power."
-
-Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "Example", "type": "concept", "relevance": 3, "ticker": null, "salience": "highlight", "description": "..." }] }. Max 5 entities per chunk. If nothing noteworthy return { "entities": [] }.`;
+Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|stock|organization", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "one sentence under 80 chars" }] }. Max 5 per chunk. Return { "entities": [] } when no named terms exist. It is completely fine to return empty arrays.`;
 }
 
 module.exports = async function handler(req, res) {

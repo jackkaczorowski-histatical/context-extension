@@ -240,10 +240,11 @@ async function stopCapture() {
 
   // Save session entities to persistent knowledge base
   try {
-    const histData = await chrome.storage.local.get(['sessionHistory', 'knowledgeBase']);
+    const histData = await chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle']);
     const sessionHist = histData.sessionHistory || [];
     const kb = histData.knowledgeBase || {};
-    const title = capturingTabTitle || '';
+    const title = capturingTabTitle || histData.capturingTabTitle || '';
+    console.log('[BACKGROUND] Saving to KB with source:', title, '| sessionHistory entries:', sessionHist.length);
     sessionHist.forEach(entry => {
       const term = entry.term;
       if (!term) return;

@@ -840,13 +840,15 @@ if (!window.__contextExtensionLoaded) {
     const termName = entity.term || entity.name || '';
 
     function saveDescToKB(desc) {
-      chrome.storage.local.get('knowledgeBase', (kbData) => {
+      chrome.storage.local.get(['knowledgeBase', 'capturingTabTitle'], (kbData) => {
         const kb = kbData.knowledgeBase || {};
+        const source = kbData.capturingTabTitle || document.title || '';
         const key = termName.toLowerCase();
         if (kb[key]) {
           kb[key].description = desc;
+          if (!kb[key].source) kb[key].source = source;
         } else {
-          kb[key] = { term: termName, type: entity.type || 'other', firstSeen: Date.now(), timesSeen: 1, expanded: true, source: '', description: desc };
+          kb[key] = { term: termName, type: entity.type || 'other', firstSeen: Date.now(), timesSeen: 1, expanded: true, source, description: desc };
         }
         chrome.storage.local.set({ knowledgeBase: kb });
       });

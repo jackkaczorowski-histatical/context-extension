@@ -47,7 +47,25 @@ Transcript: "taxes were collected by private tax farmers who paid the king a lum
 Good: tax farmers
 Bad: taxation system (not a named term)
 
+Transcript: "The nobility and clergy refused to give up privileges"
+Good: [] (nobility and clergy are common English words, not specialized terms)
+Bad: nobility (too basic), clergy (too basic)
+
+Transcript: "By 1788 the royal treasury was empty"
+Good: [] (1788 is just a year, not a term to explain)
+Bad: 1788 (just a date), royal treasury (generic phrase)
+
+Transcript: "The streets of Paris erupted in protest"
+Good: [] (Paris is a well-known city, not a term needing explanation)
+Bad: Paris (too well-known)
+
+Transcript: "The French crown owed enormous debts to foreign bankers"
+Good: [] (these are common words describing a situation)
+Bad: French crown (just means the monarchy), foreign bankers (generic)
+
 Never extract country names (France, Britain, Spain etc) or continent names (Europe, Asia etc) unless they refer to a specific institution like "Bank of France".
+
+Only extract terms that genuinely need explanation for the viewer. Ask: would someone watching this video pause and think "wait, what is that?" If the answer is no, don't extract it. "Bank of England" in a video about France — yes, the viewer might wonder about it. "Nobility" — no, everyone knows what nobility means.
 
 The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}
 

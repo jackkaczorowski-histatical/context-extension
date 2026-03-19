@@ -13,6 +13,7 @@ let isPaused = false;
 let usageTimer = null;
 let lastTranscriptSave = 0;
 let bufferStartTime = 0;
+let firstFlush = true;
 
 function getUsageKey() {
   const d = new Date();
@@ -101,7 +102,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!bufferTimer) {
       bufferTimer = setTimeout(() => {
         flushTranscriptBuffer();
-      }, 12000);
+      }, firstFlush ? 5000 : 12000);
     }
   }
 });
@@ -123,6 +124,7 @@ function flushTranscriptBuffer() {
   bufferStartTime = 0;
   if (text.length > 0) {
     console.log('[BACKGROUND] Flushing buffer:', text.length, 'chars');
+    firstFlush = false;
     transcriptQueue.push(text);
     if (!isProcessing) processNextTranscript();
   }
@@ -333,6 +335,7 @@ async function stopCapture() {
   sessionEntities = [];
   sessionTranscript = '';
   isPaused = false;
+  firstFlush = true;
   stopUsageTimer();
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false, sessionHistory: [], sessionTranscript: '' });

@@ -845,22 +845,40 @@ if (!window.__contextExtensionLoaded) {
 
     let descFetched = false;
     const inlineDesc = entity.description || '';
+    const termName = entity.term || entity.name || '';
+
+    function saveDescToKB(desc) {
+      chrome.storage.local.get('knowledgeBase', (kbData) => {
+        const kb = kbData.knowledgeBase || {};
+        const key = termName.toLowerCase();
+        if (kb[key]) {
+          kb[key].description = desc;
+        } else {
+          kb[key] = { term: termName, type: entity.type || 'other', firstSeen: Date.now(), timesSeen: 1, expanded: true, source: '', description: desc };
+        }
+        chrome.storage.local.set({ knowledgeBase: kb });
+      });
+    }
+
+    function saveDescToHistory(desc) {
+      chrome.storage.local.get('sessionHistory', (hData) => {
+        const history = hData.sessionHistory || [];
+        const entry = history.find(h => h.term === termName && !h.description);
+        if (entry) {
+          entry.description = desc;
+          chrome.storage.local.set({ sessionHistory: history });
+        }
+      });
+    }
 
     // If entity arrived with a description, pre-fill it
     if (inlineDesc) {
       descFetched = true;
       const descEl = card.querySelector('.card-desc');
-      descEl.textContent = firstSentence(inlineDesc);
-      // Update sessionHistory with inline description
-      const termName = entity.term || entity.name || '';
-      chrome.storage.local.get('sessionHistory', (hData) => {
-        const history = hData.sessionHistory || [];
-        const entry = history.find(h => h.term === termName && !h.description);
-        if (entry) {
-          entry.description = firstSentence(inlineDesc);
-          chrome.storage.local.set({ sessionHistory: history });
-        }
-      });
+      const desc = firstSentence(inlineDesc);
+      descEl.textContent = desc;
+      saveDescToHistory(desc);
+      saveDescToKB(desc);
     }
 
     card.addEventListener('click', (e) => {
@@ -872,13 +890,24 @@ if (!window.__contextExtensionLoaded) {
         const descEl = card.querySelector('.card-desc');
         descEl.classList.add('card-desc-loading');
 
-        chrome.storage.local.get('userProfile', (data) => {
+        // Check knowledgeBase cache first
+        chrome.storage.local.get(['knowledgeBase', 'userProfile'], (data) => {
+          const kb = data.knowledgeBase || {};
+          const kbEntry = kb[termName.toLowerCase()];
+          if (kbEntry && kbEntry.description) {
+            descEl.classList.remove('card-desc-loading');
+            descEl.textContent = kbEntry.description;
+            saveDescToHistory(kbEntry.description);
+            return;
+          }
+
+          // No cached description, fetch from API
           try { if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH' }); } catch (e) {}
           fetch('https://context-extension-zv8d.vercel.app/api/context', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              term: entity.term || entity.name || '',
+              term: termName,
               userProfile: data.userProfile || null
             })
           })
@@ -887,16 +916,8 @@ if (!window.__contextExtensionLoaded) {
             descEl.classList.remove('card-desc-loading');
             const desc = firstSentence(contextData.description || '');
             descEl.textContent = desc;
-            // Update sessionHistory with description
-            const termName = entity.term || entity.name || '';
-            chrome.storage.local.get('sessionHistory', (hData) => {
-              const history = hData.sessionHistory || [];
-              const entry = history.find(h => h.term === termName && !h.description);
-              if (entry) {
-                entry.description = desc;
-                chrome.storage.local.set({ sessionHistory: history });
-              }
-            });
+            saveDescToHistory(desc);
+            saveDescToKB(desc);
           })
           .catch(() => {
             descEl.classList.remove('card-desc-loading');

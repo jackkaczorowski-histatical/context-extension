@@ -1219,7 +1219,6 @@ if (!window.__contextExtensionLoaded) {
       '<hr>';
 
     cards.prepend(divider);
-    showCardsHideEmpty();
     console.log('[CONTENT] Session divider added:', timeStr);
   }
 
@@ -1304,18 +1303,20 @@ if (!window.__contextExtensionLoaded) {
 
     showCardsHideEmpty();
 
-    // Hide listening indicator and reset timer
+    // Hide listening indicator and reset timer (only show after cards exist)
     if (shadowRoot) {
       const li = shadowRoot.getElementById('listening-indicator');
       if (li) li.classList.remove('visible');
     }
     if (listeningTimer) clearTimeout(listeningTimer);
-    listeningTimer = setTimeout(() => {
-      if (shadowRoot && hasCards) {
-        const li = shadowRoot.getElementById('listening-indicator');
-        if (li) li.classList.add('visible');
-      }
-    }, 20000);
+    if (hasCards) {
+      listeningTimer = setTimeout(() => {
+        if (shadowRoot && hasCards) {
+          const li = shadowRoot.getElementById('listening-indicator');
+          if (li) li.classList.add('visible');
+        }
+      }, 20000);
+    }
 
     const limited = entities.slice(0, settings.cardsPerChunk);
     const sidebarClosed = !hostEl || hostEl.dataset.open !== 'true';

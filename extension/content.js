@@ -437,7 +437,9 @@ if (!window.__contextExtensionLoaded) {
     .ctx-session-summary {
       background: #161630; border: 1px solid rgba(90,90,255,0.15);
       border-radius: 10px; padding: 16px; margin: 12px;
+      opacity: 0; transition: opacity 0.3s ease;
     }
+    .ctx-session-summary.visible { opacity: 1; }
     .ctx-session-summary-header {
       font-size: 13px; font-weight: 600; color: #e0e0f0; margin-bottom: 10px;
     }
@@ -1487,7 +1489,11 @@ if (!window.__contextExtensionLoaded) {
             summaryEl.remove();
           });
 
-          cardsContainer.insertBefore(summaryEl, cardsContainer.firstChild);
+          cardsContainer.appendChild(summaryEl);
+          requestAnimationFrame(() => {
+            summaryEl.classList.add('visible');
+            cardsContainer.scrollTop = cardsContainer.scrollHeight;
+          });
         });
       });
     }

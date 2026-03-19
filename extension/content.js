@@ -160,6 +160,7 @@ if (!window.__contextExtensionLoaded) {
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
       animation: ctx-pulse 2s ease-in-out infinite;
+      outline: 3px solid red; /* DEBUG */
     }
     .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
     .ctx-close-btn, .ctx-export-btn {
@@ -207,6 +208,7 @@ if (!window.__contextExtensionLoaded) {
     }
     #listening-indicator.visible { display: flex; }
     #listening-indicator .li-dot {
+      outline: 3px solid red; /* DEBUG */
       width: 4px; height: 4px; border-radius: 50%; background: #5a5a7a;
       animation: ctx-pulse 2s ease-in-out infinite;
     }
@@ -313,7 +315,7 @@ if (!window.__contextExtensionLoaded) {
       display: none; padding: 6px 16px; background: #12121c;
       border-bottom: 1px solid rgba(255,255,255,0.03); flex-shrink: 0;
     }
-    #missed-bar.visible { display: block; }
+    #missed-bar.visible { display: block; outline: 3px solid red; /* DEBUG */ }
     #missed-btn {
       font-size: 10px; color: #00e676; background: rgba(0,230,118,0.08);
       border: none; border-radius: 12px; padding: 3px 10px;
@@ -478,6 +480,7 @@ if (!window.__contextExtensionLoaded) {
     }
     .ctx-badge.entity-flash {
       animation: badge-entity-flash 0.6s ease-out;
+      outline: 3px solid red; /* DEBUG */
     }
     @keyframes badge-glow {
       0% { box-shadow: 0 0 12px rgba(0,230,118,0.4); }
@@ -548,7 +551,7 @@ if (!window.__contextExtensionLoaded) {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       max-width: 200px;
     }
-    .ctx-toast.visible { opacity: 1; pointer-events: auto; }
+    .ctx-toast.visible { opacity: 1; pointer-events: auto; outline: 3px solid red; /* DEBUG */ }
     .ctx-toast.fading { opacity: 0; transition: opacity 0.5s ease; }
     .ctx-toast-term {
       font-size: 12px; font-weight: 600; color: #e0e0f0;
@@ -609,6 +612,7 @@ if (!window.__contextExtensionLoaded) {
         badge.classList.remove('entity-flash');
         void badge.offsetWidth;
         badge.classList.add('entity-flash');
+        console.log('[DEBUG] Badge entity-flash animation triggered');
       }
     }
   }
@@ -664,6 +668,7 @@ if (!window.__contextExtensionLoaded) {
     toastShadow.appendChild(toast);
 
     // Fade in
+    console.log('[DEBUG] Toast shown for:', entity.term || entity.name, '| sidebar open:', hostEl?.dataset?.open);
     requestAnimationFrame(() => {
       toast.classList.add('visible');
     });
@@ -1187,6 +1192,7 @@ if (!window.__contextExtensionLoaded) {
       }
     });
 
+    console.log('[DEBUG] Sidebar created — live-dot, missed-bar, listening-indicator all in DOM');
     sidebar.appendChild(header);
     sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
@@ -1353,7 +1359,10 @@ if (!window.__contextExtensionLoaded) {
       listeningTimer = setTimeout(() => {
         if (shadowRoot && hasCards) {
           const li = shadowRoot.getElementById('listening-indicator');
-          if (li) li.classList.add('visible');
+          if (li) {
+            li.classList.add('visible');
+            console.log('[DEBUG] Listening indicator visible');
+          }
         }
       }, 20000);
     }
@@ -1376,7 +1385,10 @@ if (!window.__contextExtensionLoaded) {
     if (sidebarClosed && shadowRoot) {
       const missedCount = cards.querySelectorAll('.context-card.missed').length;
       const mb = shadowRoot.getElementById('missed-bar');
-      if (mb) mb.classList.toggle('visible', missedCount > 3);
+      if (mb) {
+        mb.classList.toggle('visible', missedCount > 3);
+        if (missedCount > 3) console.log('[DEBUG] Missed-bar visible, count:', missedCount);
+      }
     }
 
     updateBadge(limited.length);

@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (transcriptBuffer.trim().length > 0 && !bufferTimer) {
       bufferTimer = setTimeout(() => {
         flushTranscriptBuffer();
-      }, 12000);
+      }, 8000);
     }
   } else if (message.type === 'SEEK_DETECTED') {
     console.log('[BACKGROUND] Seek detected, clearing transcript buffer');
@@ -102,7 +102,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!bufferTimer) {
       bufferTimer = setTimeout(() => {
         flushTranscriptBuffer();
-      }, firstFlush ? 5000 : 12000);
+      }, firstFlush ? 5000 : 8000);
     }
   }
 });

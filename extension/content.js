@@ -473,8 +473,8 @@ if (!window.__contextExtensionLoaded) {
       width: 36px; height: 36px; border-radius: 50%;
       background: #1a1a2e; border: 1px solid rgba(255,255,255,0.08);
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: box-shadow 0.3s ease, border-color 0.2s;
-      user-select: none;
+      cursor: pointer; transition: box-shadow 0.3s ease, border-color 0.3s;
+      user-select: none; position: relative;
     }
     .ctx-badge:hover {
       border-color: rgba(255,255,255,0.15);
@@ -483,9 +483,16 @@ if (!window.__contextExtensionLoaded) {
     .ctx-badge.pulse {
       animation: badge-glow 1.5s ease-out;
     }
+    .ctx-badge.entity-flash {
+      animation: badge-entity-flash 0.6s ease-out;
+    }
     @keyframes badge-glow {
       0% { box-shadow: 0 0 12px rgba(0,230,118,0.4); }
       100% { box-shadow: none; }
+    }
+    @keyframes badge-entity-flash {
+      0% { border-color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.4); }
+      100% { border-color: rgba(255,255,255,0.08); box-shadow: none; }
     }
     .ctx-badge.media-detected {
       animation: badge-media-pulse 2s ease-in-out infinite;
@@ -499,6 +506,38 @@ if (!window.__contextExtensionLoaded) {
       font-size: 13px; font-weight: 600; color: #e0e0f0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1;
+    }
+    .ctx-badge.capturing .ctx-badge-count {
+      position: absolute; top: -4px; right: -4px;
+      font-size: 8px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 50%; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ctx-badge-waveform {
+      display: none; align-items: center; justify-content: center; gap: 2px; height: 14px;
+    }
+    .ctx-badge.capturing .ctx-badge-waveform { display: flex; }
+    .ctx-badge.capturing .ctx-badge-count { }
+    .ctx-badge-bar {
+      width: 2px; background: #00e676; border-radius: 1px;
+      animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      animation-direction: alternate;
+    }
+    .ctx-badge-bar:nth-child(1) { height: 4px; animation: wave1 0.6s ease-in-out infinite alternate; }
+    .ctx-badge-bar:nth-child(2) { height: 7px; animation: wave2 0.45s ease-in-out infinite alternate; }
+    .ctx-badge-bar:nth-child(3) { height: 5px; animation: wave3 0.55s ease-in-out infinite alternate; }
+    .ctx-badge.paused .ctx-badge-bar { animation-play-state: paused; }
+    @keyframes wave1 {
+      0% { height: 4px; }
+      100% { height: 10px; }
+    }
+    @keyframes wave2 {
+      0% { height: 7px; }
+      100% { height: 4px; }
+    }
+    @keyframes wave3 {
+      0% { height: 5px; }
+      100% { height: 9px; }
     }
     .ctx-toast {
       position: fixed; bottom: 65px; right: 20px;
@@ -519,6 +558,7 @@ if (!window.__contextExtensionLoaded) {
     .ctx-badge.light { background: #ffffff; border-color: rgba(0,0,0,0.08); }
     .ctx-badge.light:hover { background: #f5f5f8; border-color: rgba(0,0,0,0.12); }
     .ctx-badge.light .ctx-badge-count { color: #1a1a2e; }
+    .ctx-badge.light.capturing .ctx-badge-count { background: #ffffff; border-color: rgba(0,0,0,0.1); }
     .ctx-toast.light {
       background: #ffffff; border-color: rgba(0,0,0,0.06);
     }
@@ -540,7 +580,7 @@ if (!window.__contextExtensionLoaded) {
 
     const badge = document.createElement('div');
     badge.className = 'ctx-badge';
-    badge.innerHTML = '<span class="ctx-badge-count">0</span>';
+    badge.innerHTML = '<div class="ctx-badge-waveform"><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div></div><span class="ctx-badge-count">0</span>';
     badge.addEventListener('click', () => {
       // If media detected but not yet capturing, start capture on click
       if (mediaDetected && !autoCapturing) {
@@ -551,6 +591,7 @@ if (!window.__contextExtensionLoaded) {
         try { chrome.runtime.sendMessage({ type: 'START_CAPTURE' }); } catch (e) {}
         chrome.storage.local.set({ capturing: true });
         badge.classList.remove('media-detected');
+        setBadgeCapturing(true, false);
         const countEl = badge.querySelector('.ctx-badge-count');
         if (countEl) countEl.textContent = '0';
         ensureSidebar();
@@ -578,11 +619,19 @@ if (!window.__contextExtensionLoaded) {
     if (newCards > 0) {
       const badge = badgeShadow.querySelector('.ctx-badge');
       if (badge) {
-        badge.classList.remove('pulse');
+        badge.classList.remove('entity-flash');
         void badge.offsetWidth;
-        badge.classList.add('pulse');
+        badge.classList.add('entity-flash');
       }
     }
+  }
+
+  function setBadgeCapturing(capturing, paused) {
+    if (!badgeShadow) return;
+    const badge = badgeShadow.querySelector('.ctx-badge');
+    if (!badge) return;
+    badge.classList.toggle('capturing', capturing);
+    badge.classList.toggle('paused', capturing && paused);
   }
 
   let toastTimer = null;
@@ -1270,6 +1319,13 @@ if (!window.__contextExtensionLoaded) {
         if (active) renderSessionDivider(changes.sessionStart.newValue);
       });
     }
+    if (changes.capturing) {
+      if (changes.capturing.newValue === true) {
+        setBadgeCapturing(true, false);
+      } else if (changes.capturing.newValue === false) {
+        setBadgeCapturing(false, false);
+      }
+    }
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
       isActiveTab((active) => {
         if (!active) return;
@@ -1443,6 +1499,7 @@ if (!window.__contextExtensionLoaded) {
     } else if (autoPaused) {
       autoPaused = false;
       console.log('[CONTENT] Media resumed');
+      setBadgeCapturing(true, false);
       try { chrome.runtime.sendMessage({ type: 'RESUME_CAPTURE' }); } catch (e) {}
     }
   }
@@ -1454,6 +1511,7 @@ if (!window.__contextExtensionLoaded) {
     if (anyMediaPlaying()) return;
     autoPaused = true;
     console.log('[CONTENT] All media paused');
+    setBadgeCapturing(true, true);
     try { chrome.runtime.sendMessage({ type: 'PAUSE_CAPTURE' }); } catch (e) {}
   }
 

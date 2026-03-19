@@ -945,11 +945,30 @@ if (!window.__contextExtensionLoaded) {
         });
       }
 
-      // Fetch Wikipedia thumbnail on first expand
+      // Fetch Wikipedia thumbnail on first expand (only for specific people/orgs/events, not concepts)
       if (card.classList.contains('expanded') && !card.dataset.thumbUrl && !card.dataset.thumbChecked) {
         card.dataset.thumbChecked = 'true';
         const termForWiki = entity.term || entity.name || '';
-        fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(termForWiki))
+        const entityType = (entity.type || '').toLowerCase();
+        const commonWords = ['the','a','an','of','in','on','at','to','for','and','or','is','was','are','were','be','been','being','have','has','had','do','does','did','will','would','shall','should','may','might','can','could','must','not','no','but','so','if','then','than','that','this','these','those','with','from','by','as','into','through','during','before','after','above','below','between','under','over','out','up','down','off','about','each','every','all','both','few','more','most','other','some','such','new','old','high','low','big','great','small','long','large','first','last','early','young','good','bad','right','left','next','free','full','real','true','best','same','much','many','own','just','little','only','still','also','very'];
+        const isGenericPlace = /^(france|britain|spain|germany|italy|china|japan|russia|india|america|usa|uk|england|europe|asia|africa|australia|paris|london|rome|berlin|tokyo|new york|moscow|beijing|washington|madrid|vienna|amsterdam|brussels|stockholm|oslo|dublin|lisbon|athens|cairo|istanbul|mumbai|shanghai|sydney|toronto|mexico|brazil|egypt|turkey|poland|portugal|greece|norway|sweden|denmark|finland|switzerland|austria|netherlands|belgium|ireland|scotland|wales)$/i;
+        let shouldFetchThumb = true;
+        if (entityType === 'concept') {
+          shouldFetchThumb = false;
+        } else if (entityType === 'person') {
+          shouldFetchThumb = true;
+        } else if (entityType === 'organization' || entityType === 'event') {
+          // Only fetch if term contains a proper noun (capitalized, not a common word)
+          const words = termForWiki.split(/\s+/);
+          const hasProperNoun = words.some(w => /^[A-Z]/.test(w) && !commonWords.includes(w.toLowerCase()));
+          shouldFetchThumb = hasProperNoun;
+        } else {
+          shouldFetchThumb = false;
+        }
+        if (isGenericPlace.test(termForWiki.trim())) {
+          shouldFetchThumb = false;
+        }
+        shouldFetchThumb && fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(termForWiki))
           .then(r => r.ok ? r.json() : null)
           .then(wikiData => {
             if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source) {

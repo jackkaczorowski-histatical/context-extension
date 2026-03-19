@@ -353,7 +353,7 @@ async function processNextTranscript() {
 
   try {
     // Fetch user profile and engagement history for analyze request
-    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase']);
+    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase', 'cardReactions']);
     const userProfile = storageData.userProfile || null;
 
     // Build taste profile from engagement history
@@ -367,6 +367,14 @@ async function processNextTranscript() {
       ignoredCounts['unknown'] = (ignoredCounts['unknown'] || 0) + 1;
     });
     const tasteProfile = { liked: likedCounts, ignored: ignoredCounts };
+
+    // Build reaction profile from card reactions
+    const reactionCounts = { known: 0, new: 0, advanced: 0 };
+    (storageData.cardReactions || []).forEach(r => {
+      if (reactionCounts[r.reaction] !== undefined) reactionCounts[r.reaction]++;
+    });
+    const reactionProfile = reactionCounts;
+
     const depth = (storageData.extensionSettings && storageData.extensionSettings.depth) || 2;
     const knownTerms = Object.values(storageData.knowledgeBase || {}).map(e => e.term);
 
@@ -378,7 +386,7 @@ async function processNextTranscript() {
       analyzeRes = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms }),
+        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms }),
         signal: analyzeController.signal
       });
     } finally {

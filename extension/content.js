@@ -287,19 +287,27 @@ if (!window.__contextExtensionLoaded) {
     .stock-change { font-size: 12px; font-weight: 600; }
     .stock-change.positive { color: #00e676; }
     .stock-change.negative { color: #ff5252; }
-    .card-actions {
-      position: absolute; top: 8px; right: 10px; display: flex; gap: 4px;
-      opacity: 0; transition: opacity 0.15s; pointer-events: none;
+    .reaction-row {
+      display: flex; gap: 10px; margin-top: 10px; justify-content: flex-start;
     }
-    .context-card.expanded:hover .card-actions { opacity: 1; pointer-events: auto; }
-    .thumbs-up-btn, .thumbs-down-btn {
-      background: none; border: none; color: #2a2a3a; font-size: 10px;
-      cursor: pointer; padding: 2px 4px; border-radius: 3px; line-height: 1;
-      transition: color 0.15s;
+    .reaction-btn {
+      width: 24px; height: 24px; border-radius: 50%; background: none;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;
+      padding: 0; line-height: 1; flex-shrink: 0;
     }
-    .thumbs-up-btn:hover { color: #00e676; }
-    .thumbs-down-btn:hover { color: #ff5252; }
-    .thumbs-up-ok { color: #00e676; font-size: 9px; padding: 2px 4px; line-height: 1; }
+    .reaction-btn:hover { transform: scale(1.15); }
+    .reaction-known { border: 1px solid #6a6a8a; color: #6a6a8a; }
+    .reaction-known:hover { background: rgba(106,106,138,0.15); }
+    .reaction-new { border: 1px solid #00e676; color: #00e676; }
+    .reaction-new:hover { background: rgba(0,230,118,0.1); }
+    .reaction-advanced { border: 1px solid #ff9500; color: #ff9500; }
+    .reaction-advanced:hover { background: rgba(255,149,0,0.1); }
+    .reaction-label {
+      font-size: 9px; color: #4a4a6a; margin-top: 2px; text-align: center;
+    }
+    .reaction-group { display: flex; flex-direction: column; align-items: center; }
+    .context-card.reacted { opacity: 0.45; transition: opacity 0.4s; }
     .card-wiki-link {
       font-size: 10px; color: #3a3a5a; text-decoration: none;
       transition: color 0.15s; display: inline-block; margin-top: 4px;
@@ -415,7 +423,8 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .stock-company { color: #8a8aa0; }
     .light-theme .stock-price { color: #1a1a2e; }
     .light-theme .card-actions { }
-    .light-theme .thumbs-up-btn, .light-theme .thumbs-down-btn { color: #b0b0c0; }
+    .light-theme .reaction-known { border-color: #b0b0c0; color: #b0b0c0; }
+    .light-theme .reaction-label { color: #b0b0c0; }
     .light-theme .card-wiki-link { color: #8a8aa0; }
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
     .light-theme .feedback-msg { color: #9a9ab0; }
@@ -654,44 +663,48 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function addCardButtons(card, key, entity) {
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
+    const expandArea = card.querySelector('.card-expand-area');
+    if (!expandArea) return;
 
-    const upBtn = document.createElement('button');
-    upBtn.className = 'thumbs-up-btn';
-    upBtn.innerHTML = '&#x1F44D;';
-    upBtn.title = 'Useful';
-    upBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      chrome.storage.local.get('likedEntities', (data) => {
-        const liked = data.likedEntities || [];
-        liked.push({ type: entity.type || 'other', term: key, timestamp: Date.now() });
-        chrome.storage.local.set({ likedEntities: liked });
+    const row = document.createElement('div');
+    row.className = 'reaction-row';
+
+    const reactions = [
+      { cls: 'reaction-known', icon: '\u2713', label: 'Knew this', reaction: 'known' },
+      { cls: 'reaction-new', icon: '\u2605', label: 'New to me', reaction: 'new' },
+      { cls: 'reaction-advanced', icon: '?', label: 'Too advanced', reaction: 'advanced' }
+    ];
+
+    reactions.forEach(({ cls, icon, label, reaction }) => {
+      const group = document.createElement('div');
+      group.className = 'reaction-group';
+      const btn = document.createElement('button');
+      btn.className = `reaction-btn ${cls}`;
+      btn.textContent = icon;
+      btn.title = label;
+      const labelEl = document.createElement('div');
+      labelEl.className = 'reaction-label';
+      labelEl.textContent = label;
+      group.appendChild(btn);
+      group.appendChild(labelEl);
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chrome.storage.local.get('cardReactions', (data) => {
+          const reactions = data.cardReactions || [];
+          reactions.push({ term: key, type: entity.type || 'other', reaction, timestamp: Date.now() });
+          chrome.storage.local.set({ cardReactions: reactions });
+        });
+        card.classList.add('reacted');
+        setTimeout(() => {
+          card.classList.remove('expanded');
+        }, 500);
       });
-      upBtn.innerHTML = '&#x2713;';
-      upBtn.classList.add('thumbs-up-ok');
-      setTimeout(() => {
-        upBtn.innerHTML = '&#x1F44D;';
-        upBtn.classList.remove('thumbs-up-ok');
-      }, 1000);
+
+      row.appendChild(group);
     });
 
-    const downBtn = document.createElement('button');
-    downBtn.className = 'thumbs-down-btn';
-    downBtn.innerHTML = '&#x1F44E;';
-    downBtn.title = 'Not useful';
-    downBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      ignoreList.add(key);
-      chrome.storage.local.set({ ignoreList: Array.from(ignoreList) });
-      card.innerHTML = '<div class="feedback-msg">Thanks for the feedback</div>';
-      card.classList.add('collapsed');
-      card.style.borderLeftColor = '#4a4a6a';
-    });
-
-    actions.appendChild(upBtn);
-    actions.appendChild(downBtn);
-    card.appendChild(actions);
+    expandArea.appendChild(row);
   }
 
   function createStockCard(entity) {

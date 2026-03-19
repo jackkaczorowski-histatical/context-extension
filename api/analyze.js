@@ -10,7 +10,7 @@ function formatCounts(counts) {
   return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
 }
 
-function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms) {
+function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms, reactionProfile) {
   const title = pageTitle || "unknown content";
   const level = knowledgeLevel || "intermediate";
   const interestList = interests && interests.length > 0 ? interests.join(", ") : "general topics";
@@ -60,6 +60,8 @@ For each entity, also include a field called "salience" with value "highlight" o
 
 The user's engagement history shows they prefer these entity types: ${formatCounts(tasteProfile?.liked)}. They tend to dismiss: ${formatCounts(tasteProfile?.ignored)}. Weight your extraction toward the types they engage with.
 
+${reactionProfile ? `The user's self-reported reactions: ${reactionProfile.known || 0} terms marked "knew this", ${reactionProfile.new || 0} marked "new to me", ${reactionProfile.advanced || 0} marked "too advanced". ${reactionProfile.advanced > reactionProfile.new ? "The user finds many terms too advanced — lean toward more accessible, well-known entities." : reactionProfile.known > reactionProfile.new ? "The user already knows most terms — push toward more obscure, specialist entities." : "Good balance — continue with current difficulty level."}` : ""}
+
 ${previousEntities && previousEntities.length > 0 ? `These terms have already been shown this session: ${previousEntities.join(", ")}. Do not extract these again or close variations. Go deeper with new specific details instead of repeating the same layer.` : ""}
 
 ${sessionContext ? `Here is the full transcript of what has been said so far in this video: ${sessionContext}. Use this to understand the narrative arc and what the viewer has already heard. Extract only new terms that add to the viewer's understanding given everything discussed so far. Don't extract things that were already explained by the narrator. Consider where this transcript chunk falls in the video's narrative structure based on the sessionContext. If this appears to be the introduction (setting up the topic, posing questions), extract fewer entities and focus only on the central topic being introduced. If this is a deep explanation section (specific details, evidence, examples, named people and policies), extract more entities because this is where the richest content lives. If this is a conclusion or summary (wrapping up, drawing lessons, connecting to the present), extract very few entities because the narrator is restating things already covered. Use the sessionContext to judge the narrative position.` : ""}
@@ -79,7 +81,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { transcript, pageTitle, userProfile, tasteProfile, depth, previousEntities, sessionContext, knownTerms } = req.body || {};
+  const { transcript, pageTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities, sessionContext, knownTerms } = req.body || {};
 
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -88,7 +90,7 @@ module.exports = async function handler(req, res) {
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
   const interests = userProfile?.interests?.length > 0 ? userProfile.interests : ["Finance & Economics", "History & Culture", "Politics & Law", "Science & Technology", "Business & Markets", "Arts & Society"];
-  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms);
+  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms, reactionProfile);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

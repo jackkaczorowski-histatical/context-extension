@@ -216,6 +216,14 @@ if (!window.__contextExtensionLoaded) {
       50% { opacity: 0.3; }
     }
     #listening-indicator .li-text { font-size: 10px; color: #5a5a7a; }
+    #transcript-strip {
+      font-size: 9px; color: #2a2a3a; line-height: 16px; max-width: 100%;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+      padding: 0 16px; flex-shrink: 0; display: none;
+      -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
+      mask-image: linear-gradient(to right, black 70%, transparent 100%);
+    }
+    #transcript-strip.visible { display: block; }
     #cards {
       flex: 1; overflow-y: auto; padding: 0; background: #12121c; display: none;
     }
@@ -396,6 +404,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme #empty-state { background: #f5f5f8; }
     .light-theme .ctx-waveform span { background: #c0c0d0; }
     .light-theme .ctx-empty-text { color: #7a7a9a; }
+    .light-theme #transcript-strip { color: #c0c0d0; }
     .light-theme #cards { background: #f5f5f8; }
     .light-theme #cards::-webkit-scrollbar-thumb { background: #d0d0e0; }
     .light-theme #listening-indicator { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
@@ -1213,7 +1222,12 @@ if (!window.__contextExtensionLoaded) {
       }
     });
 
+    // Transcript strip — ambient "audio is being heard" indicator
+    const transcriptStrip = document.createElement('div');
+    transcriptStrip.id = 'transcript-strip';
+
     sidebar.appendChild(header);
+    sidebar.appendChild(transcriptStrip);
     sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
     sidebar.appendChild(previewCard);
@@ -1423,6 +1437,15 @@ if (!window.__contextExtensionLoaded) {
 
   // Listen for future updates
   chrome.storage.onChanged.addListener((changes) => {
+    if (changes.sessionTranscript && shadowRoot) {
+      const strip = shadowRoot.getElementById('transcript-strip');
+      if (strip) {
+        const text = changes.sessionTranscript.newValue || '';
+        const last40 = text.slice(-120);
+        strip.textContent = last40;
+        strip.classList.toggle('visible', text.length > 0);
+      }
+    }
     if (changes.sessionStart && changes.sessionStart.newValue) {
       isActiveTab((active) => {
         if (active) {

@@ -530,8 +530,17 @@ if (!window.__contextExtensionLoaded) {
       0% { height: 5px; }
       100% { height: 9px; }
     }
+    /* Light theme */
+    .ctx-badge.light { background: #ffffff; border-color: rgba(0,0,0,0.08); }
+    .ctx-badge.light:hover { background: #f5f5f8; border-color: rgba(0,0,0,0.12); }
+    .ctx-badge.light .ctx-badge-count { color: #1a1a2e; }
+    .ctx-badge.light.capturing .ctx-badge-count { background: #ffffff; border-color: rgba(0,0,0,0.1); }
+    .ctx-badge.light .ctx-badge-play { color: #b0b0c0; }
+  `;
+
+  const TOAST_CSS = `
+    :host { display: block; }
     .ctx-toast {
-      position: fixed; bottom: 65px; right: 20px;
       background: #1a1a2e; border: 1px solid rgba(255,255,255,0.06);
       border-radius: 8px; padding: 8px 12px; border-left: 3px solid #4a4a6a;
       cursor: pointer; opacity: 0; transition: opacity 0.3s ease;
@@ -545,12 +554,6 @@ if (!window.__contextExtensionLoaded) {
       font-size: 12px; font-weight: 600; color: #e0e0f0;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    /* Light theme */
-    .ctx-badge.light { background: #ffffff; border-color: rgba(0,0,0,0.08); }
-    .ctx-badge.light:hover { background: #f5f5f8; border-color: rgba(0,0,0,0.12); }
-    .ctx-badge.light .ctx-badge-count { color: #1a1a2e; }
-    .ctx-badge.light.capturing .ctx-badge-count { background: #ffffff; border-color: rgba(0,0,0,0.1); }
-    .ctx-badge.light .ctx-badge-play { color: #b0b0c0; }
     .ctx-toast.light {
       background: #ffffff; border-color: rgba(0,0,0,0.06);
     }
@@ -620,14 +623,29 @@ if (!window.__contextExtensionLoaded) {
   }
 
   let toastTimer = null;
+  let toastHost = null;
+  let toastShadow = null;
+
+  function ensureToastHost() {
+    if (toastShadow) return;
+    toastHost = document.createElement('div');
+    toastHost.id = 'context-toast-host';
+    toastHost.style.cssText = 'position:fixed;bottom:65px;right:20px;z-index:2147483647;';
+    toastShadow = toastHost.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = TOAST_CSS;
+    toastShadow.appendChild(style);
+    document.body.appendChild(toastHost);
+  }
 
   function showToast(entity) {
-    if (!badgeShadow) return;
-    // Don't show if sidebar is open
+    // Strict check: never show if sidebar is open
     if (hostEl && hostEl.dataset.open === 'true') return;
 
+    ensureToastHost();
+
     // Remove existing toast
-    const existing = badgeShadow.querySelector('.ctx-toast');
+    const existing = toastShadow.querySelector('.ctx-toast');
     if (existing) existing.remove();
     if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
 
@@ -639,10 +657,11 @@ if (!window.__contextExtensionLoaded) {
     toast.addEventListener('click', () => {
       toast.remove();
       if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+      ensureSidebar();
       openSidebar();
       resetAutoHide();
     });
-    badgeShadow.appendChild(toast);
+    toastShadow.appendChild(toast);
 
     // Fade in
     requestAnimationFrame(() => {

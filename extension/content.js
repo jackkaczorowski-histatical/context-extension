@@ -218,12 +218,6 @@ if (!window.__contextExtensionLoaded) {
     #cards::-webkit-scrollbar { width: 3px; }
     #cards::-webkit-scrollbar-track { background: transparent; }
     #cards::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
-    .session-divider {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 16px; background: #12121c;
-    }
-    .session-divider hr { flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.04); margin: 0; }
-    .session-divider span { color: #5a5a7a; font-size: 10px; white-space: nowrap; }
     .context-card {
       position: relative; padding: 8px 16px 8px 18px;
       border-bottom: 1px solid rgba(255,255,255,0.03); border-left: 2px solid #4a4a6a;
@@ -404,9 +398,6 @@ if (!window.__contextExtensionLoaded) {
     .light-theme #listening-indicator .li-dot { background: #9a9ab0; }
     .light-theme #listening-indicator .li-text { color: #9a9ab0; }
     .light-theme #missed-bar { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
-    .light-theme .session-divider { background: #f5f5f8; }
-    .light-theme .session-divider hr { border-top-color: rgba(0,0,0,0.06); }
-    .light-theme .session-divider span { color: #7a7a9a; }
     .light-theme .context-card { background: #ffffff; border-bottom-color: rgba(0,0,0,0.06); }
     .light-theme .context-card:hover { background: #f0f0f5; }
     .light-theme .context-card.stock-card { background: #f0faf4; }
@@ -1203,23 +1194,9 @@ if (!window.__contextExtensionLoaded) {
     if (cards) cards.style.display = 'block';
   }
 
-  function renderSessionDivider(timestamp) {
+  function trackSessionStart(timestamp) {
     if (timestamp === lastSessionStart) return;
     lastSessionStart = timestamp;
-
-    ensureSidebar();
-    const cards = shadowRoot.getElementById('cards');
-    const timeStr = formatTime(new Date(timestamp));
-
-    const divider = document.createElement('div');
-    divider.className = 'session-divider';
-    divider.innerHTML =
-      '<hr>' +
-      '<span>Session started ' + timeStr + '</span>' +
-      '<hr>';
-
-    cards.prepend(divider);
-    console.log('[CONTENT] Session divider added:', timeStr);
   }
 
   function resetAskIdleTimer() {
@@ -1359,7 +1336,7 @@ if (!window.__contextExtensionLoaded) {
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.sessionStart && changes.sessionStart.newValue) {
       isActiveTab((active) => {
-        if (active) renderSessionDivider(changes.sessionStart.newValue);
+        if (active) trackSessionStart(changes.sessionStart.newValue);
       });
     }
     if (changes.capturing) {
@@ -1461,7 +1438,7 @@ if (!window.__contextExtensionLoaded) {
       if (data.activeTabUrl && data.activeTabUrl !== window.location.href) return;
     }
     if (data.sessionStart) {
-      renderSessionDivider(data.sessionStart);
+      trackSessionStart(data.sessionStart);
     }
     console.log('[CONTENT] Initial check:', data.pendingEntities ? data.pendingEntities.length + ' entities' : 'none');
     if (data.pendingEntities) {

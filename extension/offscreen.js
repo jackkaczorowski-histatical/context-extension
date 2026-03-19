@@ -8,7 +8,7 @@ let intentionalClose = false;
 let currentStream = null;
 
 // Signal to background that we're ready
-chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
+try { chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' }); } catch (e) {}
 console.log('[OFFSCREEN] Ready, sent OFFSCREEN_READY');
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -115,7 +115,7 @@ async function connectAndStream(stream) {
         const transcript = data.channel.alternatives[0].transcript.trim();
         if (transcript.length > 0) {
           console.log('[OFFSCREEN] Transcript:', transcript);
-          chrome.runtime.sendMessage({ type: 'TRANSCRIPT', transcript });
+          try { chrome.runtime.sendMessage({ type: 'TRANSCRIPT', transcript }); } catch (e) {}
         }
       }
     } catch (e) {

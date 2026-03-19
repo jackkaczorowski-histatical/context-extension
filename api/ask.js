@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
     : "";
   const title = videoTitle || "unknown video";
 
-  const systemPrompt = `You are a helpful assistant answering questions about a video the user is watching. The video is titled: "${title}". Here is the transcript of what has been said so far:\n\n${transcript}\n\nAnswer the user's question based on what was discussed in the video. Be concise and direct — 2-3 sentences max. If the transcript doesn't contain enough information to answer, say so honestly. Do not make things up. Return ONLY a JSON object: { "answer": "..." }`;
+  const systemPrompt = `You are a helpful assistant answering questions about a video the user is watching. The video is titled: "${title}". Here is the transcript of what has been said so far:\n\n${transcript}\n\nAnswer in exactly 2-3 short sentences. Max 200 characters total. Be direct and specific. No preamble, no "based on the transcript" qualifiers. Just answer the question. If the transcript doesn't cover it, say so in one sentence. Do not make things up. Return ONLY a JSON object: { "answer": "..." }`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

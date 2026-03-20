@@ -447,9 +447,30 @@ async function processNextTranscript() {
       return;
     }
 
+    // Fuzzy dedup: filter out entities that are substring matches of previousEntities
+    const normalize = (s) => s.toLowerCase().replace(/s$/, '');
+    const dedupedEntities = entities.filter(entity => {
+      const newTerm = normalize(entity.term || '');
+      if (!newTerm) return false;
+      const isDup = sessionEntities.some(prev => {
+        const prevNorm = normalize(prev);
+        return prevNorm.includes(newTerm) || newTerm.includes(prevNorm);
+      });
+      if (isDup) {
+        console.log('[BACKGROUND] Dedup filtered:', entity.term, '(already seen similar in session)');
+      }
+      return !isDup;
+    });
+
+    if (dedupedEntities.length === 0) {
+      console.log('[BACKGROUND] All entities filtered by dedup, skipping');
+      processNextTranscript();
+      return;
+    }
+
     // Step 2: Enrich entities — stocks get price data, others pass through as-is
     const enrichedEntities = await Promise.all(
-      entities.map(async (entity) => {
+      dedupedEntities.map(async (entity) => {
         if (entity.type === 'stock') {
           try {
             const stockController = new AbortController();
@@ -485,7 +506,7 @@ async function processNextTranscript() {
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
       if (term) {
-        sessionEntities.push(term);
+        sessionEntities.push(term.toLowerCase().replace(/s$/, ''));
         newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: '' });
       }
     });

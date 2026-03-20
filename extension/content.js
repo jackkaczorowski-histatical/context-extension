@@ -961,7 +961,7 @@ if (!window.__contextExtensionLoaded) {
         const termForWiki = entity.term || entity.name || '';
         const entityType = (entity.type || '').toLowerCase();
         const commonWords = ['the','a','an','of','in','on','at','to','for','and','or','is','was','are','were','be','been','being','have','has','had','do','does','did','will','would','shall','should','may','might','can','could','must','not','no','but','so','if','then','than','that','this','these','those','with','from','by','as','into','through','during','before','after','above','below','between','under','over','out','up','down','off','about','each','every','all','both','few','more','most','other','some','such','new','old','high','low','big','great','small','long','large','first','last','early','young','good','bad','right','left','next','free','full','real','true','best','same','much','many','own','just','little','only','still','also','very'];
-        const isGenericPlace = /^(france|britain|spain|germany|italy|china|japan|russia|india|america|usa|uk|england|europe|asia|africa|australia|paris|london|rome|berlin|tokyo|new york|moscow|beijing|washington|madrid|vienna|amsterdam|brussels|stockholm|oslo|dublin|lisbon|athens|cairo|istanbul|mumbai|shanghai|sydney|toronto|mexico|brazil|egypt|turkey|poland|portugal|greece|norway|sweden|denmark|finland|switzerland|austria|netherlands|belgium|ireland|scotland|wales)$/i;
+        const isGenericPlace = /^(france|britain|spain|germany|italy|china|japan|russia|india|america|usa|uk|england|europe|asia|africa|australia|paris|london|rome|berlin|tokyo|new york|moscow|beijing|washington|madrid|vienna|amsterdam|brussels|stockholm|oslo|dublin|lisbon|athens|cairo|istanbul|mumbai|shanghai|sydney|toronto|mexico|brazil|egypt|turkey|poland|portugal|greece|norway|sweden|denmark|finland|switzerland|austria|netherlands|belgium|ireland|scotland|wales|zimbabwe|weimar germany)$/i;
         let shouldFetchThumb = true;
         if (entityType === 'concept') {
           shouldFetchThumb = false;
@@ -981,7 +981,7 @@ if (!window.__contextExtensionLoaded) {
         shouldFetchThumb && fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(termForWiki))
           .then(r => r.ok ? r.json() : null)
           .then(wikiData => {
-            if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source) {
+            if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source && !wikiData.thumbnail.source.includes('/Flag_of')) {
               card.dataset.thumbUrl = wikiData.thumbnail.source;
               const img = document.createElement('img');
               img.className = 'card-thumbnail';

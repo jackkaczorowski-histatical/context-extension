@@ -363,9 +363,17 @@ async function processNextTranscript() {
   // Deepgram corrections for commonly misheard historical terms
   transcript = transcript
     .replace(/Aztec Nats/gi, 'Assignats')
+    .replace(/Aztec gnats/gi, 'Assignats')
+    .replace(/Azeknats/gi, 'Assignats')
+    .replace(/ASIC nets/gi, 'Assignats')
+    .replace(/acid nets/gi, 'Assignats')
+    .replace(/ethnic nets/gi, 'Assignats')
     .replace(/Assignettes/gi, 'Assignats')
+    .replace(/Assignets/gi, 'Assignats')
     .replace(/Assignet/gi, 'Assignat')
+    .replace(/Signats/gi, 'Assignats')
     .replace(/esignettes/gi, 'Assignats')
+    .replace(/esignets/gi, 'Assignats')
     .replace(/acidnets/gi, 'Assignats')
     .replace(/dextine/gi, 'XVI');
 

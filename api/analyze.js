@@ -15,89 +15,26 @@ function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, d
   const level = knowledgeLevel || "intermediate";
   const prevList = previousEntities && previousEntities.length > 0 ? previousEntities.join(", ") : "";
 
-  return `You extract named terms from video transcripts. You ONLY extract words that literally appear in the transcript.
+  return `You extract named terms from video transcripts. You ONLY extract words that literally appear in the transcript. Use the exact wording the narrator used — never rephrase (e.g. "divine right" not "Divine Right of Kings", "Versailles" not "Palace of Versailles"). Never invent labels not spoken (e.g. "bread riots", "fiscal collapse").
+
+DO extract: specific palaces/buildings (Versailles, Bastille), named doctrines/ideologies (divine right, laissez-faire), named institutions (Bank of England, Bank of France, National Assembly, Estates General), named people (Anne Robert Turgot, Robespierre, Louis XVI), named wars/events (Seven Years War, American Revolution), specific financial instruments (Assignats, livres), technical terms viewers might not know (tax farmers, salt tax, debt service). Extract 2-4 of these per chunk when they exist.
+
+DO NOT extract: common English words everyone knows (nobility, clergy, counterfeiting, black markets, central banks, liquidity), standalone dates (1788, 1792, 1795), generic phrases (royal accounts, fiscal crisis, French monarchy, French crown, foreign bankers, debt spiral), country/continent names (France, Britain, Europe, Paris) unless part of a named institution like "Bank of France".
 
 EXAMPLES:
+"a furious crowd in Paris stormed the Bastille" → [Bastille] (not: French Revolution — not said)
+"Wrapped in pageantry wealth and divine right beneath the chandeliers of Versailles" → [divine right, Versailles]
+"taxes were collected by private tax farmers who paid the king a lump sum" → [tax farmers]
+"Napoleon created the Bank of France to restore confidence in currency" → [Bank of France]
+"While Britain had created the Bank of England in 1694" → [Bank of England]
+"it began with debt inflation and bread that cost more than wages" → [] (no named terms)
+"The nobility and clergy refused to give up privileges" → [] (common English words)
+"By 1788 the royal treasury was empty" → [] (just a date and generic phrase)
+"Black markets flourished as farmers refused to bring grain to market" → [] (common phrase)
 
-Transcript: "a furious crowd in Paris stormed the Bastille"
-Good: Bastille
-Bad: French Revolution (not said), Parisian uprising (not said)
+Ask: would a viewer pause and think "what is that?" If yes, extract it. If any adult would understand it without help, don't.
 
-Transcript: "Wrapped in pageantry wealth and divine right beneath the chandeliers of Versailles"
-Good: divine right, Versailles
-Bad: Divine Right of Kings (narrator said "divine right"), Palace of Versailles (narrator said "Versailles")
-
-Transcript: "it began with debt inflation and bread that cost more than wages"
-Good: [] (no named terms here, just common English words)
-Bad: sovereign debt (not said), inflation crisis (not said), bread riots (not said)
-
-Transcript: "While Britain had created the Bank of England in 1694"
-Good: Bank of England
-Bad: British financial system (not said), central banking (not said)
-
-Transcript: "reckless borrowing unfair taxation and paper money spiraling into worthlessness"
-Good: [] (these are descriptions, not named terms)
-Bad: debt spiral (not said), fiscal collapse (not said)
-
-Transcript: "France was one of the wealthiest and most powerful nations in Europe with nearly 30 million people"
-Good: [] (France and Europe are common knowledge, not terms to explain)
-Bad: France (too generic), Europe (too generic)
-
-Transcript: "taxes were collected by private tax farmers who paid the king a lump sum"
-Good: tax farmers
-Bad: taxation system (not a named term)
-
-Transcript: "The nobility and clergy refused to give up privileges"
-Good: [] (nobility and clergy are common English words, not specialized terms)
-Bad: nobility (too basic), clergy (too basic)
-
-Transcript: "By 1788 the royal treasury was empty"
-Good: [] (1788 is just a year, not a term to explain)
-Bad: 1788 (just a date), royal treasury (generic phrase)
-
-Transcript: "The streets of Paris erupted in protest"
-Good: [] (Paris is a well-known city, not a term needing explanation)
-Bad: Paris (too well-known)
-
-Transcript: "The French crown owed enormous debts to foreign bankers"
-Good: [] (these are common words describing a situation)
-Bad: French crown (just means the monarchy), foreign bankers (generic)
-
-Transcript: "Napoleon created the Bank of France to restore confidence in currency"
-Good: Bank of France
-Bad: Napoleon's financial reset (invented label, not a real term)
-
-Transcript: "Central banks flood economies with liquidity whenever crises strike"
-Good: [] (central banks and liquidity are generic words everyone knows)
-Bad: central banks (too common), liquidity (too common), printing (too common)
-
-Transcript: "His reports showed deficits so deep it rattled public confidence"
-Good: [] (no named terms here, just a description of events)
-Bad: royal accounts (generic phrase), French monarchy (too basic, everyone watching this video knows what it is)
-
-Transcript: "By 1788 the monarchy could not secure loans"
-Good: [] (no named terms, just a date and common words)
-Bad: 1788 (just a date, already covered in bad examples)
-
-Transcript: "Trust in the currency collapsed. Counterfeiting became rampant."
-Good: [] (no named terms, just common English words)
-Bad: counterfeiting (common English word), fiscal crisis (generic phrase)
-
-Transcript: "Black markets flourished as farmers refused to bring grain to market"
-Good: [] (no named terms, just everyday phrases)
-Bad: black markets (common phrase everyone understands)
-
-Never extract years as standalone entities (1788, 1792, 1795 etc). Never extract common English phrases that any adult would understand without help (black markets, counterfeiting, price controls, fiscal crisis).
-
-ALWAYS EXTRACT these kinds of terms when they appear: specific palaces/buildings (Versailles, Bastille), named doctrines/ideologies (divine right, laissez-faire), named institutions (Bank of England, National Assembly, Estates General), named people (Anne Robert Turgot, Robespierre, Louis XVI), named wars/events (Seven Years War, American Revolution), specific financial instruments (Assignats, livres), and technical terms viewers might not know (tax farmers, salt tax, debt service). These are exactly the kinds of terms this tool exists to explain. The rules about not extracting common words apply to truly generic English like 'nobility', 'clergy', 'counterfeiting', 'black markets' — NOT to specific named things like Versailles or divine right.
-
-IMPORTANT: The examples above show what NOT to extract. But you should still extract 2-4 named terms per chunk when they exist. Versailles, divine right, Bank of England, tax farmers, Guillotine, Estates General — these are all good extractions because viewers would want to know about them. Don't be so cautious that you return empty arrays when real named terms are present. If the narrator mentions a specific place, person, doctrine, institution, or historical concept by name, extract it.
-
-Never extract country names (France, Britain, Spain etc) or continent names (Europe, Asia etc) unless they refer to a specific institution like "Bank of France".
-
-Only extract terms that genuinely need explanation for the viewer. Ask: would someone watching this video pause and think "wait, what is that?" If the answer is no, don't extract it. "Bank of England" in a video about France — yes, the viewer might wonder about it. "Nobility" — no, everyone knows what nobility means.
-
-DESCRIPTION LENGTH: One sentence. Maximum 100 characters. No exceptions. Count carefully. Good: "Britain's central bank, gave them war-financing edge France lacked." (67 chars). Bad: "Britain's central bank established in 1694 that enabled sophisticated war financing and economic management, advantages France lacked with its archaic system." (156 chars, way too long). Shorter is ALWAYS better.
+DESCRIPTION LENGTH: One sentence, max 100 characters. Shorter is always better.
 
 The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}
 
@@ -135,7 +72,7 @@ module.exports = async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 512,
+        max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: "user", content: transcript }],
       }),

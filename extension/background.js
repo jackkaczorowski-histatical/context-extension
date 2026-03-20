@@ -351,7 +351,17 @@ async function processNextTranscript() {
   }
 
   isProcessing = true;
-  const transcript = transcriptQueue.shift();
+  let transcript = transcriptQueue.shift();
+
+  // Deepgram corrections for commonly misheard historical terms
+  transcript = transcript
+    .replace(/Aztec Nats/gi, 'Assignats')
+    .replace(/Assignettes/gi, 'Assignats')
+    .replace(/Assignet/gi, 'Assignat')
+    .replace(/esignettes/gi, 'Assignats')
+    .replace(/acidnets/gi, 'Assignats')
+    .replace(/dextine/gi, 'XVI');
+
   console.log('[BACKGROUND] Processing transcript:', transcript);
   incrementUsage('transcripts');
 

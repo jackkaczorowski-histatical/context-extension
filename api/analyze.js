@@ -34,6 +34,8 @@ EXAMPLES:
 
 Ask: would a viewer pause and think "what is that?" If yes, extract it. If any adult would understand it without help, don't.
 
+The 'stock' type is ONLY for publicly traded companies with ticker symbols (e.g. AAPL, TSLA). Historical currencies like Assignats, livres, mandates are type 'concept', not 'stock'.
+
 DESCRIPTION LENGTH: One sentence, max 100 characters. Shorter is always better.
 
 The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}

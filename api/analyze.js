@@ -89,6 +89,8 @@ Bad: black markets (common phrase everyone understands)
 
 Never extract years as standalone entities (1788, 1792, 1795 etc). Never extract common English phrases that any adult would understand without help (black markets, counterfeiting, price controls, fiscal crisis).
 
+ALWAYS EXTRACT these kinds of terms when they appear: specific palaces/buildings (Versailles, Bastille), named doctrines/ideologies (divine right, laissez-faire), named institutions (Bank of England, National Assembly, Estates General), named people (Anne Robert Turgot, Robespierre, Louis XVI), named wars/events (Seven Years War, American Revolution), specific financial instruments (Assignats, livres), and technical terms viewers might not know (tax farmers, salt tax, debt service). These are exactly the kinds of terms this tool exists to explain. The rules about not extracting common words apply to truly generic English like 'nobility', 'clergy', 'counterfeiting', 'black markets' — NOT to specific named things like Versailles or divine right.
+
 IMPORTANT: The examples above show what NOT to extract. But you should still extract 2-4 named terms per chunk when they exist. Versailles, divine right, Bank of England, tax farmers, Guillotine, Estates General — these are all good extractions because viewers would want to know about them. Don't be so cautious that you return empty arrays when real named terms are present. If the narrator mentions a specific place, person, doctrine, institution, or historical concept by name, extract it.
 
 Never extract country names (France, Britain, Spain etc) or continent names (Europe, Asia etc) unless they refer to a specific institution like "Bank of France".

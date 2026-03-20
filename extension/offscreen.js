@@ -68,11 +68,16 @@ async function startRecording(streamId) {
     audio.srcObject = stream;
     audio.play();
 
-    // Stop gracefully if any track ends
+    // Handle unexpected track endings — notify background to auto-recover
     stream.getTracks().forEach(track => {
       track.addEventListener('ended', () => {
-        console.warn('[OFFSCREEN] Track ended, stopping recording');
-        stopRecording();
+        if (intentionalClose) {
+          console.log('[OFFSCREEN] Track ended (intentional close), stopping recording');
+          stopRecording();
+        } else {
+          console.warn('[OFFSCREEN] Track ended unexpectedly, notifying background to restart');
+          try { chrome.runtime.sendMessage({ type: 'STREAM_DIED' }); } catch (e) {}
+        }
       });
     });
 
@@ -91,6 +96,9 @@ async function connectAndStream(stream) {
     console.warn('[OFFSCREEN] Stream tracks not live, cannot connect');
     return;
   }
+
+  // Give offscreen document time to fully initialize its network stack
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   let token;
   try {

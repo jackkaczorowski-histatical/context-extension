@@ -88,6 +88,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === 'CONTEXT_FETCH') {
     incrementUsage('contextFetches');
+  } else if (message.type === 'STREAM_DIED') {
+    console.log('[BACKGROUND] Received STREAM_DIED, auto-recovering capture session...');
+    (async () => {
+      await stopCapture();
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      startCapture();
+    })();
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);

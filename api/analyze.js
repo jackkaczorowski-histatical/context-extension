@@ -63,6 +63,14 @@ Transcript: "The French crown owed enormous debts to foreign bankers"
 Good: [] (these are common words describing a situation)
 Bad: French crown (just means the monarchy), foreign bankers (generic)
 
+Transcript: "Napoleon created the Bank of France to restore confidence in currency"
+Good: Bank of France
+Bad: Napoleon's financial reset (invented label, not a real term)
+
+Transcript: "Central banks flood economies with liquidity whenever crises strike"
+Good: [] (central banks and liquidity are generic words everyone knows)
+Bad: central banks (too common), liquidity (too common), printing (too common)
+
 Never extract country names (France, Britain, Spain etc) or continent names (Europe, Asia etc) unless they refer to a specific institution like "Bank of France".
 
 Only extract terms that genuinely need explanation for the viewer. Ask: would someone watching this video pause and think "wait, what is that?" If the answer is no, don't extract it. "Bank of England" in a video about France — yes, the viewer might wonder about it. "Nobility" — no, everyone knows what nobility means.

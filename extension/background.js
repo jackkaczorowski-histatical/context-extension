@@ -408,9 +408,26 @@ async function processNextTranscript() {
     }
 
     if (!analyzeRes.ok) {
-      console.log('[BACKGROUND] Analyze failed, status:', analyzeRes.status);
-      processNextTranscript();
-      return;
+      console.log('[BACKGROUND] Analyze failed, status:', analyzeRes.status, '— retrying in 2s...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const retryController = new AbortController();
+      const retryTimeout = setTimeout(() => retryController.abort(), 10000);
+      try {
+        analyzeRes = await fetch(`${API_BASE}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms }),
+          signal: retryController.signal
+        });
+      } finally {
+        clearTimeout(retryTimeout);
+      }
+      if (!analyzeRes.ok) {
+        console.log('[BACKGROUND] Analyze retry also failed, status:', analyzeRes.status, '— skipping');
+        processNextTranscript();
+        return;
+      }
+      console.log('[BACKGROUND] Analyze retry succeeded');
     }
     const analyzeData = await analyzeRes.json();
     const entities = analyzeData.entities || [];

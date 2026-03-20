@@ -21,18 +21,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function fetchTempToken() {
-  console.log('[OFFSCREEN] Fetching temporary Deepgram token...');
-  const res = await fetch(TOKEN_URL);
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(`Token fetch failed: ${res.status} ${errText}`);
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[OFFSCREEN] Fetching temporary Deepgram token (attempt ${attempt}/${maxRetries})...`);
+      const res = await fetch(TOKEN_URL);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Token fetch failed: ${res.status} ${errText}`);
+      }
+      const data = await res.json();
+      if (!data.token) {
+        throw new Error('Token response missing token field');
+      }
+      console.log('[OFFSCREEN] Got temp token, length:', data.token.length);
+      return data.token;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        console.log(`[OFFSCREEN] Retry ${attempt}/${maxRetries} failed: ${err.message}. Retrying in 2s...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.log(`[OFFSCREEN] All ${maxRetries} attempts failed: ${err.message}`);
+        throw err;
+      }
+    }
   }
-  const data = await res.json();
-  if (!data.token) {
-    throw new Error('Token response missing token field');
-  }
-  console.log('[OFFSCREEN] Got temp token, length:', data.token.length);
-  return data.token;
 }
 
 async function startRecording(streamId) {

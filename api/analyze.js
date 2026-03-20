@@ -71,6 +71,10 @@ Transcript: "Central banks flood economies with liquidity whenever crises strike
 Good: [] (central banks and liquidity are generic words everyone knows)
 Bad: central banks (too common), liquidity (too common), printing (too common)
 
+Transcript: "His reports showed deficits so deep it rattled public confidence"
+Good: [] (no named terms here, just a description of events)
+Bad: royal accounts (generic phrase), French monarchy (too basic, everyone watching this video knows what it is)
+
 IMPORTANT: The examples above show what NOT to extract. But you should still extract 2-4 named terms per chunk when they exist. Versailles, divine right, Bank of England, tax farmers, Guillotine, Estates General — these are all good extractions because viewers would want to know about them. Don't be so cautious that you return empty arrays when real named terms are present. If the narrator mentions a specific place, person, doctrine, institution, or historical concept by name, extract it.
 
 Never extract country names (France, Britain, Spain etc) or continent names (Europe, Asia etc) unless they refer to a specific institution like "Bank of France".

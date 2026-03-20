@@ -75,6 +75,20 @@ Transcript: "His reports showed deficits so deep it rattled public confidence"
 Good: [] (no named terms here, just a description of events)
 Bad: royal accounts (generic phrase), French monarchy (too basic, everyone watching this video knows what it is)
 
+Transcript: "By 1788 the monarchy could not secure loans"
+Good: [] (no named terms, just a date and common words)
+Bad: 1788 (just a date, already covered in bad examples)
+
+Transcript: "Trust in the currency collapsed. Counterfeiting became rampant."
+Good: [] (no named terms, just common English words)
+Bad: counterfeiting (common English word), fiscal crisis (generic phrase)
+
+Transcript: "Black markets flourished as farmers refused to bring grain to market"
+Good: [] (no named terms, just everyday phrases)
+Bad: black markets (common phrase everyone understands)
+
+Never extract years as standalone entities (1788, 1792, 1795 etc). Never extract common English phrases that any adult would understand without help (black markets, counterfeiting, price controls, fiscal crisis).
+
 IMPORTANT: The examples above show what NOT to extract. But you should still extract 2-4 named terms per chunk when they exist. Versailles, divine right, Bank of England, tax farmers, Guillotine, Estates General — these are all good extractions because viewers would want to know about them. Don't be so cautious that you return empty arrays when real named terms are present. If the narrator mentions a specific place, person, doctrine, institution, or historical concept by name, extract it.
 
 Never extract country names (France, Britain, Spain etc) or continent names (Europe, Asia etc) unless they refer to a specific institution like "Bank of France".

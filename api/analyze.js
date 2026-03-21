@@ -38,6 +38,8 @@ The 'stock' type is ONLY for publicly traded companies with ticker symbols (e.g.
 
 Never extract the video's own topic as an entity. If the user is watching a video titled "The Economics Behind the French Revolution", do NOT extract "French Revolution" as an entity — the viewer already knows what the video is about.
 
+Domain-specific jargon always qualifies for extraction, even if the words are common English individually. In a fishing video, terms like 'baitcaster', 'spinning rod', 'weedless', 'creature bait', 'stickbait', 'water column', 'hook set', and 'retrieve' are all jargon that beginners wouldn't understand. In a cooking video, 'mise en place', 'deglaze', 'fond' qualify. In a tech video, 'cache', 'latency', 'throughput' qualify. The test is: would a beginner in THIS specific topic need this term explained? If yes, extract it.
+
 DESCRIPTION LENGTH: One sentence, max 100 characters. Shorter is always better.
 
 The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}

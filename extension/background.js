@@ -14,6 +14,7 @@ let usageTimer = null;
 let lastTranscriptSave = 0;
 let bufferStartTime = 0;
 let firstFlush = true;
+let restartAttempted = false;
 
 function getUsageKey() {
   const d = new Date();
@@ -89,11 +90,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'CONTEXT_FETCH') {
     incrementUsage('contextFetches');
   } else if (message.type === 'STREAM_DIED') {
-    console.log('[BACKGROUND] Received STREAM_DIED, auto-recovering capture session...');
+    if (restartAttempted) {
+      console.log('[BACKGROUND] STREAM_DIED received again, already attempted restart — ignoring');
+      return;
+    }
+    restartAttempted = true;
+    const tabToRestart = capturingTabId;
+    console.log('[BACKGROUND] STREAM_DIED received, attempting restart for tab:', tabToRestart);
     (async () => {
       await stopCapture();
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      startCapture();
+      setTimeout(() => {
+        if (!tabToRestart) {
+          console.log('[BACKGROUND] No tab to restart, aborting');
+          return;
+        }
+        chrome.tabs.get(tabToRestart, (tab) => {
+          if (chrome.runtime.lastError || !tab) {
+            console.log('[BACKGROUND] Tab', tabToRestart, 'no longer exists, aborting restart');
+            return;
+          }
+          console.log('[BACKGROUND] Tab still exists, restarting capture');
+          startCapture();
+        });
+      }, 2000);
     })();
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
@@ -142,6 +161,7 @@ async function startCapture() {
     console.log('[BACKGROUND] Already capturing, ignoring duplicate START_CAPTURE');
     return;
   }
+  restartAttempted = false;
   startUsageTimer();
   try {
     // Close any existing offscreen document before proceeding

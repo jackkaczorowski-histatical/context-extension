@@ -887,7 +887,7 @@ if (!window.__contextExtensionLoaded) {
 
     const timestamp = formatTime(new Date());
     const typeLabel = (type || 'OTHER').toUpperCase();
-    const termText = escapeHtml(entity.term || entity.name || '');
+    const termText = escapeHtml(capitalizeTerm(entity.term || entity.name || ''));
 
     const wikiTerm = (entity.term || entity.name || '').replace(/ /g, '_');
     const wikiUrl = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(wikiTerm);
@@ -1092,7 +1092,26 @@ if (!window.__contextExtensionLoaded) {
     return card;
   }
 
-  function generateStudyGuide(title, history) {
+  const SMALL_WORDS = new Set(['of', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'by', 'as', 'with']);
+
+  function capitalizeTerm(term) {
+    if (!term) return term;
+    if (term !== term.toLowerCase()) return term;
+    return term.split(' ').map((word, i) => {
+      if (i > 0 && SMALL_WORDS.has(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+  }
+
+  function generateStudyGuide(title, history, kb) {
+    kb = kb || {};
+    history.forEach(entry => {
+      if (!entry.description) {
+        const kbEntry = kb[(entry.term || '').toLowerCase()];
+        if (kbEntry && kbEntry.description) entry.description = kbEntry.description;
+      }
+    });
+
     const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities' };
     const grouped = {};
     history.forEach(entry => {
@@ -1111,7 +1130,8 @@ if (!window.__contextExtensionLoaded) {
     sortedKeys.forEach(label => {
       guide += `## ${label}\n`;
       grouped[label].forEach(ent => {
-        guide += `- **${ent.term}**${ent.description ? ' — ' + ent.description : ''}\n`;
+        const term = capitalizeTerm(ent.term);
+        guide += `- **${term}**${ent.description ? ' — ' + ent.description : ''}\n`;
       });
       guide += '\n';
     });
@@ -1120,7 +1140,8 @@ if (!window.__contextExtensionLoaded) {
     if (withDesc.length > 0) {
       guide += `## Key Questions\n`;
       withDesc.forEach(ent => {
-        guide += `- What is ${ent.term} and why does it matter?\n`;
+        const term = capitalizeTerm(ent.term);
+        guide += `- What is ${term} and why does it matter?\n`;
       });
       guide += '\n';
     }
@@ -1171,10 +1192,10 @@ if (!window.__contextExtensionLoaded) {
 
     // Wire up export button
     header.querySelector('.ctx-export-btn').addEventListener('click', () => {
-      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle'], (data) => {
+      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase'], (data) => {
         const history = data.sessionHistory || [];
         const title = data.capturingTabTitle || document.title || 'Untitled';
-        const guide = generateStudyGuide(title, history);
+        const guide = generateStudyGuide(title, history, data.knowledgeBase || {});
 
         navigator.clipboard.writeText(guide).then(() => {
           const tooltip = header.querySelector('.ctx-export-tooltip');
@@ -1608,7 +1629,7 @@ if (!window.__contextExtensionLoaded) {
 
           summaryEl.querySelector('.ctx-session-summary-export').addEventListener('click', (e) => {
             e.stopPropagation();
-            const guide = generateStudyGuide(title, history);
+            const guide = generateStudyGuide(title, history, kb);
             navigator.clipboard.writeText(guide).then(() => {
               const btn = summaryEl.querySelector('.ctx-session-summary-export');
               btn.textContent = 'Copied!';

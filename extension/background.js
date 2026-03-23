@@ -461,11 +461,12 @@ async function processNextTranscript() {
     const analyzeData = await analyzeRes.json();
     const entities = analyzeData.entities || [];
     entities.forEach(e => { if (e.term) e.term = capitalizeTerm(e.term); });
+    const insights = analyzeData.insights || [];
 
-    console.log('[BACKGROUND] Analyze response:', JSON.stringify(entities));
+    console.log('[BACKGROUND] Analyze response:', JSON.stringify(entities), 'insights:', JSON.stringify(insights));
 
-    if (entities.length === 0) {
-      console.log('[BACKGROUND] No entities found, skipping');
+    if (entities.length === 0 && insights.length === 0) {
+      console.log('[BACKGROUND] No entities or insights found, skipping');
       processNextTranscript();
       return;
     }
@@ -485,8 +486,8 @@ async function processNextTranscript() {
       return !isDup;
     });
 
-    if (dedupedEntities.length === 0) {
-      console.log('[BACKGROUND] All entities filtered by dedup, skipping');
+    if (dedupedEntities.length === 0 && insights.length === 0) {
+      console.log('[BACKGROUND] All entities filtered by dedup and no insights, skipping');
       processNextTranscript();
       return;
     }
@@ -524,7 +525,7 @@ async function processNextTranscript() {
 
     // Step 3: Save entities to storage (content script picks them up via onChanged)
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
-    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingTimestamp: Date.now() });
+    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: insights, pendingTimestamp: Date.now() });
     const newHistoryEntries = [];
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
@@ -532,6 +533,9 @@ async function processNextTranscript() {
         sessionEntities.push(term.toLowerCase().replace(/s$/, ''));
         newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '' });
       }
+    });
+    insights.forEach(i => {
+      newHistoryEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail, category: i.category });
     });
     // Append to sessionHistory in storage
     const histData = await chrome.storage.local.get('sessionHistory');

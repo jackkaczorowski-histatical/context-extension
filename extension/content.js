@@ -1176,7 +1176,14 @@ if (!window.__contextExtensionLoaded) {
       guide += `## Key Questions\n`;
       withDesc.forEach(ent => {
         const term = capitalizeTerm(ent.term);
-        guide += `- What is ${term} and why does it matter?\n`;
+        const t = (ent.type || '').toLowerCase();
+        if (t === 'person' || t === 'people') {
+          guide += `- Who is ${term} and why do they matter?\n`;
+        } else if (t === 'event') {
+          guide += `- What was ${term} and why does it matter?\n`;
+        } else {
+          guide += `- What is ${term} and why does it matter?\n`;
+        }
       });
       guide += '\n';
     }

@@ -321,6 +321,12 @@ if (!window.__contextExtensionLoaded) {
       transition: color 0.15s; display: inline-block; margin-top: 4px;
     }
     .card-wiki-link:hover { color: #7a7aaa; }
+    .card-shop-link {
+      background: rgba(255,153,0,0.12); color: #FF9900; border-radius: 12px;
+      padding: 3px 10px; font-size: 10px; text-decoration: none;
+      display: inline-block; margin-top: 6px; transition: background 0.15s;
+    }
+    .card-shop-link:hover { background: rgba(255,153,0,0.22); }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
     #missed-bar {
       display: none; padding: 6px 16px; background: #12121c;
@@ -434,6 +440,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .reaction-label { color: #b0b0c0; }
     .light-theme .card-wiki-link { color: #8a8aa0; }
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
+    .light-theme .card-shop-link { background: rgba(255,153,0,0.1); }
     .light-theme .feedback-msg { color: #9a9ab0; }
     .light-theme .ctx-preview-card { background: #f0f0fa; }
     .light-theme .ctx-preview-title { color: #5a5adf; }
@@ -776,6 +783,27 @@ if (!window.__contextExtensionLoaded) {
     expandArea.appendChild(row);
   }
 
+  const SHOP_KEYWORDS = /fishing|cooking|recipe|review|setup|gear|tools|build|diy|tutorial|beginner|how\s*to|unboxing/i;
+  const EXCLUDE_KEYWORDS = /history|politics|war|battle|election|president|congress|military|wwi|wwii|world\s*war/i;
+  const SHOP_ENTITY_TYPES = new Set(['concept', 'organization', 'stock']);
+  const EXCLUDE_ENTITY_TYPES = new Set(['person', 'people', 'event']);
+
+  function shouldShowShopLink(entity, videoTitle) {
+    const type = (entity.type || '').toLowerCase();
+    if (EXCLUDE_ENTITY_TYPES.has(type)) return false;
+    if (EXCLUDE_KEYWORDS.test(videoTitle)) return false;
+    if (type === 'stock') return true;
+    if (SHOP_ENTITY_TYPES.has(type) && SHOP_KEYWORDS.test(videoTitle)) return true;
+    return false;
+  }
+
+  function getShopLinkHTML(entity, videoTitle) {
+    if (!shouldShowShopLink(entity, videoTitle)) return '';
+    const term = entity.term || entity.name || '';
+    const href = 'https://www.amazon.com/s?k=' + encodeURIComponent(term) + '&tag=contextlis-20';
+    return '<a class="card-shop-link" href="' + href + '" target="_blank" rel="noopener">Shop on Amazon &#x2197;</a>';
+  }
+
   function createStockCard(entity) {
     const card = document.createElement('div');
     card.className = 'context-card stock-card expanded';
@@ -819,6 +847,16 @@ if (!window.__contextExtensionLoaded) {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-actions') || e.target.closest('a')) return;
       card.classList.toggle('expanded');
+    });
+
+    // Inject shop link for stock cards
+    chrome.storage.local.get('capturingTabTitle', (data) => {
+      const videoTitle = data.capturingTabTitle || document.title || '';
+      const shopHTML = getShopLinkHTML(entity, videoTitle);
+      if (shopHTML) {
+        const expandArea = card.querySelector('.card-expand-area');
+        if (expandArea) expandArea.insertAdjacentHTML('beforeend', shopHTML);
+      }
     });
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
@@ -869,6 +907,16 @@ if (!window.__contextExtensionLoaded) {
         <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
       </div>
     `;
+
+    // Inject shop link for eligible generic cards
+    chrome.storage.local.get('capturingTabTitle', (data) => {
+      const videoTitle = data.capturingTabTitle || document.title || '';
+      const shopHTML = getShopLinkHTML(entity, videoTitle);
+      if (shopHTML) {
+        const expandArea = card.querySelector('.card-expand-area');
+        if (expandArea) expandArea.insertAdjacentHTML('beforeend', shopHTML);
+      }
+    });
 
     let descFetched = false;
     const inlineDesc = entity.description || '';

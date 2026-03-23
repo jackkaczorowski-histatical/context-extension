@@ -470,7 +470,7 @@ async function processNextTranscript() {
     const analyzeData = await analyzeRes.json();
     const entities = analyzeData.entities || [];
     entities.forEach(e => { if (e.term) e.term = capitalizeTerm(e.term); });
-    const insights = analyzeData.insights || [];
+    const insights = (analyzeData.insights || []).slice(0, 1);
 
     console.log('[BACKGROUND] Analyze response:', JSON.stringify(entities), 'insights:', JSON.stringify(insights));
 

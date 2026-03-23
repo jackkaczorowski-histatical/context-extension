@@ -334,6 +334,41 @@ if (!window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
+    .ctx-quiz-btn {
+      background: rgba(99,102,241,0.15); color: #6366f1; border: none;
+      border-radius: 12px; padding: 8px 16px; font-size: 12px; cursor: pointer;
+      margin-top: 8px; font-family: inherit; display: inline-block; transition: background 0.15s;
+    }
+    .ctx-quiz-btn:hover { background: rgba(99,102,241,0.25); }
+    .ctx-quiz-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: #12121c; z-index: 100; display: flex; flex-direction: column;
+      padding: 20px 16px; overflow-y: auto;
+    }
+    .ctx-quiz-question {
+      font-size: 14px; color: #e0e0f0; font-weight: 600; margin-bottom: 16px; line-height: 1.4;
+    }
+    .ctx-quiz-option {
+      display: block; width: 100%; text-align: left; background: #1e1e38;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+      padding: 10px 14px; margin-bottom: 8px; font-size: 12px; color: #e0e0f0;
+      cursor: pointer; font-family: inherit; transition: border-color 0.2s, background 0.2s;
+    }
+    .ctx-quiz-option:hover { border-color: rgba(99,102,241,0.4); background: #24244a; }
+    .ctx-quiz-option.correct { border-color: #00e676; background: rgba(0,230,118,0.1); }
+    .ctx-quiz-option.wrong { border-color: #ff5252; background: rgba(255,82,82,0.1); }
+    .ctx-quiz-next {
+      background: rgba(99,102,241,0.15); color: #6366f1; border: none;
+      border-radius: 8px; padding: 8px 16px; font-size: 12px; cursor: pointer;
+      margin-top: 12px; font-family: inherit;
+    }
+    .ctx-quiz-score {
+      font-size: 18px; font-weight: 700; color: #6366f1; text-align: center; margin: 20px 0;
+    }
+    .ctx-quiz-close {
+      background: none; border: none; color: #3a3a5a; font-size: 14px;
+      cursor: pointer; position: absolute; top: 12px; right: 12px;
+    }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
     #missed-bar {
       display: none; padding: 6px 16px; background: #12121c;
@@ -1623,6 +1658,7 @@ if (!window.__contextExtensionLoaded) {
               ${knownCount} previously known
             </div>
             <button class="ctx-session-summary-export">Export study guide</button>
+            <button class="ctx-quiz-btn">Test yourself</button>
             ${watchNextHTML}
             <button class="ctx-session-summary-dismiss">Dismiss</button>
           `;
@@ -1634,6 +1670,101 @@ if (!window.__contextExtensionLoaded) {
               const btn = summaryEl.querySelector('.ctx-session-summary-export');
               btn.textContent = 'Copied!';
               setTimeout(() => { btn.textContent = 'Export study guide'; }, 1500);
+            });
+          });
+
+          summaryEl.querySelector('.ctx-quiz-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const quizBtn = summaryEl.querySelector('.ctx-quiz-btn');
+            quizBtn.textContent = 'Loading...';
+            quizBtn.disabled = true;
+
+            const quizEntities = history
+              .filter(h => h.term && h.description)
+              .slice(0, 15)
+              .map(h => ({ term: h.term, type: h.type || 'concept', description: h.description }));
+
+            fetch('https://context-extension-zv8d.vercel.app/api/quiz', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ entities: quizEntities, title })
+            })
+            .then(res => res.ok ? res.json() : Promise.reject(res))
+            .then(data => {
+              const questions = data.questions || [];
+              if (questions.length === 0) {
+                quizBtn.textContent = 'No questions generated';
+                setTimeout(() => { quizBtn.textContent = 'Test yourself'; quizBtn.disabled = false; }, 1500);
+                return;
+              }
+
+              const sidebar = shadowRoot.getElementById('sidebar');
+              if (!sidebar) return;
+
+              const overlay = document.createElement('div');
+              overlay.className = 'ctx-quiz-overlay';
+              let currentQ = 0;
+              let score = 0;
+
+              function renderQuestion() {
+                const q = questions[currentQ];
+                overlay.innerHTML = `
+                  <button class="ctx-quiz-close">&times;</button>
+                  <div style="font-size: 10px; color: #6a6a8a; margin-bottom: 12px;">Question ${currentQ + 1} of ${questions.length}</div>
+                  <div class="ctx-quiz-question">${escapeHtml(q.question)}</div>
+                  ${q.options.map((opt, i) => `<button class="ctx-quiz-option" data-idx="${i}">${escapeHtml(opt)}</button>`).join('')}
+                `;
+
+                overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
+
+                const optBtns = overlay.querySelectorAll('.ctx-quiz-option');
+                optBtns.forEach(btn => {
+                  btn.addEventListener('click', () => {
+                    const chosen = parseInt(btn.dataset.idx);
+                    const correct = q.correct;
+                    optBtns.forEach(b => { b.style.pointerEvents = 'none'; });
+
+                    if (chosen === correct) {
+                      btn.classList.add('correct');
+                      score++;
+                    } else {
+                      btn.classList.add('wrong');
+                      optBtns[correct].classList.add('correct');
+                    }
+
+                    const nextBtn = document.createElement('button');
+                    nextBtn.className = 'ctx-quiz-next';
+                    nextBtn.textContent = currentQ < questions.length - 1 ? 'Next \u2192' : 'See results';
+                    nextBtn.addEventListener('click', () => {
+                      currentQ++;
+                      if (currentQ < questions.length) {
+                        renderQuestion();
+                      } else {
+                        renderScore();
+                      }
+                    });
+                    overlay.appendChild(nextBtn);
+                  });
+                });
+              }
+
+              function renderScore() {
+                overlay.innerHTML = `
+                  <button class="ctx-quiz-close">&times;</button>
+                  <div class="ctx-quiz-score">${score}/${questions.length} correct!</div>
+                  <button class="ctx-quiz-next" style="align-self: center;">Done</button>
+                `;
+                overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
+                overlay.querySelector('.ctx-quiz-next').addEventListener('click', () => overlay.remove());
+              }
+
+              sidebar.style.position = 'relative';
+              sidebar.appendChild(overlay);
+              renderQuestion();
+            })
+            .catch(() => {
+              quizBtn.textContent = 'Quiz failed';
+              setTimeout(() => { quizBtn.textContent = 'Test yourself'; quizBtn.disabled = false; }, 1500);
             });
           });
 

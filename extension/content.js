@@ -877,13 +877,13 @@ if (!window.__contextExtensionLoaded) {
     const timestamp = formatTime(new Date());
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
-    const truncated = insightText.length > 50 ? insightText.slice(0, 50) + '\u2026' : insightText;
+    const shortInsight = insightText.length > 50 ? insightText.slice(0, 47) + '...' : insightText;
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
       <div class="card-row">
         <span class="insight-category">\u{1F4A1} ${category}</span>
-        <span class="card-term" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">${escapeHtml(truncated)}</span>
+        <span class="card-term" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; display:inline-block; vertical-align:middle;">${escapeHtml(shortInsight)}</span>
         <span class="card-time">${timestamp}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>

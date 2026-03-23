@@ -1580,6 +1580,18 @@ if (!window.__contextExtensionLoaded) {
           const existing = cardsContainer.querySelector('.ctx-session-summary');
           if (existing) existing.remove();
 
+          const watchNextEntries = history
+            .filter(h => h.term)
+            .sort((a, b) => (b.relevance || 0) - (a.relevance || 0))
+            .slice(0, 3);
+          const watchNextHTML = watchNextEntries.length > 0
+            ? '<div style="margin-top: 12px; font-size: 10px; color: #6a6a8a;">Keep learning:</div>' +
+              watchNextEntries.map(ent => {
+                const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ent.term + ' explained');
+                return '<a href="' + url + '" target="_blank" rel="noopener" style="display: block; font-size: 11px; color: #6366f1; text-decoration: none; padding: 2px 0; margin-top: 2px;">' + escapeHtml(ent.term) + ' explained \u2192</a>';
+              }).join('')
+            : '';
+
           const summaryEl = document.createElement('div');
           summaryEl.className = 'ctx-session-summary';
           summaryEl.innerHTML = `
@@ -1590,6 +1602,7 @@ if (!window.__contextExtensionLoaded) {
               ${knownCount} previously known
             </div>
             <button class="ctx-session-summary-export">Export study guide</button>
+            ${watchNextHTML}
             <button class="ctx-session-summary-dismiss">Dismiss</button>
           `;
 

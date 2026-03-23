@@ -38,6 +38,8 @@ The 'stock' type is ONLY for publicly traded companies with ticker symbols (e.g.
 
 Never extract the video's own topic as an entity. If the user is watching a video titled "The Economics Behind the French Revolution", do NOT extract "French Revolution" as an entity — the viewer already knows what the video is about.
 
+Do not extract terms from promotional or call-to-action content. If the transcript contains phrases like 'hit subscribe', 'check out', 'link in the description', 'follow me', 'like and subscribe', 'new video', 'next episode', the chunk is likely outro/promo content — return empty arrays.
+
 Domain-specific jargon always qualifies for extraction, even if the words are common English individually. In a fishing video, terms like 'baitcaster', 'spinning rod', 'weedless', 'creature bait', 'stickbait', 'water column', 'hook set', and 'retrieve' are all jargon that beginners wouldn't understand. In a cooking video, 'mise en place', 'deglaze', 'fond' qualify. In a tech video, 'cache', 'latency', 'throughput' qualify. The test is: would a beginner in THIS specific topic need this term explained? If yes, extract it.
 
 DESCRIPTION LENGTH: One sentence, max 100 characters. Shorter is always better.

@@ -864,7 +864,7 @@ if (!window.__contextExtensionLoaded) {
 
   function createInsightCard(insight) {
     const card = document.createElement('div');
-    card.className = 'context-card insight-card expanded';
+    card.className = 'context-card insight-card';
     card.style.borderLeftColor = '#f59e0b';
     const timestamp = formatTime(new Date());
     const category = escapeHtml(insight.category || 'insight');
@@ -874,10 +874,11 @@ if (!window.__contextExtensionLoaded) {
     card.innerHTML = `
       <div class="card-row">
         <span class="insight-category">\u{1F4A1} ${category}</span>
+        <span class="card-term" style="font-size:12px">${text}</span>
         <span class="card-time">${timestamp}</span>
+        <span class="card-chevron">&#x203A;</span>
       </div>
       <div class="card-expand-area">
-        <div class="insight-text">${text}</div>
         ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
       </div>
     `;

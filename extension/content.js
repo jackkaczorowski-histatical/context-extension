@@ -765,6 +765,7 @@ if (!window.__contextExtensionLoaded) {
     if (!hostEl) return;
     hostEl.dataset.open = 'true';
     hostEl.style.transform = 'translateX(0)';
+    hostEl.style.pointerEvents = 'auto';
   }
 
   function closeSidebar() {
@@ -772,6 +773,7 @@ if (!window.__contextExtensionLoaded) {
     hostEl.dataset.open = 'false';
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
     hostEl.style.transform = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
+    hostEl.style.pointerEvents = 'none';
   }
 
   function resetAutoHide() {
@@ -1199,6 +1201,7 @@ if (!window.__contextExtensionLoaded) {
     hostEl = document.createElement('div');
     hostEl.id = 'context-sidebar-host';
     hostEl.style.cssText = getHostPosition();
+    hostEl.style.pointerEvents = 'none';
 
     // Shadow DOM — YouTube CSS cannot cross this boundary
     shadowRoot = hostEl.attachShadow({ mode: 'open' });

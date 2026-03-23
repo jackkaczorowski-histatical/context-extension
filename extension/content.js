@@ -171,6 +171,12 @@ if (!window.__contextExtensionLoaded) {
     }
     .ctx-close-btn:hover, .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
     .ctx-export-btn { font-size: 13px; }
+    .ctx-clear-btn {
+      background: none; border: none; color: #3a3a5a; font-size: 13px;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px;
+      line-height: 1; transition: color 0.15s, background 0.15s;
+    }
+    .ctx-clear-btn:hover { color: #ff5252; background: rgba(255,82,82,0.08); }
     .ctx-export-tooltip {
       position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
       background: #00e676; color: #0a0a12; font-size: 9px; font-weight: 600;
@@ -458,6 +464,8 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .ctx-wordmark { color: #1a1a2e; }
     .light-theme .ctx-close-btn, .light-theme .ctx-export-btn { color: #9a9ab0; }
     .light-theme .ctx-close-btn:hover, .light-theme .ctx-export-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
+    .light-theme .ctx-clear-btn { color: #9a9ab0; }
+    .light-theme .ctx-clear-btn:hover { color: #ff5252; background: rgba(255,82,82,0.06); }
     .light-theme #empty-state { background: #f5f5f8; }
     .light-theme .ctx-waveform span { background: #c0c0d0; }
     .light-theme .ctx-empty-text { color: #7a7a9a; }
@@ -1280,6 +1288,7 @@ if (!window.__contextExtensionLoaded) {
           <span class="ctx-live-dot"></span>
           <span class="ctx-live-text">Live</span>
         </div>
+        <button class="ctx-clear-btn" title="Clear cards">&#x1F5D1;</button>
         <button class="ctx-export-btn" title="Copy study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button>
         <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
       </div>
@@ -1288,6 +1297,14 @@ if (!window.__contextExtensionLoaded) {
     // Wire up close button
     header.querySelector('.ctx-close-btn').addEventListener('click', () => {
       closeSidebar();
+    });
+
+    // Wire up clear button
+    header.querySelector('.ctx-clear-btn').addEventListener('click', () => {
+      resetSidebar();
+      chrome.storage.local.set({ sessionHistory: [], sessionTranscript: '' });
+      chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
+      try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
     });
 
     // Wire up export button

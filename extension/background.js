@@ -126,6 +126,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       }, 2000);
     })();
+  } else if (message.type === 'CLEAR_SESSION') {
+    console.log('[BACKGROUND] Session cleared by user');
+    sessionEntities = [];
+    sessionInsights = [];
+    sessionTranscript = '';
+    transcriptBuffer = '';
+    firstFlush = true;
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);

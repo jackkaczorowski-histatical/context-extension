@@ -826,8 +826,8 @@ if (!window.__contextExtensionLoaded) {
     expandArea.appendChild(row);
   }
 
-  const SHOP_KEYWORDS = /fishing|cooking|recipe|review|setup|gear|tools|build|diy|tutorial|beginner|how\s*to|unboxing/i;
-  const EXCLUDE_KEYWORDS = /history|politics|war|battle|election|president|congress|military|wwi|wwii|world\s*war/i;
+  const SHOP_KEYWORDS = /setup|gear|tackle|recipe|ingredients|build|diy|unboxing|what\s+i\s+use|my\s+favorite|best\s+lures|starter\s+kit/i;
+  const EXCLUDE_KEYWORDS = /history|politics|war|battle|election|president|congress|military|wwi|wwii|world\s*war|how\s+it\s+works|how\s+they\s+work|explained|science|economics|what\s+is|how\s+does/i;
   const SHOP_ENTITY_TYPES = new Set(['concept', 'organization', 'stock']);
   const EXCLUDE_ENTITY_TYPES = new Set(['person', 'people', 'event']);
 

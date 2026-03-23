@@ -34,7 +34,7 @@ EXAMPLES:
 
 Ask: would a viewer pause and think "what is that?" If yes, extract it. If any adult would understand it without help, don't.
 
-The 'stock' type is ONLY for publicly traded companies with ticker symbols (e.g. AAPL, TSLA). Historical currencies like Assignats, livres, mandates are type 'concept', not 'stock'.
+The 'stock' type is ONLY for currently publicly traded companies with real ticker symbols (e.g. AAPL, TSLA, MSFT). Cars, historical vehicles, and car models (Maserati Biturbo, Nissan 300ZX, Toyota Supra) are type 'concept' or 'event', never 'stock'. Historical currencies like Assignats, livres, mandates are type 'concept', not 'stock'.
 
 Never extract the video's own topic as an entity. If the user is watching a video titled "The Economics Behind the French Revolution", do NOT extract "French Revolution" as an entity — the viewer already knows what the video is about.
 

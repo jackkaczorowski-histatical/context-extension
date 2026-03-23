@@ -1516,21 +1516,16 @@ if (!window.__contextExtensionLoaded) {
       const kb = kbData.knowledgeBase || {};
       const currentTitle = kbData.capturingTabTitle || document.title || '';
 
-      // Filter out terms seen 3+ times, annotate 1-2 times
-      entities = entities.filter(entity => {
+      // Annotate entities with KB info (seen before, source)
+      entities.forEach(entity => {
         const term = (entity.term || entity.name || '').toLowerCase();
         const entry = kb[term];
-        if (entry && entry.timesSeen >= 3 && !entity.recontextualized) {
-          console.log('[CONTENT] KB skip (seen', entry.timesSeen, 'times):', term);
-          return false;
-        }
         if (entry) {
           if (!entity.recontextualized) entity._kbSeen = true;
           if (entry.source && entry.source !== currentTitle) {
             entity._kbSource = entry.source;
           }
         }
-        return true;
       });
 
       if (entities.length === 0) return;

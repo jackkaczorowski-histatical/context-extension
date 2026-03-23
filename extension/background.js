@@ -426,42 +426,37 @@ async function processNextTranscript() {
     const depth = (storageData.extensionSettings && storageData.extensionSettings.depth) || 2;
     const knownTerms = Object.values(storageData.knowledgeBase || {}).map(e => e.term);
 
-    // Step 1: Analyze
-    const analyzeController = new AbortController();
-    const analyzeTimeout = setTimeout(() => analyzeController.abort(), 10000);
+    // Step 1: Analyze (up to 3 attempts)
+    const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms });
+    const retryDelays = [0, 2000, 4000];
     let analyzeRes;
-    try {
-      analyzeRes = await fetch(`${API_BASE}/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms }),
-        signal: analyzeController.signal
-      });
-    } finally {
-      clearTimeout(analyzeTimeout);
-    }
-
-    if (!analyzeRes.ok) {
-      console.log('[BACKGROUND] Analyze failed, status:', analyzeRes.status, '— retrying in 2s...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const retryController = new AbortController();
-      const retryTimeout = setTimeout(() => retryController.abort(), 10000);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        const delay = retryDelays[attempt];
+        console.log(`[BACKGROUND] Analyze failed, retrying in ${delay / 1000}s (attempt ${attempt + 1}/3)...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
       try {
         analyzeRes = await fetch(`${API_BASE}/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms }),
-          signal: retryController.signal
+          body: analyzeBody,
+          signal: controller.signal
         });
       } finally {
-        clearTimeout(retryTimeout);
+        clearTimeout(timeout);
       }
-      if (!analyzeRes.ok) {
-        console.log('[BACKGROUND] Analyze retry also failed, status:', analyzeRes.status, '— skipping');
+      if (analyzeRes.ok) {
+        if (attempt > 0) console.log(`[BACKGROUND] Analyze retry succeeded on attempt ${attempt + 1}`);
+        break;
+      }
+      if (attempt === 2) {
+        console.log('[BACKGROUND] Analyze failed after 3 attempts, status:', analyzeRes.status, '— skipping');
         processNextTranscript();
         return;
       }
-      console.log('[BACKGROUND] Analyze retry succeeded');
     }
     const analyzeData = await analyzeRes.json();
     const entities = analyzeData.entities || [];

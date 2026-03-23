@@ -27,6 +27,7 @@ let lastTranscriptSave = 0;
 let bufferStartTime = 0;
 let firstFlush = true;
 let restartAttempted = false;
+let sessionId = null;
 
 function getUsageKey() {
   const d = new Date();
@@ -205,12 +206,14 @@ async function startCapture() {
     capturingTabTitle = tab.title || '';
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
 
-    // Store activeTabId, URL, title, and sessionStart for content script
+    // Store activeTabId, URL, title, sessionStart, and sessionId for content script
+    sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     chrome.storage.local.set({
       activeTabId: tab.id,
       activeTabUrl: tab.url,
       capturingTabTitle: capturingTabTitle,
-      sessionStart: Date.now()
+      sessionStart: Date.now(),
+      currentSessionId: sessionId
     });
 
     chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
@@ -379,6 +382,7 @@ async function stopCapture() {
   capturingTabId = null;
   capturingTabTitle = null;
   pendingStreamId = null;
+  sessionId = null;
   sessionEntities = [];
   sessionInsights = [];
   sessionTranscript = '';
@@ -573,7 +577,7 @@ async function processNextTranscript() {
 
     // Step 3: Save entities to storage (content script picks them up via onChanged)
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
-    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now() });
+    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now(), pendingSessionId: sessionId });
     const newHistoryEntries = [];
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';

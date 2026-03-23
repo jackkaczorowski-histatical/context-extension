@@ -24,6 +24,7 @@ if (!window.__contextExtensionLoaded) {
   let askIdleTimer = null;
   let askSuggestionCount = 0;
   let lastRenderedTerm = '';
+  let mySessionId = null;
   const isYouTubeSite = window.location.hostname.includes('youtube.com');
 
   const TYPE_COLORS = {
@@ -1681,6 +1682,9 @@ if (!window.__contextExtensionLoaded) {
         if (active) {
           trackSessionStart(changes.sessionStart.newValue);
           resetSidebar();
+          chrome.storage.local.get('currentSessionId', (data) => {
+            mySessionId = data.currentSessionId || null;
+          });
         }
       });
     }
@@ -1859,29 +1863,41 @@ if (!window.__contextExtensionLoaded) {
       });
     }
     if (changes.pendingEntities && changes.pendingEntities.newValue) {
-      isActiveTab((active) => {
-        if (!active) {
-          console.log('[CONTENT] Not the captured tab, ignoring entities');
+      chrome.storage.local.get('pendingSessionId', (data) => {
+        if (mySessionId && data.pendingSessionId !== mySessionId) {
+          console.log('[CONTENT] Ignoring entities from different session');
           return;
         }
-        console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
-        renderCards(changes.pendingEntities.newValue);
+        isActiveTab((active) => {
+          if (!active) {
+            console.log('[CONTENT] Not the captured tab, ignoring entities');
+            return;
+          }
+          console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
+          renderCards(changes.pendingEntities.newValue);
+        });
       });
     }
     if (changes.pendingInsights && changes.pendingInsights.newValue) {
-      isActiveTab((active) => {
-        if (!active) return;
-        const insights = changes.pendingInsights.newValue;
-        console.log('[CONTENT] storage.onChanged: pendingInsights updated with', insights.length, 'insights');
-        ensureSidebar();
-        const cards = shadowRoot.getElementById('cards');
-        if (cards) {
-          insights.forEach(insight => {
-            const card = createInsightCard(insight);
-            cards.prepend(card);
-          });
+      chrome.storage.local.get('pendingSessionId', (data) => {
+        if (mySessionId && data.pendingSessionId !== mySessionId) {
+          console.log('[CONTENT] Ignoring insights from different session');
+          return;
         }
-        chrome.storage.local.remove('pendingInsights');
+        isActiveTab((active) => {
+          if (!active) return;
+          const insights = changes.pendingInsights.newValue;
+          console.log('[CONTENT] storage.onChanged: pendingInsights updated with', insights.length, 'insights');
+          ensureSidebar();
+          const cards = shadowRoot.getElementById('cards');
+          if (cards) {
+            insights.forEach(insight => {
+              const card = createInsightCard(insight);
+              cards.prepend(card);
+            });
+          }
+          chrome.storage.local.remove('pendingInsights');
+        });
       });
     }
   });
@@ -1918,8 +1934,9 @@ if (!window.__contextExtensionLoaded) {
       }
       isActiveTab((active) => {
         if (!active) return;
-        chrome.storage.local.get(['pendingEntities'], (data) => {
+        chrome.storage.local.get(['pendingEntities', 'pendingSessionId'], (data) => {
           if (chrome.runtime.lastError) return;
+          if (mySessionId && data.pendingSessionId !== mySessionId) return;
           if (data.pendingEntities && data.pendingEntities.length > 0) {
             console.log('[CONTENT] Polling fallback found', data.pendingEntities.length, 'entities');
             renderCards(data.pendingEntities);

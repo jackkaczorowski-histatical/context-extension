@@ -496,22 +496,24 @@ async function processNextTranscript() {
     });
 
     // Fuzzy dedup insights, limit to 1 per chunk
-    function getNGrams(text, n) {
-      const words = text.split(/\s+/).filter(Boolean);
-      const grams = [];
-      for (let i = 0; i <= words.length - n; i++) {
-        grams.push(words.slice(i, i + n).join(' '));
-      }
-      return grams;
-    }
-
-    function insightIsDup(newText, prevTexts) {
-      const newNorm = normalize(newText);
-      for (const prev of prevTexts) {
-        const prevNorm = normalize(prev);
-        if (prevNorm.includes(newNorm) || newNorm.includes(prevNorm)) return true;
-        const newGrams = getNGrams(newNorm, 3);
-        if (newGrams.some(gram => prevNorm.includes(gram))) return true;
+    function isInsightDuplicate(newInsight, prevInsights) {
+      const newWords = newInsight.toLowerCase().split(/\s+/).filter(Boolean);
+      for (const prev of prevInsights) {
+        const prevWords = prev.toLowerCase().split(/\s+/).filter(Boolean);
+        const prevText = prevWords.join(' ');
+        // Check 3-word consecutive sequences
+        for (let i = 0; i <= newWords.length - 3; i++) {
+          const trigram = newWords.slice(i, i + 3).join(' ');
+          if (prevText.includes(trigram)) return true;
+        }
+        // Check shared long words (5+ chars): if 3+ match, it's a duplicate
+        const newLong = newWords.filter(w => w.length >= 5);
+        const prevLongSet = new Set(prevWords.filter(w => w.length >= 5));
+        let shared = 0;
+        for (const w of newLong) {
+          if (prevLongSet.has(w)) shared++;
+          if (shared >= 3) return true;
+        }
       }
       return false;
     }
@@ -520,7 +522,7 @@ async function processNextTranscript() {
     for (const insight of insights) {
       const newText = insight.insight || '';
       if (!newText) continue;
-      if (insightIsDup(newText, sessionInsights)) {
+      if (isInsightDuplicate(newText, sessionInsights)) {
         console.log('[BACKGROUND] Insight dedup filtered:', insight.insight);
         continue;
       }

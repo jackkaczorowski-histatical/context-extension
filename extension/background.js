@@ -1,5 +1,16 @@
 const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 
+const SMALL_WORDS = new Set(['of', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'by', 'as', 'with']);
+
+function capitalizeTerm(term) {
+  if (!term) return term;
+  if (term !== term.toLowerCase()) return term;
+  return term.split(' ').map((word, i) => {
+    if (i > 0 && SMALL_WORDS.has(word)) return word;
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(' ');
+}
+
 let capturingTabId = null;
 let capturingTabTitle = null;
 let pendingStreamId = null;
@@ -454,6 +465,7 @@ async function processNextTranscript() {
     }
     const analyzeData = await analyzeRes.json();
     const entities = analyzeData.entities || [];
+    entities.forEach(e => { if (e.term) e.term = capitalizeTerm(e.term); });
 
     console.log('[BACKGROUND] Analyze response:', JSON.stringify(entities));
 

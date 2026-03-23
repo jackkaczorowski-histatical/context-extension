@@ -1875,8 +1875,13 @@ if (!window.__contextExtensionLoaded) {
             console.log('[CONTENT] Not the captured tab, ignoring entities');
             return;
           }
-          console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
-          renderCards(changes.pendingEntities.newValue);
+          const entities = changes.pendingEntities.newValue;
+          console.log('[CONTENT] storage.onChanged: pendingEntities updated with', entities.length, 'entities');
+          if (entities.length > 0) {
+            renderCards(entities);
+          } else {
+            chrome.storage.local.remove('pendingEntities');
+          }
         });
       });
     }

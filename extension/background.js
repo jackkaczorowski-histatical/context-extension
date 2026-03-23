@@ -594,8 +594,8 @@ async function processNextTranscript() {
     const history = histData.sessionHistory || [];
     history.push(...newHistoryEntries);
     await chrome.storage.local.set({ sessionHistory: history });
-    incrementUsage('entities', enrichedEntities.length);
-    console.log('[BACKGROUND] Saved pendingEntities to storage, session total:', sessionEntities.length);
+    incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
+    console.log('[BACKGROUND] Saved', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage, session total:', sessionEntities.length);
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
   }

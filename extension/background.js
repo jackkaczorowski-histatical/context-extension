@@ -489,15 +489,31 @@ async function processNextTranscript() {
     });
 
     // Fuzzy dedup insights, limit to 1 per chunk
+    function getNGrams(text, n) {
+      const words = text.split(/\s+/).filter(Boolean);
+      const grams = [];
+      for (let i = 0; i <= words.length - n; i++) {
+        grams.push(words.slice(i, i + n).join(' '));
+      }
+      return grams;
+    }
+
+    function insightIsDup(newText, prevTexts) {
+      const newNorm = normalize(newText);
+      for (const prev of prevTexts) {
+        const prevNorm = normalize(prev);
+        if (prevNorm.includes(newNorm) || newNorm.includes(prevNorm)) return true;
+        const newGrams = getNGrams(newNorm, 3);
+        if (newGrams.some(gram => prevNorm.includes(gram))) return true;
+      }
+      return false;
+    }
+
     let dedupedInsight = null;
     for (const insight of insights) {
-      const newText = normalize(insight.insight || '');
+      const newText = insight.insight || '';
       if (!newText) continue;
-      const isDup = sessionInsights.some(prev => {
-        const prevNorm = normalize(prev);
-        return prevNorm.includes(newText) || newText.includes(prevNorm);
-      });
-      if (isDup) {
+      if (insightIsDup(newText, sessionInsights)) {
         console.log('[BACKGROUND] Insight dedup filtered:', insight.insight);
         continue;
       }

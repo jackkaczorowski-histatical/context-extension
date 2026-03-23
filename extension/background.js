@@ -19,6 +19,7 @@ const transcriptQueue = [];
 let transcriptBuffer = '';
 let bufferTimer = null;
 let sessionEntities = [];
+let sessionInsights = [];
 let sessionTranscript = '';
 let isPaused = false;
 let usageTimer = null;
@@ -372,6 +373,7 @@ async function stopCapture() {
   capturingTabTitle = null;
   pendingStreamId = null;
   sessionEntities = [];
+  sessionInsights = [];
   sessionTranscript = '';
   isPaused = false;
   firstFlush = true;
@@ -486,8 +488,29 @@ async function processNextTranscript() {
       return !isDup;
     });
 
-    if (dedupedEntities.length === 0 && insights.length === 0) {
-      console.log('[BACKGROUND] All entities filtered by dedup and no insights, skipping');
+    // Fuzzy dedup insights, limit to 1 per chunk
+    let dedupedInsight = null;
+    for (const insight of insights) {
+      const newText = normalize(insight.insight || '');
+      if (!newText) continue;
+      const isDup = sessionInsights.some(prev => {
+        const prevNorm = normalize(prev);
+        return prevNorm.includes(newText) || newText.includes(prevNorm);
+      });
+      if (isDup) {
+        console.log('[BACKGROUND] Insight dedup filtered:', insight.insight);
+        continue;
+      }
+      dedupedInsight = insight;
+      break;
+    }
+    const dedupedInsights = dedupedInsight ? [dedupedInsight] : [];
+    if (dedupedInsight) {
+      sessionInsights.push(dedupedInsight.insight || '');
+    }
+
+    if (dedupedEntities.length === 0 && dedupedInsights.length === 0) {
+      console.log('[BACKGROUND] All entities and insights filtered by dedup, skipping');
       processNextTranscript();
       return;
     }
@@ -525,7 +548,7 @@ async function processNextTranscript() {
 
     // Step 3: Save entities to storage (content script picks them up via onChanged)
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
-    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: insights, pendingTimestamp: Date.now() });
+    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now() });
     const newHistoryEntries = [];
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
@@ -534,7 +557,7 @@ async function processNextTranscript() {
         newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '' });
       }
     });
-    insights.forEach(i => {
+    dedupedInsights.forEach(i => {
       newHistoryEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail, category: i.category });
     });
     // Append to sessionHistory in storage

@@ -334,6 +334,15 @@ if (!window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
+    .context-card.insight-card { border-left-color: #f59e0b; background: rgba(245,158,11,0.04); }
+    .context-card.insight-card:hover { background: rgba(245,158,11,0.08); }
+    .insight-icon { font-size: 11px; margin-right: 4px; }
+    .insight-category {
+      font-size: 9px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #f59e0b;
+    }
+    .insight-text { font-size: 12px; color: #e0e0f0; font-weight: 500; line-height: 1.4; margin-top: 2px; }
+    .insight-detail { font-size: 11px; color: #9a9ab0; line-height: 1.5; margin-top: 4px; }
     .ctx-quiz-btn {
       background: rgba(99,102,241,0.15); color: #6366f1; border: none;
       border-radius: 12px; padding: 8px 16px; font-size: 12px; cursor: pointer;
@@ -484,6 +493,10 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
     .light-theme .card-shop-link { background: rgba(255,153,0,0.1); }
     .light-theme .card-tellmore { background: rgba(99,102,241,0.08); }
+    .light-theme .context-card.insight-card { background: rgba(245,158,11,0.05); border-left-color: #f59e0b; }
+    .light-theme .context-card.insight-card:hover { background: rgba(245,158,11,0.1); }
+    .light-theme .insight-text { color: #1a1a2e; }
+    .light-theme .insight-detail { color: #5a5a7a; }
     .light-theme .feedback-msg { color: #9a9ab0; }
     .light-theme .ctx-preview-card { background: #f0f0fa; }
     .light-theme .ctx-preview-title { color: #5a5adf; }
@@ -847,6 +860,34 @@ if (!window.__contextExtensionLoaded) {
     const term = entity.term || entity.name || '';
     const href = 'https://www.amazon.com/s?k=' + encodeURIComponent(term) + '&tag=contextlis-20';
     return '<a class="card-shop-link" href="' + href + '" target="_blank" rel="noopener">Shop on Amazon &#x2197;</a>';
+  }
+
+  function createInsightCard(insight) {
+    const card = document.createElement('div');
+    card.className = 'context-card insight-card expanded';
+    card.style.borderLeftColor = '#f59e0b';
+    const timestamp = formatTime(new Date());
+    const category = escapeHtml(insight.category || 'insight');
+    const text = escapeHtml(insight.insight || '');
+    const detail = escapeHtml(insight.detail || '');
+
+    card.innerHTML = `
+      <div class="card-row">
+        <span class="insight-category">\u{1F4A1} ${category}</span>
+        <span class="card-time">${timestamp}</span>
+      </div>
+      <div class="card-expand-area">
+        <div class="insight-text">${text}</div>
+        ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
+      </div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return;
+      card.classList.toggle('expanded');
+    });
+
+    return card;
   }
 
   function createStockCard(entity) {
@@ -1794,6 +1835,22 @@ if (!window.__contextExtensionLoaded) {
         }
         console.log('[CONTENT] storage.onChanged: pendingEntities updated with', changes.pendingEntities.newValue.length, 'entities');
         renderCards(changes.pendingEntities.newValue);
+      });
+    }
+    if (changes.pendingInsights && changes.pendingInsights.newValue) {
+      isActiveTab((active) => {
+        if (!active) return;
+        const insights = changes.pendingInsights.newValue;
+        console.log('[CONTENT] storage.onChanged: pendingInsights updated with', insights.length, 'insights');
+        ensureSidebar();
+        const cards = shadowRoot.getElementById('cards');
+        if (cards) {
+          insights.forEach(insight => {
+            const card = createInsightCard(insight);
+            cards.prepend(card);
+          });
+        }
+        chrome.storage.local.remove('pendingInsights');
       });
     }
   });

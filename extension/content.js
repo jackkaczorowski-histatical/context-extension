@@ -327,6 +327,13 @@ if (!window.__contextExtensionLoaded) {
       display: inline-block; margin-top: 6px; transition: background 0.15s;
     }
     .card-shop-link:hover { background: rgba(255,153,0,0.22); }
+    .card-tellmore {
+      font-size: 10px; color: #6366f1; background: rgba(99,102,241,0.1);
+      border: none; border-radius: 10px; padding: 3px 10px; cursor: pointer;
+      margin-top: 4px; margin-left: 6px; font-family: inherit;
+      display: inline-block; transition: background 0.15s;
+    }
+    .card-tellmore:hover { background: rgba(99,102,241,0.2); }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
     #missed-bar {
       display: none; padding: 6px 16px; background: #12121c;
@@ -441,6 +448,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-wiki-link { color: #8a8aa0; }
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
     .light-theme .card-shop-link { background: rgba(255,153,0,0.1); }
+    .light-theme .card-tellmore { background: rgba(99,102,241,0.08); }
     .light-theme .feedback-msg { color: #9a9ab0; }
     .light-theme .ctx-preview-card { background: #f0f0fa; }
     .light-theme .ctx-preview-title { color: #5a5adf; }
@@ -905,6 +913,7 @@ if (!window.__contextExtensionLoaded) {
         <div class="card-desc"></div>
         ${sourceLine}
         <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
+        <button class="card-tellmore">Tell me more</button>
       </div>
     `;
 
@@ -1064,6 +1073,17 @@ if (!window.__contextExtensionLoaded) {
           }
         })
         .catch(() => {});
+      }
+    });
+
+    card.querySelector('.card-tellmore').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const input = shadowRoot.querySelector('.ctx-ask-input');
+      if (input) {
+        const termName = entity.term || entity.name || '';
+        input.value = 'Explain ' + termName + ' in more detail and why it matters in this video';
+        input.focus();
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       }
     });
 

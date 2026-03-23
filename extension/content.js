@@ -1638,6 +1638,18 @@ if (!window.__contextExtensionLoaded) {
     }
   }, 2000);
 
+  // --- Keyboard shortcut: Ctrl+Shift+X to toggle sidebar ---
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'X') {
+      e.preventDefault();
+      if (hostEl && hostEl.dataset.open === 'true') {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+  });
+
   // --- Media detection: show badge on pages with video/audio ---
   const isYouTube = window.location.hostname.includes('youtube.com') && window.location.pathname === '/watch';
   let mediaDetected = false;

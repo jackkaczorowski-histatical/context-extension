@@ -280,7 +280,7 @@ if (!window.__contextExtensionLoaded) {
       margin-bottom: 8px; opacity: 0; transition: opacity 0.3s ease;
     }
     .card-thumbnail.loaded { opacity: 1; }
-    .card-source { font-size: 9px; color: #3a3a5a; margin-top: 4px; font-style: italic; }
+    .card-source { font-size: 11px; color: #94a3b8; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: #3a3a5a; margin-top: 4px; }
     .card-desc-loading::after {
       content: ''; display: inline-block; width: 4px; height: 4px;
@@ -879,6 +879,7 @@ if (!window.__contextExtensionLoaded) {
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
     const shortInsight = insightText.length > 50 ? insightText.slice(0, 47) + '...' : insightText;
+    const headline = insightText.length > 80 ? insightText.slice(0, 80) + '\u2026' : insightText;
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
@@ -889,7 +890,7 @@ if (!window.__contextExtensionLoaded) {
         <span class="card-chevron">&#x203A;</span>
       </div>
       <div class="card-expand-area">
-        <div class="insight-text">${escapeHtml(insightText)}</div>
+        <div class="insight-text">${escapeHtml(headline)}</div>
         ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
       </div>
     `;
@@ -1002,7 +1003,7 @@ if (!window.__contextExtensionLoaded) {
       <div class="card-expand-area">
         <div class="card-desc"></div>
         ${sourceLine}
-        <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia &#x2197;</a>
+        <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia \u2192</a>
         <button class="card-tellmore">Tell me more</button>
       </div>
     `;
@@ -1659,9 +1660,10 @@ if (!window.__contextExtensionLoaded) {
 
     chrome.storage.local.remove('pendingEntities');
 
-    // Track last term and reset ask idle timer
-    if (limited.length > 0) {
-      lastRenderedTerm = limited[0].term || limited[0].name || '';
+    // Track last entity term (skip insights) and reset ask idle timer
+    const lastEntity = limited.find(e => (e.type || '').toLowerCase() !== 'insight');
+    if (lastEntity) {
+      lastRenderedTerm = lastEntity.term || lastEntity.name || '';
       resetAskIdleTimer();
     }
   }

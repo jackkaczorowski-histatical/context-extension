@@ -535,7 +535,7 @@ async function processNextTranscript() {
       const term = e.term || e.name || '';
       if (term) {
         sessionEntities.push(term.toLowerCase().replace(/s$/, ''));
-        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: '' });
+        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '' });
       }
     });
     // Append to sessionHistory in storage

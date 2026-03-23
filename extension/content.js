@@ -1190,9 +1190,12 @@ if (!window.__contextExtensionLoaded) {
       }
     });
 
+    const insightEntries = history.filter(entry => (entry.type || '').toLowerCase() === 'insight');
+    const entityEntries = history.filter(entry => (entry.type || '').toLowerCase() !== 'insight');
+
     const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities' };
     const grouped = {};
-    history.forEach(entry => {
+    entityEntries.forEach(entry => {
       const t = (entry.type || 'other').toLowerCase();
       const label = TYPE_ORDER[t] || (t.charAt(0).toUpperCase() + t.slice(1));
       if (!grouped[label]) grouped[label] = [];
@@ -1214,7 +1217,15 @@ if (!window.__contextExtensionLoaded) {
       guide += '\n';
     });
 
-    const withDesc = history.filter(h => h.description).slice(0, 5);
+    if (insightEntries.length > 0) {
+      guide += `## Insights & Tips\n`;
+      insightEntries.forEach(ent => {
+        guide += `- \u{1F4A1} **${ent.term}**${ent.description ? ' — ' + ent.description : ''}\n`;
+      });
+      guide += '\n';
+    }
+
+    const withDesc = entityEntries.filter(h => h.description).slice(0, 5);
     if (withDesc.length > 0) {
       guide += `## Key Questions\n`;
       withDesc.forEach(ent => {

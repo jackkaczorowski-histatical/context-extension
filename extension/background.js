@@ -28,6 +28,7 @@ let bufferStartTime = 0;
 let firstFlush = true;
 let restartAttempted = false;
 let sessionId = null;
+let sessionTotal = 0;
 
 function getUsageKey() {
   const d = new Date();
@@ -393,6 +394,7 @@ async function stopCapture() {
   capturingTabTitle = null;
   pendingStreamId = null;
   sessionId = null;
+  sessionTotal = 0;
   sessionEntities = [];
   sessionInsights = [];
   sessionTranscript = '';
@@ -637,7 +639,8 @@ async function processNextTranscript() {
     history.push(...newHistoryEntries);
     await chrome.storage.local.set({ sessionHistory: history });
     incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
-    console.log('[BACKGROUND] Saved', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage, session total:', sessionEntities.length);
+    sessionTotal += enrichedEntities.length + dedupedInsights.length;
+    console.log('[BACKGROUND] Saved', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage, session total:', sessionTotal);
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
   }

@@ -1899,21 +1899,20 @@ if (!window.__contextExtensionLoaded) {
             console.log('[CONTENT] Not the captured tab, ignoring');
             return;
           }
-          const newEntities = changes.pendingEntities ? changes.pendingEntities.newValue : null;
-          const newInsights = changes.pendingInsights ? changes.pendingInsights.newValue : null;
-          const hasEntities = newEntities && newEntities.length > 0;
-          const hasInsights = newInsights && newInsights.length > 0;
-          if (!hasEntities && !hasInsights) {
+          const newEntities = changes.pendingEntities ? (changes.pendingEntities.newValue || []) : [];
+          const newInsights = changes.pendingInsights ? (changes.pendingInsights.newValue || []) : [];
+          console.log('[CONTENT] Render triggered, entities:', newEntities.length, 'insights:', newInsights.length);
+          if (newEntities.length === 0 && newInsights.length === 0) {
             chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
             return;
           }
-          if (hasEntities) {
+          if (newEntities.length > 0) {
             console.log('[CONTENT] storage.onChanged: pendingEntities updated with', newEntities.length, 'entities');
             renderCards(newEntities);
           } else {
             chrome.storage.local.remove('pendingEntities');
           }
-          if (hasInsights) {
+          if (newInsights.length > 0) {
             console.log('[CONTENT] storage.onChanged: pendingInsights updated with', newInsights.length, 'insights');
             ensureSidebar();
             const cards = shadowRoot.getElementById('cards');
@@ -1965,19 +1964,20 @@ if (!window.__contextExtensionLoaded) {
         chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'pendingSessionId'], (data) => {
           if (chrome.runtime.lastError) return;
           if (mySessionId && data.pendingSessionId !== mySessionId) return;
-          const hasEntities = data.pendingEntities && data.pendingEntities.length > 0;
-          const hasInsights = data.pendingInsights && data.pendingInsights.length > 0;
-          if (!hasEntities && !hasInsights) return;
-          if (hasEntities) {
-            console.log('[CONTENT] Polling fallback found', data.pendingEntities.length, 'entities');
-            renderCards(data.pendingEntities);
+          const pollEntities = data.pendingEntities || [];
+          const pollInsights = data.pendingInsights || [];
+          console.log('[CONTENT] Render triggered, entities:', pollEntities.length, 'insights:', pollInsights.length);
+          if (pollEntities.length === 0 && pollInsights.length === 0) return;
+          if (pollEntities.length > 0) {
+            console.log('[CONTENT] Polling fallback found', pollEntities.length, 'entities');
+            renderCards(pollEntities);
           }
-          if (hasInsights) {
-            console.log('[CONTENT] Polling fallback found', data.pendingInsights.length, 'insights');
+          if (pollInsights.length > 0) {
+            console.log('[CONTENT] Polling fallback found', pollInsights.length, 'insights');
             ensureSidebar();
             const cards = shadowRoot.getElementById('cards');
             if (cards) {
-              data.pendingInsights.forEach(insight => {
+              pollInsights.forEach(insight => {
                 const card = createInsightCard(insight);
                 cards.prepend(card);
               });

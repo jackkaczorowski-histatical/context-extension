@@ -895,7 +895,7 @@ if (!window.__contextExtensionLoaded) {
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
     const shortInsight = insightText.length > 50 ? insightText.slice(0, 47) + '...' : insightText;
-    const headline = insightText.length > 80 ? insightText.slice(0, 80) + '\u2026' : insightText;
+    const displayHeadline = insightText.length > 80 ? insightText.slice(0, 80) + '\u2026' : insightText;
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
@@ -906,7 +906,7 @@ if (!window.__contextExtensionLoaded) {
         <span class="card-chevron">&#x203A;</span>
       </div>
       <div class="card-expand-area">
-        <div class="insight-text">${escapeHtml(headline)}</div>
+        <div class="insight-text">${escapeHtml(displayHeadline)}</div>
         ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
       </div>
     `;
@@ -943,9 +943,11 @@ if (!window.__contextExtensionLoaded) {
         </div>
       `;
     } else {
+      const stockDesc = firstSentence(entity.description || '');
+      const displayStockDesc = stockDesc.length > 80 ? stockDesc.slice(0, 80) + '\u2026' : stockDesc;
       expandContent = `
         <div class="stock-company">${companyName}</div>
-        ${entity.description ? `<div class="card-desc">${escapeHtml(firstSentence(entity.description))}</div>` : ''}
+        ${displayStockDesc ? `<div class="card-desc">${escapeHtml(displayStockDesc)}</div>` : ''}
       `;
     }
 
@@ -1068,7 +1070,8 @@ if (!window.__contextExtensionLoaded) {
     if (inlineDesc) {
       descFetched = true;
       const descEl = card.querySelector('.card-desc');
-      const desc = firstSentence(inlineDesc);
+      const rawDesc = firstSentence(inlineDesc);
+      const desc = rawDesc.length > 80 ? rawDesc.slice(0, 80) + '\u2026' : rawDesc;
       descEl.textContent = desc;
       saveDescToHistory(desc);
       saveDescToKB(desc);
@@ -1089,7 +1092,8 @@ if (!window.__contextExtensionLoaded) {
           const kbEntry = kb[termName.toLowerCase()];
           if (kbEntry && kbEntry.description) {
             descEl.classList.remove('card-desc-loading');
-            descEl.textContent = kbEntry.description;
+            const displayDesc = kbEntry.description.length > 80 ? kbEntry.description.slice(0, 80) + '\u2026' : kbEntry.description;
+            descEl.textContent = displayDesc;
             saveDescToHistory(kbEntry.description);
             return;
           }
@@ -1107,7 +1111,8 @@ if (!window.__contextExtensionLoaded) {
           .then(res => res.ok ? res.json() : Promise.reject(res))
           .then(contextData => {
             descEl.classList.remove('card-desc-loading');
-            const desc = firstSentence(contextData.description || '');
+            const rawDesc = firstSentence(contextData.description || '');
+            const desc = rawDesc.length > 80 ? rawDesc.slice(0, 80) + '\u2026' : rawDesc;
             descEl.textContent = desc;
             saveDescToHistory(desc);
             saveDescToKB(desc);

@@ -507,8 +507,11 @@ async function processNextTranscript() {
     const dedupedEntities = entities.filter(entity => {
       const newTerm = normalize(entity.term || '');
       if (!newTerm) return false;
+      const isIngredient = entity.type === 'ingredient';
       const isDup = sessionEntities.some(prev => {
         const prevNorm = normalize(prev);
+        // Ingredients: exact match only (e.g. "olive oil" vs "extra virgin olive oil" are distinct)
+        if (isIngredient) return prevNorm === newTerm;
         return prevNorm.includes(newTerm) || newTerm.includes(prevNorm);
       });
       if (isDup) {

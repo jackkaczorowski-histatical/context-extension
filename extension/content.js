@@ -1436,6 +1436,11 @@ if (!window.__contextExtensionLoaded) {
     askInput.placeholder = 'Ask about this video...';
     askBar.appendChild(askInput);
 
+    // Stop keyboard events from leaking through Shadow DOM to YouTube
+    askInput.addEventListener('keydown', (e) => e.stopPropagation());
+    askInput.addEventListener('keyup', (e) => e.stopPropagation());
+    askInput.addEventListener('keypress', (e) => e.stopPropagation());
+
     askInput.addEventListener('focus', () => {
       if (askInput.dataset.hasSuggestion === 'true' && !askInput.value) {
         askInput.placeholder = 'Ask about this video...';

@@ -1580,7 +1580,7 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function renderCards(entities) {
-    if (!entities || entities.length === 0) return;
+    if (!entities) entities = [];
     console.log('[CONTENT] renderCards received:', entities.map(e => e.term));
 
     ensureSidebar();
@@ -1608,9 +1608,13 @@ if (!window.__contextExtensionLoaded) {
     });
 
     console.log('[CONTENT] After dedup filter:', entities.map(e => e.term));
-    console.log('[CONTENT] Rendering entities:', entities.map(e => e.term));
+
+    // Always clean up storage even if no entities survived dedup
+    chrome.storage.local.remove('pendingEntities');
 
     if (entities.length === 0) return;
+
+    console.log('[CONTENT] Rendering entities:', entities.map(e => e.term));
 
     // Check knowledge base for seen-before terms
     chrome.storage.local.get(['knowledgeBase', 'capturingTabTitle'], (kbData) => {
@@ -1628,8 +1632,6 @@ if (!window.__contextExtensionLoaded) {
           }
         }
       });
-
-      if (entities.length === 0) return;
 
       renderCardsInner(entities, cards);
     });
@@ -1681,8 +1683,6 @@ if (!window.__contextExtensionLoaded) {
     if (hostEl && hostEl.dataset.open !== 'true' && limited.length > 0) {
       showToast(limited[0]);
     }
-
-    chrome.storage.local.remove('pendingEntities');
 
     // Track last entity term (skip insights) and reset ask idle timer
     const lastEntity = limited.find(e => (e.type || '').toLowerCase() !== 'insight');
@@ -1889,6 +1889,7 @@ if (!window.__contextExtensionLoaded) {
       });
     }
     if ((changes.pendingEntities && changes.pendingEntities.newValue) || (changes.pendingInsights && changes.pendingInsights.newValue)) {
+      console.log('[CONTENT] Storage change detected, pendingEntities:', JSON.stringify(changes.pendingEntities?.newValue?.length), 'pendingInsights:', JSON.stringify(changes.pendingInsights?.newValue?.length));
       chrome.storage.local.get('pendingSessionId', (data) => {
         if (mySessionId && data.pendingSessionId !== mySessionId) {
           console.log('[CONTENT] Ignoring data from different session');
@@ -1902,10 +1903,6 @@ if (!window.__contextExtensionLoaded) {
           const newEntities = changes.pendingEntities ? (changes.pendingEntities.newValue || []) : [];
           const newInsights = changes.pendingInsights ? (changes.pendingInsights.newValue || []) : [];
           console.log('[CONTENT] Render triggered, entities:', newEntities.length, 'insights:', newInsights.length);
-          if (newEntities.length === 0 && newInsights.length === 0) {
-            chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
-            return;
-          }
           if (newEntities.length > 0) {
             console.log('[CONTENT] storage.onChanged: pendingEntities updated with', newEntities.length, 'entities');
             renderCards(newEntities);
@@ -1923,6 +1920,9 @@ if (!window.__contextExtensionLoaded) {
               });
             }
             chrome.storage.local.remove('pendingInsights');
+          }
+          if (newEntities.length === 0 && newInsights.length === 0) {
+            chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
           }
         });
       });
@@ -1966,8 +1966,9 @@ if (!window.__contextExtensionLoaded) {
           if (mySessionId && data.pendingSessionId !== mySessionId) return;
           const pollEntities = data.pendingEntities || [];
           const pollInsights = data.pendingInsights || [];
-          console.log('[CONTENT] Render triggered, entities:', pollEntities.length, 'insights:', pollInsights.length);
-          if (pollEntities.length === 0 && pollInsights.length === 0) return;
+          if (pollEntities.length > 0 || pollInsights.length > 0) {
+            console.log('[CONTENT] Polling fallback render triggered, entities:', pollEntities.length, 'insights:', pollInsights.length);
+          }
           if (pollEntities.length > 0) {
             console.log('[CONTENT] Polling fallback found', pollEntities.length, 'entities');
             renderCards(pollEntities);

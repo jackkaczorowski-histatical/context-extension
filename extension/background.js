@@ -462,7 +462,7 @@ async function processNextTranscript() {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
         analyzeRes = await fetch(`${API_BASE}/analyze`, {
           method: 'POST',

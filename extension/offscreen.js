@@ -7,6 +7,13 @@ let keepAliveInterval = null;
 let intentionalClose = false;
 let currentStream = null;
 
+// Keep-warm ping: fire a silent GET so the Vercel function is warm before capture starts
+try {
+  fetch(TOKEN_URL + '?ping=1').then(() => {
+    console.log('[OFFSCREEN] Keep-warm ping sent to token endpoint');
+  }).catch(() => {});
+} catch (e) {}
+
 // Signal to background that we're ready
 try { chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' }); } catch (e) {}
 console.log('[OFFSCREEN] Ready, sent OFFSCREEN_READY');
@@ -23,9 +30,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function fetchTempToken() {
   const maxRetries = 3;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      console.log(`[OFFSCREEN] Fetching temporary Deepgram token (attempt ${attempt}/${maxRetries})...`);
-      const res = await fetch(TOKEN_URL);
+      console.log(`[OFFSCREEN] Token fetch attempt ${attempt}/${maxRetries}...`);
+      const res = await fetch(TOKEN_URL, { signal: controller.signal });
+      clearTimeout(timeout);
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
         throw new Error(`Token fetch failed: ${res.status} ${errText}`);
@@ -37,11 +47,12 @@ async function fetchTempToken() {
       console.log('[OFFSCREEN] Got temp token, length:', data.token.length);
       return data.token;
     } catch (err) {
+      clearTimeout(timeout);
       if (attempt < maxRetries) {
-        console.log(`[OFFSCREEN] Retry ${attempt}/${maxRetries} failed: ${err.message}. Retrying in 2s...`);
+        console.log(`[OFFSCREEN] Token fetch attempt ${attempt}/${maxRetries} failed: ${err.message}. Retrying in 2s...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
       } else {
-        console.log(`[OFFSCREEN] All ${maxRetries} attempts failed: ${err.message}`);
+        console.log(`[OFFSCREEN] All ${maxRetries} token fetch attempts failed: ${err.message}`);
         throw err;
       }
     }
@@ -104,7 +115,8 @@ async function connectAndStream(stream) {
   try {
     token = await fetchTempToken();
   } catch (e) {
-    console.error('[OFFSCREEN] Token error:', e.message);
+    console.error('[OFFSCREEN] Token error after all retries:', e.message);
+    try { chrome.runtime.sendMessage({ type: 'STREAM_DIED' }); } catch (e2) {}
     return;
   }
 

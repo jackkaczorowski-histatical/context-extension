@@ -15,6 +15,12 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // Keep-warm ping — return immediately without hitting Deepgram
+  if (req.query && req.query.ping) {
+    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(200).json({ status: "ok" });
+  }
+
   const apiKey = process.env.DEEPGRAM_API_KEY;
   const projectId = process.env.DEEPGRAM_PROJECT_ID;
 

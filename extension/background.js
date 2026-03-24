@@ -500,17 +500,38 @@ async function processNextTranscript() {
     });
 
     // Fuzzy dedup insights, limit to 1 per chunk
+    function normalizeInsight(s) {
+      return s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function charSimilarity(a, b) {
+      if (!a || !b) return 0;
+      const shorter = a.length <= b.length ? a : b;
+      const longer = a.length > b.length ? a : b;
+      let matches = 0;
+      for (let i = 0; i <= shorter.length - 4; i++) {
+        const chunk = shorter.slice(i, i + 4);
+        if (longer.includes(chunk)) matches++;
+      }
+      const total = shorter.length - 3;
+      return total > 0 ? matches / total : 0;
+    }
+
     function isInsightDuplicate(newInsight, prevInsights) {
-      const newWords = newInsight.toLowerCase().split(/\s+/).filter(Boolean);
+      const newNorm = normalizeInsight(newInsight);
+      const newWords = newNorm.split(' ').filter(Boolean);
       for (const prev of prevInsights) {
-        const prevWords = prev.toLowerCase().split(/\s+/).filter(Boolean);
+        const prevNorm = normalizeInsight(prev);
+        const prevWords = prevNorm.split(' ').filter(Boolean);
+        // Character-level similarity (4-gram sliding window)
+        if (charSimilarity(newNorm, prevNorm) > 0.6) return true;
+        // 3-word consecutive sequences
         const prevText = prevWords.join(' ');
-        // Check 3-word consecutive sequences
         for (let i = 0; i <= newWords.length - 3; i++) {
           const trigram = newWords.slice(i, i + 3).join(' ');
           if (prevText.includes(trigram)) return true;
         }
-        // Check shared long words (5+ chars): if 3+ match, it's a duplicate
+        // Shared long words (5+ chars): if 3+ match, it's a duplicate
         const newLong = newWords.filter(w => w.length >= 5);
         const prevLongSet = new Set(prevWords.filter(w => w.length >= 5));
         let shared = 0;

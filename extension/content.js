@@ -25,6 +25,7 @@ if (!window.__contextExtensionLoaded) {
   let askSuggestionCount = 0;
   let lastRenderedTerm = '';
   let mySessionId = null;
+  let currentlyExpandedCard = null;
   const isYouTubeSite = window.location.hostname.includes('youtube.com');
 
   const TYPE_COLORS = {
@@ -34,8 +35,22 @@ if (!window.__contextExtensionLoaded) {
     people: '#00d4aa',
     stock: '#00e676',
     organization: '#4d9fff',
-    commodity: '#ff9500'
+    commodity: '#ff9500',
+    ingredient: '#10b981'
   };
+
+  function toggleCardExpand(card) {
+    if (card.classList.contains('expanded')) {
+      card.classList.remove('expanded');
+      if (currentlyExpandedCard === card) currentlyExpandedCard = null;
+    } else {
+      if (currentlyExpandedCard && currentlyExpandedCard !== card) {
+        currentlyExpandedCard.classList.remove('expanded');
+      }
+      card.classList.add('expanded');
+      currentlyExpandedCard = card;
+    }
+  }
 
   function getTypeColor(type) {
     return TYPE_COLORS[(type || '').toLowerCase()] || '#4a4a6a';
@@ -897,7 +912,7 @@ if (!window.__contextExtensionLoaded) {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('a')) return;
-      card.classList.toggle('expanded');
+      toggleCardExpand(card);
     });
 
     return card;
@@ -945,7 +960,7 @@ if (!window.__contextExtensionLoaded) {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-actions') || e.target.closest('a')) return;
-      card.classList.toggle('expanded');
+      toggleCardExpand(card);
     });
 
     // Inject shop link for stock cards
@@ -1060,7 +1075,7 @@ if (!window.__contextExtensionLoaded) {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-actions') || e.target.closest('a')) return;
-      card.classList.toggle('expanded');
+      toggleCardExpand(card);
 
       if (card.classList.contains('expanded') && !descFetched) {
         descFetched = true;
@@ -1206,7 +1221,7 @@ if (!window.__contextExtensionLoaded) {
     const insightEntries = history.filter(entry => (entry.type || '').toLowerCase() === 'insight');
     const entityEntries = history.filter(entry => (entry.type || '').toLowerCase() !== 'insight');
 
-    const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities' };
+    const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities', ingredient: 'Ingredients' };
     const grouped = {};
     entityEntries.forEach(entry => {
       const t = (entry.type || 'other').toLowerCase();

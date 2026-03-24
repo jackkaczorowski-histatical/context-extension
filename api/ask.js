@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { question, sessionTranscript, videoTitle } = req.body || {};
+  const { question, sessionTranscript, videoTitle, sessionEntities, sessionInsights } = req.body || {};
 
   if (!question) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -26,7 +26,27 @@ module.exports = async function handler(req, res) {
     : "";
   const title = videoTitle || "unknown video";
 
-  const systemPrompt = `You are a helpful assistant answering questions about a video the user is watching. The video is titled: "${title}". Here is the transcript of what has been said so far:\n\n${transcript}\n\nAnswer in exactly 2-3 short sentences. Max 200 characters total. Be direct and specific. No preamble, no "based on the transcript" qualifiers. Just answer the question. If the transcript doesn't cover it, say so in one sentence. Do not make things up. Return ONLY a JSON object: { "answer": "..." }`;
+  let entitiesBlock = "";
+  if (sessionEntities && sessionEntities.length > 0) {
+    entitiesBlock = "\n\nExtracted entities and ingredients from this session:\n" +
+      sessionEntities.map(e => `- ${e.term} (${e.type})${e.description ? ': ' + e.description : ''}`).join("\n");
+  }
+
+  let insightsBlock = "";
+  if (sessionInsights && sessionInsights.length > 0) {
+    insightsBlock = "\n\nExtracted insights from this session:\n" +
+      sessionInsights.map(i => `- ${i.insight}${i.detail ? ': ' + i.detail : ''}`).join("\n");
+  }
+
+  const systemPrompt = `You are a helpful assistant answering questions about a video the user is watching. The video is titled: "${title}".
+
+You have access to both the full session transcript and a list of named entities and ingredients that were extracted from it. Use both sources when answering. Do not say something was not covered if it appears in the entities list.
+
+Here is the transcript of what has been said so far:
+
+${transcript}${entitiesBlock}${insightsBlock}
+
+Answer in exactly 2-3 short sentences. Max 200 characters total. Be direct and specific. No preamble, no "based on the transcript" qualifiers. Just answer the question. If neither the transcript nor the entities cover it, say so in one sentence. Do not make things up. Return ONLY a JSON object: { "answer": "..." }`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

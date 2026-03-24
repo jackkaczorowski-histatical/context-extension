@@ -454,9 +454,10 @@ if (!window.__contextExtensionLoaded) {
     .ctx-ask-input::placeholder { color: #6a6a8a; }
     .ctx-ask-input:focus { border-color: rgba(90,90,255,0.4); }
     .ctx-ask-response {
-      display: none; padding: 10px 12px; font-size: 11px; color: #8a8aaa;
-      line-height: 1.5; max-height: 150px; overflow-y: auto; background: #161630;
-      border-top: 1px solid rgba(255,255,255,0.04); position: relative;
+      display: none; padding: 10px 12px; font-size: 13px; color: #e2e8f0;
+      line-height: 1.5; max-height: 200px; overflow-y: auto;
+      background: rgba(255,255,255,0.05);
+      border-top: 1px solid rgba(255,255,255,0.08); position: relative;
     }
     .ctx-ask-response.visible { display: block; }
     .ctx-ask-response::-webkit-scrollbar { width: 3px; }
@@ -530,7 +531,7 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .ctx-ask-input { background: #ffffff; border-color: rgba(0,0,0,0.12); color: #1a1a2e; }
     .light-theme .ctx-ask-input::placeholder { color: #9a9ab0; }
     .light-theme .ctx-ask-input:focus { border-color: rgba(90,90,255,0.4); }
-    .light-theme .ctx-ask-response { background: #f5f5fa; border-top-color: rgba(0,0,0,0.06); color: #5a5a7a; }
+    .light-theme .ctx-ask-response { background: rgba(0,0,0,0.03); border-top-color: rgba(0,0,0,0.08); color: #1a1a2e; }
     .light-theme .ctx-ask-response::-webkit-scrollbar-thumb { background: #d0d0e0; }
     .light-theme .ctx-ask-clear { color: #b0b0c0; }
     .light-theme .ctx-ask-clear:hover { color: #5a5a70; }
@@ -1455,14 +1456,16 @@ if (!window.__contextExtensionLoaded) {
         askResponse.classList.add('visible', 'ctx-ask-loading');
         askResponse.appendChild(askClear);
 
-        chrome.storage.local.get(['sessionTranscript', 'capturingTabTitle'], (data) => {
+        chrome.storage.local.get(['sessionTranscript', 'capturingTabTitle', 'sessionHistory'], (data) => {
           fetch('https://context-extension-zv8d.vercel.app/api/ask', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               question,
               sessionTranscript: data.sessionTranscript || '',
-              videoTitle: data.capturingTabTitle || document.title || ''
+              videoTitle: data.capturingTabTitle || document.title || '',
+              sessionEntities: (data.sessionHistory || []).filter(h => h.type !== 'insight').map(h => ({ term: h.term, type: h.type, description: h.description || '' })),
+              sessionInsights: (data.sessionHistory || []).filter(h => h.type === 'insight').map(h => ({ insight: h.term, detail: h.description || '', category: h.category || '' }))
             })
           })
           .then(res => res.ok ? res.json() : Promise.reject(res))

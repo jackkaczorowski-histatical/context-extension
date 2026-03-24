@@ -124,7 +124,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             restartAttempted = false;
             return;
           }
-          console.log('[BACKGROUND] Tab still exists, restarting capture');
+          // Validate tab is still on a video page before restarting
+          const url = tab.url || '';
+          if (!url.includes('youtube.com/watch') && !url.includes('youtu.be')) {
+            console.log('[BACKGROUND] Tab navigated away from video, aborting restart. URL:', url);
+            restartAttempted = false;
+            return;
+          }
+          console.log('[BACKGROUND] Tab still on video, restarting capture');
           startCapture();
         });
       }, 2000);
@@ -214,6 +221,7 @@ async function startCapture() {
       activeTabId: tab.id,
       activeTabUrl: tab.url,
       capturingTabTitle: capturingTabTitle,
+      capturing: true,
       sessionStart: Date.now(),
       currentSessionId: sessionId
     });

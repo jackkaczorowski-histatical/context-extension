@@ -60,6 +60,16 @@ function stopUsageTimer() {
   }
 }
 
+// Reinject content script on YouTube tab navigations (SPA won't re-trigger content_scripts)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && tab.url.includes('youtube.com')) {
+    chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    }).catch(() => {});
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
     startCapture();
@@ -211,6 +221,11 @@ async function startCapture() {
       console.error('[BACKGROUND] No active tab found');
       return;
     }
+
+    // Force-inject content script in case it didn't autoload
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    } catch (e) { /* already injected or no access */ }
 
     capturingTabId = tab.id;
     capturingTabTitle = tab.title || '';

@@ -115,11 +115,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       setTimeout(() => {
         if (!tabToRestart) {
           console.log('[BACKGROUND] No tab to restart, aborting');
+          restartAttempted = false;
           return;
         }
         chrome.tabs.get(tabToRestart, (tab) => {
           if (chrome.runtime.lastError || !tab) {
             console.log('[BACKGROUND] Tab', tabToRestart, 'no longer exists, aborting restart');
+            restartAttempted = false;
             return;
           }
           console.log('[BACKGROUND] Tab still exists, restarting capture');
@@ -439,7 +441,7 @@ async function processNextTranscript() {
     const depth = (storageData.extensionSettings && storageData.extensionSettings.depth) || 2;
     const knownTerms = Object.values(storageData.knowledgeBase || {}).map(e => e.term);
 
-    // Step 1: Analyze (up to 3 attempts)
+    // Step 1: Analyze (up to 3 attempts, handles both HTTP errors and network failures)
     const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms });
     const retryDelays = [0, 2000, 4000];
     let analyzeRes;
@@ -458,9 +460,17 @@ async function processNextTranscript() {
           body: analyzeBody,
           signal: controller.signal
         });
-      } finally {
+      } catch (fetchErr) {
         clearTimeout(timeout);
+        console.log(`[BACKGROUND] Analyze network error on attempt ${attempt + 1}/3:`, fetchErr.message);
+        if (attempt === 2) {
+          console.log('[BACKGROUND] Analyze failed after 3 attempts (network) — skipping');
+          processNextTranscript();
+          return;
+        }
+        continue;
       }
+      clearTimeout(timeout);
       if (analyzeRes.ok) {
         if (attempt > 0) console.log(`[BACKGROUND] Analyze retry succeeded on attempt ${attempt + 1}`);
         break;

@@ -475,7 +475,7 @@ async function processNextTranscript() {
         console.log(`[BACKGROUND] Analyze network error on attempt ${attempt + 1}/3:`, fetchErr.message);
         if (attempt === 2) {
           console.log('[BACKGROUND] Analyze failed after 3 attempts (network) — skipping');
-          processNextTranscript();
+          scheduleNext();
           return;
         }
         continue;
@@ -487,7 +487,7 @@ async function processNextTranscript() {
       }
       if (attempt === 2) {
         console.log('[BACKGROUND] Analyze failed after 3 attempts, status:', analyzeRes.status, '— skipping');
-        processNextTranscript();
+        scheduleNext();
         return;
       }
     }
@@ -500,7 +500,7 @@ async function processNextTranscript() {
 
     if (entities.length === 0 && insights.length === 0) {
       console.log('[BACKGROUND] No entities or insights found, skipping');
-      processNextTranscript();
+      scheduleNext();
       return;
     }
 
@@ -584,7 +584,7 @@ async function processNextTranscript() {
 
     if (dedupedEntities.length === 0 && dedupedInsights.length === 0) {
       console.log('[BACKGROUND] All entities and insights filtered by dedup, skipping');
-      processNextTranscript();
+      scheduleNext();
       return;
     }
 
@@ -645,6 +645,10 @@ async function processNextTranscript() {
     console.error('[BACKGROUND] Processing error:', err.message || err);
   }
 
-  // Process next transcript in queue
-  processNextTranscript();
+  // Process next transcript in queue with rate limiting
+  scheduleNext();
+}
+
+function scheduleNext() {
+  setTimeout(() => processNextTranscript(), transcriptQueue.length > 0 ? 1000 : 0);
 }

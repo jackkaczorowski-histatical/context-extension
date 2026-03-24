@@ -96,6 +96,11 @@ module.exports = async function handler(req, res) {
 
     if (!response.ok) {
       const errBody = await response.text();
+      const status = response.status;
+      if (status === 529 || status === 503 || status === 429) {
+        Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+        return res.status(503).json({ error: "overloaded", retry: true });
+      }
       throw new Error(errBody);
     }
 

@@ -295,6 +295,20 @@ if (!window.__contextExtensionLoaded) {
       pointer-events: none; opacity: 0; transition: opacity 0.2s;
     }
     .ctx-export-tooltip.visible { opacity: 1; }
+    .ctx-export-menu {
+      display: none; position: absolute; bottom: 100%; right: 0;
+      background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 4px 0; z-index: 50;
+      min-width: 170px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .ctx-export-menu.visible { display: block; }
+    .ctx-export-menu-item {
+      display: block; width: 100%; padding: 8px 14px; font-size: 12px;
+      color: #e2e8f0; background: none; border: none; text-align: left;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .ctx-export-menu-item:hover { background: rgba(255,255,255,0.05); }
     @keyframes ctx-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
@@ -1634,7 +1648,7 @@ if (!window.__contextExtensionLoaded) {
           <span class="ctx-live-text">Live</span>
         </div>
         <button class="ctx-clear-btn" title="Clear cards">&#x1F5D1;</button>
-        <button class="ctx-export-btn" title="Copy study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button>
+        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
         <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
       </div>
     `;
@@ -1652,18 +1666,67 @@ if (!window.__contextExtensionLoaded) {
       try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
     });
 
-    // Wire up export button
-    header.querySelector('.ctx-export-btn').addEventListener('click', () => {
+    // Wire up export menu
+    const exportBtn = header.querySelector('.ctx-export-btn');
+    const exportMenu = header.querySelector('.ctx-export-menu');
+
+    exportBtn.addEventListener('click', (e) => {
+      if (e.target.closest('.ctx-export-menu-item')) return;
+      e.stopPropagation();
+      exportMenu.classList.toggle('visible');
+    });
+
+    // Close menu when clicking outside
+    sidebar.addEventListener('click', (e) => {
+      if (!e.target.closest('.ctx-export-btn')) {
+        exportMenu.classList.remove('visible');
+      }
+    });
+
+    function getStudyGuideData(callback) {
       chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase', 'activeTabUrl'], (data) => {
         const history = data.sessionHistory || [];
         const title = data.capturingTabTitle || document.title || 'Untitled';
         const guide = generateStudyGuide(title, history, data.knowledgeBase || {}, data.activeTabUrl || window.location.href);
+        callback({ guide, title });
+      });
+    }
 
+    exportMenu.querySelector('[data-action="clipboard"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu.classList.remove('visible');
+      getStudyGuideData(({ guide }) => {
         navigator.clipboard.writeText(guide).then(() => {
           const tooltip = header.querySelector('.ctx-export-tooltip');
           tooltip.classList.add('visible');
           setTimeout(() => tooltip.classList.remove('visible'), 1500);
         });
+      });
+    });
+
+    exportMenu.querySelector('[data-action="gmail"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu.classList.remove('visible');
+      getStudyGuideData(({ guide, title }) => {
+        const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
+          encodeURIComponent(title) + '&body=' + encodeURIComponent(guide);
+        window.open(gmailUrl, '_blank');
+      });
+    });
+
+    exportMenu.querySelector('[data-action="download"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu.classList.remove('visible');
+      getStudyGuideData(({ guide, title }) => {
+        const blob = new Blob([guide], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const safeTitle = title.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-').slice(0, 40);
+        a.download = `context-${safeTitle}-${dateStr}.txt`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
     });
 
@@ -2485,12 +2548,13 @@ if (!window.__contextExtensionLoaded) {
           if (newInsights.length > 0) {
             console.log('[CONTENT] storage.onChanged: pendingInsights updated with', newInsights.length, 'insights');
             ensureSidebar();
+            showCardsHideEmpty();
             const cards = shadowRoot.getElementById('cards');
             if (cards) {
               newInsights.forEach(insight => {
                 const card = createInsightCard(insight);
                 cards.prepend(card);
-                if (typeof addToNotes === 'function') addToNotes(card);
+                addToNotes(card);
               });
             }
             chrome.storage.local.remove('pendingInsights');
@@ -2550,12 +2614,13 @@ if (!window.__contextExtensionLoaded) {
           if (pollInsights.length > 0) {
             console.log('[CONTENT] Polling fallback found', pollInsights.length, 'insights');
             ensureSidebar();
+            showCardsHideEmpty();
             const cards = shadowRoot.getElementById('cards');
             if (cards) {
               pollInsights.forEach(insight => {
                 const card = createInsightCard(insight);
                 cards.prepend(card);
-                if (typeof addToNotes === 'function') addToNotes(card);
+                addToNotes(card);
               });
             }
             chrome.storage.local.remove('pendingInsights');

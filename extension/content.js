@@ -1094,9 +1094,14 @@ if (!window.__contextExtensionLoaded) {
     return '<a class="card-shop-link" href="' + href + '" target="_blank" rel="noopener">Shop on Amazon &#x2197;</a>';
   }
 
+  function insightKey(text) {
+    return (text || '').toLowerCase().replace(/\s+/g, '').slice(0, 40);
+  }
+
   function createInsightCard(insight) {
     const card = document.createElement('div');
     card.className = 'context-card insight-card';
+    card.dataset.insightKey = insightKey(insight.insight || '');
     card.style.borderLeftColor = '#f59e0b';
     const vt = formatVideoTime();
     const category = escapeHtml(insight.category || 'insight');
@@ -2552,6 +2557,11 @@ if (!window.__contextExtensionLoaded) {
             const cards = shadowRoot.getElementById('cards');
             if (cards) {
               newInsights.forEach(insight => {
+                const key = insightKey(insight.insight || '');
+                if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
+                  console.log('[CONTENT] Skipping duplicate insight card:', key);
+                  return;
+                }
                 const card = createInsightCard(insight);
                 cards.prepend(card);
                 addToNotes(card);
@@ -2618,6 +2628,11 @@ if (!window.__contextExtensionLoaded) {
             const cards = shadowRoot.getElementById('cards');
             if (cards) {
               pollInsights.forEach(insight => {
+                const key = insightKey(insight.insight || '');
+                if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
+                  console.log('[CONTENT] Skipping duplicate insight card (poll):', key);
+                  return;
+                }
                 const card = createInsightCard(insight);
                 cards.prepend(card);
                 addToNotes(card);

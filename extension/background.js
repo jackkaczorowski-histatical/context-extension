@@ -549,6 +549,12 @@ async function processNextTranscript() {
       return !isDup;
     });
 
+    // Immediately register deduped entities so the next queued chunk sees them
+    dedupedEntities.forEach(e => {
+      const term = (e.term || e.name || '').toLowerCase().replace(/s$/, '');
+      if (term) sessionEntities.push(term);
+    });
+
     // Fuzzy dedup insights, limit to 1 per chunk
     function normalizeInsight(s) {
       return s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
@@ -646,10 +652,8 @@ async function processNextTranscript() {
       })
     );
 
-    // Step 3: Save entities to storage (content script picks them up via onChanged)
-    console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
-    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now(), pendingSessionId: sessionId });
-    // Calculate elapsed seconds since session start for timestamped study guide
+    // Step 3: Build history entries, then save everything to storage
+    // (sessionEntities and sessionInsights were already pushed synchronously after dedup)
     const sessionStartData = await chrome.storage.local.get('sessionStart');
     const elapsedSeconds = sessionStartData.sessionStart ? Math.floor((Date.now() - sessionStartData.sessionStart) / 1000) : 0;
 
@@ -657,21 +661,22 @@ async function processNextTranscript() {
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
       if (term) {
-        sessionEntities.push(term.toLowerCase().replace(/s$/, ''));
         newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', elapsedSeconds });
       }
     });
     dedupedInsights.forEach(i => {
       newHistoryEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail, category: i.category, elapsedSeconds });
     });
-    // Append to sessionHistory in storage
+
+    // Save pending entities/insights for content script (onChanged) and append to sessionHistory
+    console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage');
     const histData = await chrome.storage.local.get('sessionHistory');
     const history = histData.sessionHistory || [];
     history.push(...newHistoryEntries);
-    await chrome.storage.local.set({ sessionHistory: history });
+    await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now(), pendingSessionId: sessionId, sessionHistory: history });
     incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
     sessionTotal += enrichedEntities.length + dedupedInsights.length;
-    console.log('[BACKGROUND] Saved', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage, session total:', sessionTotal);
+    console.log('[BACKGROUND] Saved to storage, session total:', sessionTotal);
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);
   }

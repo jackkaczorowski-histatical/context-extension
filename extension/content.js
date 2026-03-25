@@ -29,14 +29,14 @@ if (!window.__contextExtensionLoaded) {
   const isYouTubeSite = window.location.hostname.includes('youtube.com');
 
   const TYPE_COLORS = {
-    event: '#ff9500',
-    concept: '#7070ff',
-    person: '#00d4aa',
-    people: '#00d4aa',
+    event: '#6366f1',
+    concept: '#6366f1',
+    person: '#6366f1',
+    people: '#6366f1',
     stock: '#00e676',
-    organization: '#4d9fff',
-    commodity: '#ff9500',
-    ingredient: '#10b981'
+    organization: '#6366f1',
+    commodity: '#6366f1',
+    ingredient: '#6366f1'
   };
 
   function toggleCardExpand(card) {
@@ -138,13 +138,17 @@ if (!window.__contextExtensionLoaded) {
     return div.innerHTML;
   }
 
-  function formatTime(date) {
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    const mins = minutes < 10 ? '0' + minutes : minutes;
-    return `${hours}:${mins} ${ampm}`;
+  function formatVideoTime() {
+    const elapsed = lastSessionStart ? Date.now() - lastSessionStart : 0;
+    const totalSec = Math.floor(elapsed / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = String(totalSec % 60).padStart(2, '0');
+    return { display: `${mins}:${secs}`, seconds: totalSec };
+  }
+
+  function seekVideo(seconds) {
+    const video = document.querySelector('video');
+    if (video) { video.currentTime = seconds; }
   }
 
   function truncateHeadline(text, maxChars = 80) {
@@ -252,8 +256,12 @@ if (!window.__contextExtensionLoaded) {
       background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.08);
       -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
       mask-image: linear-gradient(to right, black 70%, transparent 100%);
+      transition: background 0.5s ease, opacity 0.3s ease;
     }
     #transcript-strip.visible { display: block; }
+    #transcript-strip.flash { background: rgba(99,102,241,0.15); }
+    #transcript-strip.paused { opacity: 0.4; }
+    .ctx-silence-indicator { color: #64748b; font-style: normal; margin-left: 6px; }
     #cards {
       flex: 1; overflow-y: auto; padding: 0; background: #12121c; display: none;
     }
@@ -285,7 +293,8 @@ if (!window.__contextExtensionLoaded) {
       flex: 1; min-width: 0;
       white-space: normal; word-break: normal; overflow-wrap: normal;
     }
-    .card-time { font-size: 10px; color: #4a4a5a; flex-shrink: 0; }
+    .card-time { font-size: 11px; color: #64748b; flex-shrink: 0; cursor: pointer; text-decoration: none; }
+    .card-time:hover { text-decoration: underline; }
     .card-seen { font-size: 9px; color: #4a4a5a; flex-shrink: 0; }
     .card-rectx { font-size: 9px; color: #7070ff; flex-shrink: 0; }
     .context-card.recontextualized { border-left-color: #7070ff; background: rgba(112, 112, 255, 0.04); }
@@ -364,6 +373,16 @@ if (!window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
+    .card-preview-text { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-more-pill {
+      display: none; font-size: 10px; color: #6366f1; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      opacity: 0; transition: opacity 0.3s ease;
+    }
+    .context-card:not(.expanded):not(.insight-card):hover .card-more-pill { display: block; opacity: 1; }
+    .context-card.salience-background .card-more-pill { display: none !important; }
+    .context-card.salience-background { opacity: 0.65; border-left-color: transparent !important; }
+    .context-card.salience-background .card-term { font-size: 12px; }
+    .context-card.salience-background .card-type { font-size: 10px; }
     .context-card.insight-card { border-left-color: #f59e0b; background: rgba(245,158,11,0.04); }
     .context-card.insight-card:hover { background: rgba(245,158,11,0.08); }
     .insight-icon { font-size: 11px; margin-right: 4px; }
@@ -445,6 +464,31 @@ if (!window.__contextExtensionLoaded) {
       font-size: 10px; color: #5a5a7a; line-height: 1.6;
     }
 
+    /* ─── Tab bar ─── */
+    .ctx-tab-bar {
+      display: flex; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
+    }
+    .ctx-tab {
+      font-size: 12px; font-weight: 600; padding: 8px 16px; cursor: pointer;
+      color: #64748b; border-bottom: 2px solid transparent; transition: color 0.2s;
+      background: none; border-top: none; border-left: none; border-right: none; font-family: inherit;
+      position: relative;
+    }
+    .ctx-tab.active { color: #f8fafc; border-bottom-color: #6366f1; }
+    .ctx-tab-dot {
+      display: none; width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
+      position: absolute; top: 6px; right: 6px;
+    }
+    .ctx-tab-dot.visible { display: block; }
+    /* ─── Suggested questions ─── */
+    .ctx-suggestions { display: none; padding: 6px 12px; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+    .ctx-suggestions.visible { display: flex; }
+    .ctx-suggestion-pill {
+      background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);
+      color: #a5b4fc; font-size: 11px; padding: 4px 10px; border-radius: 12px;
+      cursor: pointer; font-family: inherit; transition: opacity 0.3s ease, background 0.15s;
+    }
+    .ctx-suggestion-pill:hover { background: rgba(99,102,241,0.25); }
     /* ─── Ask bar ─── */
     .ctx-ask-bar {
       flex-shrink: 0; padding: 10px 12px; background: #161630;
@@ -862,6 +906,7 @@ if (!window.__contextExtensionLoaded) {
           reactions.push({ term: key, type: entity.type || 'other', reaction, timestamp: Date.now() });
           chrome.storage.local.set({ cardReactions: reactions });
         });
+        if (reaction === 'new' && typeof addToNotes === 'function') addToNotes(card);
         card.classList.add('reacted');
         setTimeout(() => {
           card.classList.remove('expanded');
@@ -899,7 +944,7 @@ if (!window.__contextExtensionLoaded) {
     const card = document.createElement('div');
     card.className = 'context-card insight-card';
     card.style.borderLeftColor = '#f59e0b';
-    const timestamp = formatTime(new Date());
+    const vt = formatVideoTime();
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
     const shortInsight = truncateHeadline(insightText, 47);
@@ -910,7 +955,7 @@ if (!window.__contextExtensionLoaded) {
       <div class="card-row">
         <span class="insight-category">\u{1F4A1} ${category}</span>
         <span class="card-term" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; display:inline-block; vertical-align:middle;">${escapeHtml(shortInsight)}</span>
-        <span class="card-time">${timestamp}</span>
+        <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>
       <div class="card-expand-area">
@@ -921,6 +966,8 @@ if (!window.__contextExtensionLoaded) {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('a')) return;
+      const timeEl = e.target.closest('.card-time');
+      if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
     });
 
@@ -935,7 +982,7 @@ if (!window.__contextExtensionLoaded) {
 
     const ticker = escapeHtml(entity.ticker || '');
     const companyName = escapeHtml(entity.companyName || entity.name || '');
-    const timestamp = formatTime(new Date());
+    const vt = formatVideoTime();
 
     let expandContent;
     if (entity.price != null && entity.price !== '') {
@@ -963,7 +1010,7 @@ if (!window.__contextExtensionLoaded) {
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
         <span class="card-term">${ticker}</span>
-        <span class="card-time">${timestamp}</span>
+        <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>
       <div class="card-expand-area">${expandContent}</div>
@@ -971,6 +1018,8 @@ if (!window.__contextExtensionLoaded) {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-actions') || e.target.closest('a')) return;
+      const timeEl = e.target.closest('.card-time');
+      if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
     });
 
@@ -1001,8 +1050,9 @@ if (!window.__contextExtensionLoaded) {
     } else {
       card.style.borderLeftColor = color;
     }
+    if (entity.salience === 'background') card.classList.add('salience-background');
 
-    const timestamp = formatTime(new Date());
+    const vt = formatVideoTime();
     const typeLabel = (type || 'OTHER').toUpperCase();
     const termText = escapeHtml(capitalizeTerm(entity.term || entity.name || ''));
 
@@ -1018,14 +1068,19 @@ if (!window.__contextExtensionLoaded) {
       ? '<div class="card-source">Previously seen in: ' + escapeHtml(entity._kbSource) + '</div>'
       : (entity._kbSource ? '<div class="card-source">Also came up in: ' + escapeHtml(entity._kbSource) + '</div>' : '');
 
+    const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
+    const morePill = entity.salience !== 'background' ? '<span class="card-more-pill">More \u2192</span>' : '';
+
     card.innerHTML = `
       <div class="card-row">
         ${typeBadge}
         <span class="card-term">${termText}</span>
         ${seenTag}
-        <span class="card-time">${timestamp}</span>
+        <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>
+      ${previewDesc ? `<div class="card-preview-text">${escapeHtml(previewDesc)}</div>` : ''}
+      ${morePill}
       <div class="card-expand-area">
         <div class="card-desc"></div>
         ${sourceLine}
@@ -1087,6 +1142,8 @@ if (!window.__contextExtensionLoaded) {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-actions') || e.target.closest('a')) return;
+      const timeEl = e.target.closest('.card-time');
+      if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
 
       if (card.classList.contains('expanded') && !descFetched) {
@@ -1359,7 +1416,80 @@ if (!window.__contextExtensionLoaded) {
     emptyState.innerHTML = `
       <div class="ctx-waveform"><span></span><span></span><span></span><span></span></div>
       <div class="ctx-empty-text">Listening for context...</div>
+      <div id="empty-kb-matches" style="margin-top:12px;width:100%;max-width:240px;"></div>
     `;
+
+    // Smart empty state: show KB matches from previous sessions
+    chrome.storage.local.get(['knowledgeBase', 'capturingTabTitle'], (data) => {
+      const kb = data.knowledgeBase || {};
+      const title = (data.capturingTabTitle || '').toLowerCase();
+      const titleWords = title.split(/\s+/).filter(w => w.length > 3);
+      const matchContainer = emptyState.querySelector('#empty-kb-matches');
+      if (!matchContainer) return;
+
+      if (titleWords.length > 0 && Object.keys(kb).length > 0) {
+        const matches = Object.values(kb).filter(e => {
+          const src = (e.source || '').toLowerCase();
+          return titleWords.some(w => src.includes(w));
+        }).slice(0, 3);
+
+        if (matches.length > 0) {
+          matchContainer.innerHTML = '<div style="font-size:10px;color:#64748b;margin-bottom:6px;">You\'ve seen before:</div>' +
+            matches.map(m => `<div style="opacity:0.5;font-size:11px;color:#94a3b8;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);">${escapeHtml(m.term)} <span style="font-size:9px;color:#475569;">from a previous session</span></div>`).join('');
+        } else {
+          matchContainer.innerHTML = '<div style="font-size:12px;color:#64748b;">Terms, people, and concepts will appear here as they\'re mentioned.</div>';
+        }
+      } else {
+        matchContainer.innerHTML = '<div style="font-size:12px;color:#64748b;">Terms, people, and concepts will appear here as they\'re mentioned.</div>';
+      }
+    });
+
+    // Tab bar
+    const tabBar = document.createElement('div');
+    tabBar.className = 'ctx-tab-bar';
+    const liveTab = document.createElement('button');
+    liveTab.className = 'ctx-tab active';
+    liveTab.textContent = 'Live';
+    const notesTab = document.createElement('button');
+    notesTab.className = 'ctx-tab';
+    notesTab.innerHTML = 'Notes<span class="ctx-tab-dot"></span>';
+    tabBar.appendChild(liveTab);
+    tabBar.appendChild(notesTab);
+
+    let activeTab = 'live';
+    const notesCards = document.createElement('div');
+    notesCards.id = 'notes-cards';
+    notesCards.style.cssText = 'flex:1;overflow-y:auto;padding:0;background:#12121c;display:none;';
+
+    liveTab.addEventListener('click', () => {
+      activeTab = 'live';
+      liveTab.classList.add('active');
+      notesTab.classList.remove('active');
+      cardContainer.style.display = hasCards ? 'block' : 'none';
+      notesCards.style.display = 'none';
+      const empty = shadowRoot.getElementById('empty-state');
+      if (empty) empty.style.display = hasCards ? 'none' : '';
+    });
+
+    notesTab.addEventListener('click', () => {
+      activeTab = 'notes';
+      notesTab.classList.add('active');
+      liveTab.classList.remove('active');
+      notesTab.querySelector('.ctx-tab-dot').classList.remove('visible');
+      cardContainer.style.display = 'none';
+      notesCards.style.display = 'block';
+      const empty = shadowRoot.getElementById('empty-state');
+      if (empty) empty.style.display = 'none';
+    });
+
+    function addToNotes(card) {
+      const clone = card.cloneNode(true);
+      clone.classList.remove('missed', 'missed-glow', 'reacted');
+      notesCards.prepend(clone);
+      if (activeTab !== 'notes') {
+        notesTab.querySelector('.ctx-tab-dot').classList.add('visible');
+      }
+    }
 
     // "What did I miss?" bar
     const missedBar = document.createElement('div');
@@ -1434,6 +1564,48 @@ if (!window.__contextExtensionLoaded) {
       askResponse.classList.remove('visible');
     });
 
+    // Suggested questions
+    const suggestionsBar = document.createElement('div');
+    suggestionsBar.className = 'ctx-suggestions';
+    let suggestionsTimer = null;
+    let suggestionsOffset = 0;
+
+    function generateSuggestionQ(entity) {
+      const t = (entity.type || '').toLowerCase();
+      const term = entity.term || '';
+      if (t === 'person' || t === 'people') return `Who was ${term} and why did they matter?`;
+      if (t === 'event') return `What caused ${term}?`;
+      if (t === 'ingredient') return `Why use ${term} here?`;
+      return `How did ${term} work?`;
+    }
+
+    function updateSuggestions() {
+      chrome.storage.local.get('sessionHistory', (data) => {
+        const history = (data.sessionHistory || []).filter(h => h.type !== 'insight');
+        if (history.length < 10) { suggestionsBar.classList.remove('visible'); return; }
+        const top = history.filter(h => h.term).slice(-6);
+        if (top.length === 0) return;
+        suggestionsBar.innerHTML = '';
+        const shown = top.slice(suggestionsOffset % top.length, (suggestionsOffset % top.length) + 2);
+        const pills = shown.length > 0 ? shown : top.slice(0, 2);
+        pills.forEach(ent => {
+          const pill = document.createElement('button');
+          pill.className = 'ctx-suggestion-pill';
+          const q = generateSuggestionQ(ent);
+          pill.textContent = q.length > 45 ? q.slice(0, 42) + '...' : q;
+          pill.addEventListener('click', () => {
+            askInput.value = q;
+            askInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+          });
+          suggestionsBar.appendChild(pill);
+        });
+        suggestionsBar.classList.add('visible');
+        suggestionsOffset++;
+      });
+    }
+
+    suggestionsTimer = setInterval(updateSuggestions, 30000);
+
     // Ask bar
     const askBar = document.createElement('div');
     askBar.className = 'ctx-ask-bar';
@@ -1501,12 +1673,15 @@ if (!window.__contextExtensionLoaded) {
 
     sidebar.appendChild(header);
     sidebar.appendChild(transcriptStrip);
+    sidebar.appendChild(tabBar);
     sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
     sidebar.appendChild(previewCard);
     sidebar.appendChild(emptyState);
     sidebar.appendChild(cardContainer);
+    sidebar.appendChild(notesCards);
     sidebar.appendChild(askResponse);
+    sidebar.appendChild(suggestionsBar);
     sidebar.appendChild(askBar);
     shadowRoot.appendChild(sidebar);
     document.body.appendChild(hostEl);
@@ -1522,7 +1697,11 @@ if (!window.__contextExtensionLoaded) {
     hasCards = true;
     const empty = shadowRoot.getElementById('empty-state');
     const cards = shadowRoot.getElementById('cards');
-    if (empty) empty.style.display = 'none';
+    if (empty) {
+      empty.style.transition = 'opacity 0.2s ease';
+      empty.style.opacity = '0';
+      setTimeout(() => { empty.style.display = 'none'; }, 200);
+    }
     if (cards) cards.style.display = 'block';
   }
 
@@ -1696,6 +1875,9 @@ if (!window.__contextExtensionLoaded) {
       showToast(limited[0]);
     }
 
+    // Update suggested questions
+    if (typeof updateSuggestions === 'function') updateSuggestions();
+
     // Track last entity term (skip insights) and reset ask idle timer
     const lastEntity = limited.find(e => (e.type || '').toLowerCase() !== 'insight');
     if (lastEntity) {
@@ -1713,6 +1895,29 @@ if (!window.__contextExtensionLoaded) {
         const last40 = text.slice(-120);
         strip.textContent = last40;
         strip.classList.toggle('visible', text.length > 0);
+
+        // Flash on new transcript
+        strip.classList.remove('paused');
+        strip.classList.add('flash');
+        setTimeout(() => strip.classList.remove('flash'), 500);
+
+        // Update listening dot speed
+        const liDot = shadowRoot.querySelector('#listening-indicator .li-dot');
+        if (liDot) liDot.style.animationDuration = '0.8s';
+
+        // Reset silence timer
+        if (window.__ctxSilenceTimer) clearTimeout(window.__ctxSilenceTimer);
+        window.__ctxSilenceTimer = setTimeout(() => {
+          strip.classList.add('paused');
+          // Remove old indicator
+          const old = strip.querySelector('.ctx-silence-indicator');
+          if (old) old.remove();
+          const ind = document.createElement('span');
+          ind.className = 'ctx-silence-indicator';
+          ind.textContent = '\u00B7 silence detected';
+          strip.appendChild(ind);
+          if (liDot) liDot.style.animationDuration = '2s';
+        }, 8000);
       }
     }
     if (changes.sessionStart && changes.sessionStart.newValue) {
@@ -1929,6 +2134,7 @@ if (!window.__contextExtensionLoaded) {
               newInsights.forEach(insight => {
                 const card = createInsightCard(insight);
                 cards.prepend(card);
+                if (typeof addToNotes === 'function') addToNotes(card);
               });
             }
             chrome.storage.local.remove('pendingInsights');
@@ -1993,6 +2199,7 @@ if (!window.__contextExtensionLoaded) {
               pollInsights.forEach(insight => {
                 const card = createInsightCard(insight);
                 cards.prepend(card);
+                if (typeof addToNotes === 'function') addToNotes(card);
               });
             }
             chrome.storage.local.remove('pendingInsights');

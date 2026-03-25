@@ -113,13 +113,102 @@ function initMainPopup() {
       toggleBtn.classList.add('active');
       statusText.textContent = 'Live';
       statusBadge.classList.add('active');
+      startDashboard();
     } else {
       toggleBtn.textContent = 'Start listening';
       toggleBtn.classList.remove('active');
       statusText.textContent = 'Ready';
       statusBadge.classList.remove('active');
+      stopDashboard();
+      updateLastSessionInfo();
     }
   }
+
+  // --- Session dashboard ---
+  const sessionDashboard = document.getElementById('sessionDashboard');
+  const dashVideoTitle = document.getElementById('dashVideoTitle');
+  const dashStats = document.getElementById('dashStats');
+  const dashTimer = document.getElementById('dashTimer');
+  const lastSessionInfo = document.getElementById('lastSessionInfo');
+  let timerInterval = null;
+
+  function truncateTitle(title, max) {
+    if (!title) return 'Untitled';
+    if (title.length <= max) return title;
+    return title.slice(0, max) + '...';
+  }
+
+  function formatDuration(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function updateDashboardStats() {
+    chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'sessionStart'], (data) => {
+      const history = data.sessionHistory || [];
+      const title = data.capturingTabTitle || 'Untitled';
+      dashVideoTitle.textContent = truncateTitle(title, 40);
+
+      let cards = 0, insights = 0, ingredients = 0;
+      history.forEach(entry => {
+        if (entry.type === 'insight') insights++;
+        else if (entry.type === 'ingredient') ingredients++;
+        else cards++;
+      });
+      const parts = [];
+      parts.push(`<strong>${cards}</strong> card${cards !== 1 ? 's' : ''}`);
+      parts.push(`<strong>${insights}</strong> insight${insights !== 1 ? 's' : ''}`);
+      if (ingredients > 0) parts.push(`<strong>${ingredients}</strong> ingredient${ingredients !== 1 ? 's' : ''}`);
+      dashStats.innerHTML = parts.join(' · ');
+
+      if (data.sessionStart) {
+        const elapsed = Date.now() - data.sessionStart;
+        dashTimer.textContent = formatDuration(elapsed);
+      }
+    });
+  }
+
+  function startDashboard() {
+    lastSessionInfo.classList.remove('visible');
+    sessionDashboard.classList.add('visible');
+    updateDashboardStats();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateDashboardStats, 1000);
+  }
+
+  function stopDashboard() {
+    sessionDashboard.classList.remove('visible');
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function updateLastSessionInfo() {
+    chrome.storage.local.get(['sessionHistory', 'capturingTabTitle'], (data) => {
+      const history = data.sessionHistory || [];
+      if (history.length === 0) {
+        lastSessionInfo.classList.remove('visible');
+        return;
+      }
+      const title = truncateTitle(data.capturingTabTitle || 'Untitled', 35);
+      lastSessionInfo.innerHTML = `Last: <strong>${title}</strong> — ${history.length} term${history.length !== 1 ? 's' : ''}`;
+      lastSessionInfo.classList.add('visible');
+    });
+  }
+
+  // Show last session info on load if not capturing
+  if (!isActive) updateLastSessionInfo();
+
+  chrome.storage.onChanged.addListener((changes) => {
+    if (isActive && (changes.sessionHistory || changes.capturingTabTitle)) {
+      updateDashboardStats();
+    }
+  });
 
   // --- Weekly digest ---
   const digestCard = document.getElementById('digestCard');
@@ -289,9 +378,9 @@ function initMainPopup() {
   const exportGuideBtn = document.getElementById('exportGuideBtn');
 
   const TYPE_COLORS = {
-    event: '#ff9500', concept: '#7070ff', person: '#00d4aa',
-    people: '#00d4aa', stock: '#00e676', organization: '#4d9fff',
-    commodity: '#ff9500'
+    event: '#6366f1', concept: '#6366f1', person: '#6366f1',
+    people: '#6366f1', stock: '#00e676', organization: '#6366f1',
+    commodity: '#6366f1', ingredient: '#6366f1'
   };
 
   function updateRecapSection() {

@@ -147,6 +147,13 @@ if (!window.__contextExtensionLoaded) {
     return `${hours}:${mins} ${ampm}`;
   }
 
+  function truncateHeadline(text, maxChars = 80) {
+    if (!text || text.length <= maxChars) return text;
+    const truncated = text.slice(0, maxChars);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return (lastSpace > 60 ? truncated.slice(0, lastSpace) : truncated) + '\u2026';
+  }
+
   function firstSentence(str) {
     if (!str) return '';
     const idx = str.indexOf('.');
@@ -895,8 +902,8 @@ if (!window.__contextExtensionLoaded) {
     const timestamp = formatTime(new Date());
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
-    const shortInsight = insightText.length > 50 ? insightText.slice(0, 47) + '...' : insightText;
-    const displayHeadline = insightText.length > 80 ? insightText.slice(0, 80) + '\u2026' : insightText;
+    const shortInsight = truncateHeadline(insightText, 47);
+    const displayHeadline = truncateHeadline(insightText);
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
@@ -945,7 +952,7 @@ if (!window.__contextExtensionLoaded) {
       `;
     } else {
       const stockDesc = firstSentence(entity.description || '');
-      const displayStockDesc = stockDesc.length > 80 ? stockDesc.slice(0, 80) + '\u2026' : stockDesc;
+      const displayStockDesc = truncateHeadline(stockDesc);
       expandContent = `
         <div class="stock-company">${companyName}</div>
         ${displayStockDesc ? `<div class="card-desc">${escapeHtml(displayStockDesc)}</div>` : ''}
@@ -1072,7 +1079,7 @@ if (!window.__contextExtensionLoaded) {
       descFetched = true;
       const descEl = card.querySelector('.card-desc');
       const rawDesc = firstSentence(inlineDesc);
-      const desc = rawDesc.length > 80 ? rawDesc.slice(0, 80) + '\u2026' : rawDesc;
+      const desc = truncateHeadline(rawDesc);
       descEl.textContent = desc;
       saveDescToHistory(desc);
       saveDescToKB(desc);
@@ -1093,7 +1100,7 @@ if (!window.__contextExtensionLoaded) {
           const kbEntry = kb[termName.toLowerCase()];
           if (kbEntry && kbEntry.description) {
             descEl.classList.remove('card-desc-loading');
-            const displayDesc = kbEntry.description.length > 80 ? kbEntry.description.slice(0, 80) + '\u2026' : kbEntry.description;
+            const displayDesc = truncateHeadline(kbEntry.description);
             descEl.textContent = displayDesc;
             saveDescToHistory(kbEntry.description);
             return;
@@ -1113,7 +1120,7 @@ if (!window.__contextExtensionLoaded) {
           .then(contextData => {
             descEl.classList.remove('card-desc-loading');
             const rawDesc = firstSentence(contextData.description || '');
-            const desc = rawDesc.length > 80 ? rawDesc.slice(0, 80) + '\u2026' : rawDesc;
+            const desc = truncateHeadline(rawDesc);
             descEl.textContent = desc;
             saveDescToHistory(desc);
             saveDescToKB(desc);

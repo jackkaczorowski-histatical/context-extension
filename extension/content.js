@@ -164,6 +164,28 @@ if (!window.__contextExtensionLoaded) {
     return (lastSpace > 60 ? truncated.slice(0, lastSpace) : truncated) + '\u2026';
   }
 
+  let activeTooltip = null;
+  function showCardTooltip(card, fullText) {
+    hideCardTooltip();
+    const tip = document.createElement('div');
+    tip.className = 'ctx-card-tooltip';
+    tip.textContent = fullText;
+    card.style.position = card.style.position || 'relative';
+    card.appendChild(tip);
+    activeTooltip = tip;
+  }
+  function hideCardTooltip() {
+    if (activeTooltip && activeTooltip.parentNode) {
+      activeTooltip.parentNode.removeChild(activeTooltip);
+    }
+    activeTooltip = null;
+  }
+  function attachTruncationTooltip(card, fullText, displayedText) {
+    if (!fullText || fullText.length <= (displayedText || '').length) return;
+    card.addEventListener('mouseenter', () => showCardTooltip(card, fullText));
+    card.addEventListener('mouseleave', hideCardTooltip);
+  }
+
   function generateCardPNG(entity) {
     const term = entity.term || entity.name || '';
     const type = (entity.type || 'other').toUpperCase();
@@ -479,6 +501,12 @@ if (!window.__contextExtensionLoaded) {
     .card-share-btn:hover { color: #f8fafc; }
     .context-card.expanded .card-share-btn { display: block; }
     .card-preview-text { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ctx-card-tooltip {
+      position: absolute; background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #e2e8f0;
+      max-width: 240px; z-index: 9999; pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4); line-height: 1.4; word-wrap: break-word;
+    }
     .card-more-pill {
       display: none; font-size: 10px; color: #6366f1; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
       opacity: 0; transition: opacity 0.3s ease;
@@ -1124,6 +1152,19 @@ if (!window.__contextExtensionLoaded) {
       </div>
     `;
 
+    // Title attributes for native tooltips on truncated elements
+    const termEl = card.querySelector('.card-term');
+    if (termEl) termEl.setAttribute('title', insightText);
+    const catEl = card.querySelector('.insight-category');
+    if (catEl) catEl.setAttribute('title', insight.category || 'insight');
+    if (detail) {
+      const detailEl = card.querySelector('.insight-detail');
+      if (detailEl) detailEl.setAttribute('title', insight.detail);
+    }
+
+    // Custom styled tooltip for truncated headline
+    attachTruncationTooltip(card, insightText, shortInsight);
+
     card.querySelector('.card-share-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       generateCardPNG({ term: insightText, type: 'insight', description: insight.detail || '' });
@@ -1181,6 +1222,14 @@ if (!window.__contextExtensionLoaded) {
       </div>
       <div class="card-expand-area">${expandContent}</div>
     `;
+
+    // Title attributes for native tooltips
+    const stockDescEl = card.querySelector('.card-desc');
+    if (stockDescEl) {
+      const fullStockDesc = firstSentence(entity.description || '');
+      stockDescEl.setAttribute('title', fullStockDesc);
+      attachTruncationTooltip(card, fullStockDesc, stockDescEl.textContent);
+    }
 
     card.querySelector('.card-share-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1260,6 +1309,20 @@ if (!window.__contextExtensionLoaded) {
         <button class="card-tellmore">Tell me more</button>
       </div>
     `;
+
+    // Title attributes for native tooltips on truncated elements
+    const fullTermText = entity.term || entity.name || '';
+    const termElG = card.querySelector('.card-term');
+    if (termElG) termElG.setAttribute('title', fullTermText);
+    const previewEl = card.querySelector('.card-preview-text');
+    if (previewEl) previewEl.setAttribute('title', entity.description || '');
+    const sourceEl = card.querySelector('.card-source');
+    if (sourceEl) sourceEl.setAttribute('title', sourceEl.textContent);
+
+    // Custom styled tooltip for truncated preview description
+    if (entity.description && previewDesc) {
+      attachTruncationTooltip(card, entity.description, previewDesc);
+    }
 
     card.querySelector('.card-share-btn').addEventListener('click', (e) => {
       e.stopPropagation();

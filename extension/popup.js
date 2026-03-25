@@ -292,6 +292,11 @@ function initMainPopup() {
     showPreferences();
   });
 
+  // --- Knowledge graph ---
+  document.getElementById('graphBtn').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('graph.html') });
+  });
+
   // --- Settings panel ---
   const settingsGearBtn = document.getElementById('settingsGearBtn');
   const settingsPanel = document.getElementById('settingsPanel');

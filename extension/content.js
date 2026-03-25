@@ -147,8 +147,14 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function seekVideo(seconds) {
-    const video = document.querySelector('video');
-    if (video) { video.currentTime = seconds; }
+    try {
+      // Spotify blocks programmatic seek
+      if (window.location.hostname.includes('spotify.com')) return;
+      const video = document.querySelector('video');
+      if (video) { video.currentTime = seconds; }
+    } catch (e) {
+      console.log('[CONTENT] Seek failed:', e.message);
+    }
   }
 
   function truncateHeadline(text, maxChars = 80) {
@@ -156,6 +162,84 @@ if (!window.__contextExtensionLoaded) {
     const truncated = text.slice(0, maxChars);
     const lastSpace = truncated.lastIndexOf(' ');
     return (lastSpace > 60 ? truncated.slice(0, lastSpace) : truncated) + '\u2026';
+  }
+
+  function generateCardPNG(entity) {
+    const term = entity.term || entity.name || '';
+    const type = (entity.type || 'other').toUpperCase();
+    const desc = entity.description || entity.detail || '';
+    const color = getTypeColor(entity.type);
+    const videoTitle = document.title || '';
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const w = 600;
+
+    // Measure text to determine height
+    ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    const headlineLines = wrapText(ctx, term, w - 60);
+    ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    const descLines = desc ? wrapText(ctx, desc, w - 60) : [];
+    const h = Math.max(200, 40 + headlineLines.length * 32 + (descLines.length > 0 ? descLines.length * 20 + 16 : 0) + 50);
+
+    canvas.width = w;
+    canvas.height = h;
+
+    // Background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, w, h);
+
+    // Type label
+    ctx.fillStyle = color;
+    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.fillText(type, 30, 35);
+
+    // Headline
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    let y = 65;
+    headlineLines.forEach(line => { ctx.fillText(line, 30, y); y += 32; });
+
+    // Description
+    if (descLines.length > 0) {
+      y += 8;
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+      descLines.forEach(line => { ctx.fillText(line, 30, y); y += 20; });
+    }
+
+    // Footer
+    ctx.fillStyle = '#475569';
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    const footer = 'via Context Listener' + (videoTitle ? '  \u00B7  ' + videoTitle.slice(0, 50) : '');
+    ctx.fillText(footer, 30, h - 20);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `context-${term.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+  }
+
+  function wrapText(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
   }
 
   function firstSentence(str) {
@@ -373,6 +457,13 @@ if (!window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
+    .card-share-btn {
+      position: absolute; top: 8px; right: 12px; background: none; border: none;
+      color: #64748b; font-size: 14px; cursor: pointer; padding: 2px 4px;
+      line-height: 1; transition: color 0.15s; display: none; z-index: 2;
+    }
+    .card-share-btn:hover { color: #f8fafc; }
+    .context-card.expanded .card-share-btn { display: block; }
     .card-preview-text { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .card-more-pill {
       display: none; font-size: 10px; color: #6366f1; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
@@ -392,6 +483,24 @@ if (!window.__contextExtensionLoaded) {
     }
     .insight-text { font-size: 12px; color: #e0e0f0; font-weight: 500; line-height: 1.4; margin-top: 2px; }
     .insight-detail { font-size: 11px; color: #9a9ab0; line-height: 1.5; margin-top: 4px; }
+    .ctx-quiz-pill {
+      display: inline-block; background: rgba(99,102,241,0.12); color: #6366f1;
+      border: none; border-radius: 12px; padding: 4px 12px; font-size: 11px;
+      cursor: pointer; font-family: inherit; margin-top: 6px; transition: background 0.15s;
+    }
+    .ctx-quiz-pill:hover { background: rgba(99,102,241,0.22); }
+    .ctx-quiz-inline { margin-top: 8px; }
+    .ctx-quiz-inline-q { font-size: 12px; color: #e0e0f0; font-weight: 500; margin-bottom: 6px; }
+    .ctx-quiz-inline-opt {
+      display: block; width: 100%; text-align: left; background: #1e1e38;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;
+      padding: 6px 10px; margin-bottom: 4px; font-size: 11px; color: #e0e0f0;
+      cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+    }
+    .ctx-quiz-inline-opt:hover { border-color: rgba(99,102,241,0.4); }
+    .ctx-quiz-inline-opt.correct { border-color: #00e676; background: rgba(0,230,118,0.1); }
+    .ctx-quiz-inline-opt.wrong { border-color: #ff5252; background: rgba(255,82,82,0.1); }
+    .ctx-quiz-check { color: #00e676; font-size: 12px; margin-left: 4px; }
     .ctx-quiz-btn {
       background: rgba(99,102,241,0.15); color: #6366f1; border: none;
       border-radius: 12px; padding: 8px 16px; font-size: 12px; cursor: pointer;
@@ -610,6 +719,37 @@ if (!window.__contextExtensionLoaded) {
       padding: 0; font-family: inherit;
     }
     .ctx-session-summary-dismiss:hover { color: #5a5a7a; }
+    .ctx-notion-btn {
+      background: rgba(255,255,255,0.07); color: #e0e0f0; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; padding: 6px 14px; font-size: 11px;
+      cursor: pointer; margin-top: 6px; font-family: inherit; transition: background 0.15s;
+    }
+    .ctx-notion-btn:hover { background: rgba(255,255,255,0.12); }
+    .ctx-notion-modal {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85); z-index: 200; display: flex;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .ctx-notion-modal-inner {
+      background: #1e1e38; border-radius: 12px; padding: 20px; width: 100%; max-width: 260px;
+    }
+    .ctx-notion-modal-title { font-size: 13px; font-weight: 600; color: #e0e0f0; margin-bottom: 12px; }
+    .ctx-notion-modal-input {
+      width: 100%; height: 32px; background: #12121c;
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+      padding: 0 8px; font-size: 11px; color: #e0e0f0;
+      font-family: inherit; outline: none; margin-bottom: 8px;
+    }
+    .ctx-notion-modal-input::placeholder { color: #6a6a8a; }
+    .ctx-notion-modal-save {
+      width: 100%; height: 32px; background: #6366f1; color: #fff; border: none;
+      border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+      font-family: inherit; margin-top: 4px;
+    }
+    .ctx-notion-modal-cancel {
+      display: block; width: 100%; text-align: center; font-size: 10px; color: #64748b;
+      cursor: pointer; margin-top: 8px; background: none; border: none; font-family: inherit;
+    }
     .light-theme .ctx-session-summary { background: #f0f0fa; border-color: rgba(90,90,255,0.12); }
     .light-theme .ctx-session-summary-header { color: #1a1a2e; }
     .light-theme .ctx-session-summary-stats { color: #5a5a7a; }
@@ -952,6 +1092,7 @@ if (!window.__contextExtensionLoaded) {
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
+      <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         <span class="insight-category">\u{1F4A1} ${category}</span>
         <span class="card-term" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; display:inline-block; vertical-align:middle;">${escapeHtml(shortInsight)}</span>
@@ -964,8 +1105,13 @@ if (!window.__contextExtensionLoaded) {
       </div>
     `;
 
+    card.querySelector('.card-share-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      generateCardPNG({ term: insightText, type: 'insight', description: insight.detail || '' });
+    });
+
     card.addEventListener('click', (e) => {
-      if (e.target.closest('a')) return;
+      if (e.target.closest('a') || e.target.closest('.card-share-btn')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
@@ -1007,6 +1153,7 @@ if (!window.__contextExtensionLoaded) {
     }
 
     card.innerHTML = `
+      <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
         <span class="card-term">${ticker}</span>
@@ -1016,8 +1163,13 @@ if (!window.__contextExtensionLoaded) {
       <div class="card-expand-area">${expandContent}</div>
     `;
 
+    card.querySelector('.card-share-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      generateCardPNG(entity);
+    });
+
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-actions') || e.target.closest('a')) return;
+      if (e.target.closest('.card-actions') || e.target.closest('a') || e.target.closest('.card-share-btn')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
@@ -1072,6 +1224,7 @@ if (!window.__contextExtensionLoaded) {
     const morePill = entity.salience !== 'background' ? '<span class="card-more-pill">More \u2192</span>' : '';
 
     card.innerHTML = `
+      <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         ${typeBadge}
         <span class="card-term">${termText}</span>
@@ -1088,6 +1241,12 @@ if (!window.__contextExtensionLoaded) {
         <button class="card-tellmore">Tell me more</button>
       </div>
     `;
+
+    card.querySelector('.card-share-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const descEl = card.querySelector('.card-desc');
+      generateCardPNG({ ...entity, description: descEl ? descEl.textContent : entity.description });
+    });
 
     // Inject shop link for eligible generic cards
     chrome.storage.local.get('capturingTabTitle', (data) => {
@@ -1280,7 +1439,23 @@ if (!window.__contextExtensionLoaded) {
     }).join(' ');
   }
 
-  function generateStudyGuide(title, history, kb) {
+  function formatTimestamp(sec) {
+    if (!sec && sec !== 0) return '';
+    const m = Math.floor(sec / 60);
+    const s = String(sec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function getVideoIdFromUrl(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes('youtube.com')) return u.searchParams.get('v') || '';
+      if (u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+    } catch (e) {}
+    return '';
+  }
+
+  function generateStudyGuide(title, history, kb, videoUrl) {
     kb = kb || {};
     history.forEach(entry => {
       if (!entry.description) {
@@ -1288,6 +1463,14 @@ if (!window.__contextExtensionLoaded) {
         if (kbEntry && kbEntry.description) entry.description = kbEntry.description;
       }
     });
+
+    const videoId = getVideoIdFromUrl(videoUrl || '');
+    function tsLink(sec) {
+      if (!sec && sec !== 0) return '';
+      const ts = formatTimestamp(sec);
+      if (videoId) return `[${ts}](https://youtube.com/watch?v=${videoId}&t=${sec})`;
+      return `[${ts}]`;
+    }
 
     const insightEntries = history.filter(entry => (entry.type || '').toLowerCase() === 'insight');
     const entityEntries = history.filter(entry => (entry.type || '').toLowerCase() !== 'insight');
@@ -1301,8 +1484,11 @@ if (!window.__contextExtensionLoaded) {
       grouped[label].push(entry);
     });
 
-    let guide = `# Study Guide: ${title}\n\n`;
-    const sectionOrder = ['People', 'Events', 'Concepts', 'Organizations', 'Stocks', 'Commodities'];
+    let guide = `# Study Guide: ${title}\n`;
+    if (videoUrl) guide += `${videoUrl}\n`;
+    guide += '\n';
+
+    const sectionOrder = ['People', 'Events', 'Concepts', 'Organizations', 'Stocks', 'Commodities', 'Ingredients'];
     const sortedKeys = Object.keys(grouped).sort((a, b) => {
       const ia = sectionOrder.indexOf(a), ib = sectionOrder.indexOf(b);
       return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
@@ -1311,7 +1497,8 @@ if (!window.__contextExtensionLoaded) {
       guide += `## ${label}\n`;
       grouped[label].forEach(ent => {
         const term = capitalizeTerm(ent.term);
-        guide += `- **${term}**${ent.description ? ' — ' + ent.description : ''}\n`;
+        const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
+        guide += `- ${ts}**${term}**${ent.description ? ' — ' + ent.description : ''}\n`;
       });
       guide += '\n';
     });
@@ -1319,7 +1506,8 @@ if (!window.__contextExtensionLoaded) {
     if (insightEntries.length > 0) {
       guide += `## Insights & Tips\n`;
       insightEntries.forEach(ent => {
-        guide += `- \u{1F4A1} **${ent.term}**${ent.description ? ' — ' + ent.description : ''}\n`;
+        const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
+        guide += `- ${ts}\u{1F4A1} **${ent.term}**${ent.description ? ' — ' + ent.description : ''}\n`;
       });
       guide += '\n';
     }
@@ -1343,6 +1531,75 @@ if (!window.__contextExtensionLoaded) {
 
     guide += `---\nGenerated by Context Listener`;
     return guide;
+  }
+
+  function exportToNotion(sidebar, history, title, videoUrl) {
+    chrome.storage.local.get(['notionToken', 'notionDatabaseId'], (data) => {
+      if (data.notionToken && data.notionDatabaseId) {
+        doNotionExport(data.notionToken, data.notionDatabaseId, history, title, videoUrl, sidebar);
+      } else {
+        showNotionModal(sidebar, (token, dbId) => {
+          chrome.storage.local.set({ notionToken: token, notionDatabaseId: dbId });
+          doNotionExport(token, dbId, history, title, videoUrl, sidebar);
+        });
+      }
+    });
+  }
+
+  function showNotionModal(sidebar, onSave) {
+    const modal = document.createElement('div');
+    modal.className = 'ctx-notion-modal';
+    modal.innerHTML = `
+      <div class="ctx-notion-modal-inner">
+        <div class="ctx-notion-modal-title">Connect Notion</div>
+        <input class="ctx-notion-modal-input" id="notion-token-input" type="text" placeholder="Notion integration token">
+        <input class="ctx-notion-modal-input" id="notion-db-input" type="text" placeholder="Database ID">
+        <button class="ctx-notion-modal-save">Save & Export</button>
+        <button class="ctx-notion-modal-cancel">Cancel</button>
+      </div>
+    `;
+    modal.querySelector('.ctx-notion-modal-save').addEventListener('click', () => {
+      const token = modal.querySelector('#notion-token-input').value.trim();
+      const dbId = modal.querySelector('#notion-db-input').value.trim();
+      if (token && dbId) {
+        modal.remove();
+        onSave(token, dbId);
+      }
+    });
+    modal.querySelector('.ctx-notion-modal-cancel').addEventListener('click', () => modal.remove());
+    // Stop keyboard events from leaking
+    modal.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('keydown', e => e.stopPropagation());
+      inp.addEventListener('keyup', e => e.stopPropagation());
+      inp.addEventListener('keypress', e => e.stopPropagation());
+    });
+    sidebar.appendChild(modal);
+  }
+
+  function doNotionExport(token, databaseId, history, title, videoUrl, sidebar) {
+    const entities = history.filter(h => h.type !== 'insight');
+    const insights = history.filter(h => h.type === 'insight');
+    const btn = sidebar.querySelector('.ctx-notion-btn');
+    if (btn) { btn.textContent = 'Exporting...'; btn.disabled = true; }
+
+    fetch('https://context-extension-zv8d.vercel.app/api/notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, databaseId, title, entities, insights, videoUrl })
+    })
+    .then(res => res.ok ? res.json() : Promise.reject(res))
+    .then(data => {
+      if (btn) {
+        btn.textContent = data.success ? 'Exported!' : 'Failed';
+        setTimeout(() => { btn.textContent = 'Export to Notion'; btn.disabled = false; }, 2000);
+      }
+    })
+    .catch(() => {
+      if (btn) {
+        btn.textContent = 'Export failed';
+        setTimeout(() => { btn.textContent = 'Export to Notion'; btn.disabled = false; }, 2000);
+      }
+    });
   }
 
   function ensureSidebar() {
@@ -1397,10 +1654,10 @@ if (!window.__contextExtensionLoaded) {
 
     // Wire up export button
     header.querySelector('.ctx-export-btn').addEventListener('click', () => {
-      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase'], (data) => {
+      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase', 'activeTabUrl'], (data) => {
         const history = data.sessionHistory || [];
         const title = data.capturingTabTitle || document.title || 'Untitled';
-        const guide = generateStudyGuide(title, history, data.knowledgeBase || {});
+        const guide = generateStudyGuide(title, history, data.knowledgeBase || {}, data.activeTabUrl || window.location.href);
 
         navigator.clipboard.writeText(guide).then(() => {
           const tooltip = header.querySelector('.ctx-export-tooltip');
@@ -1418,6 +1675,35 @@ if (!window.__contextExtensionLoaded) {
       <div class="ctx-empty-text">Listening for context...</div>
       <div id="empty-kb-matches" style="margin-top:12px;width:100%;max-width:240px;"></div>
     `;
+
+    // Pre-analysis briefing (Prompt 7)
+    const briefingContainer = document.createElement('div');
+    briefingContainer.id = 'empty-briefing';
+    briefingContainer.style.cssText = 'margin-top:12px;width:100%;max-width:240px;transition:opacity 0.3s ease;';
+    emptyState.appendChild(briefingContainer);
+
+    chrome.storage.local.get(['capturingTabTitle', 'knowledgeBase', 'capturing'], (briefData) => {
+      if (!briefData.capturing) return;
+      const videoTitle = briefData.capturingTabTitle || document.title || '';
+      if (!videoTitle) return;
+      const descEl = document.querySelector('#description-inner');
+      const videoDescription = descEl ? descEl.textContent.slice(0, 500) : '';
+      const knownTerms = Object.values(briefData.knowledgeBase || {}).map(e => e.term).slice(0, 50);
+
+      fetch('https://context-extension-zv8d.vercel.app/api/brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoTitle, videoDescription, knownTerms })
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data || !data.bullets || data.bullets.length === 0) return;
+        if (hasCards) return; // Cards already arrived
+        briefingContainer.innerHTML = '<div style="font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:6px;">Before you watch:</div>' +
+          data.bullets.map(b => `<div style="font-size:12px;color:#64748b;padding:3px 0;padding-left:12px;position:relative;"><span style="position:absolute;left:0;">\u2022</span>${escapeHtml(b)}</div>`).join('');
+      })
+      .catch(() => {});
+    });
 
     // Smart empty state: show KB matches from previous sessions
     chrome.storage.local.get(['knowledgeBase', 'capturingTabTitle'], (data) => {
@@ -1485,10 +1771,70 @@ if (!window.__contextExtensionLoaded) {
     function addToNotes(card) {
       const clone = card.cloneNode(true);
       clone.classList.remove('missed', 'missed-glow', 'reacted');
+      clone.dataset.addedAt = Date.now().toString();
       notesCards.prepend(clone);
       if (activeTab !== 'notes') {
         notesTab.querySelector('.ctx-tab-dot').classList.add('visible');
       }
+      // Schedule quiz pill after 5 minutes
+      const termEl = clone.querySelector('.card-term');
+      const term = termEl ? termEl.textContent.trim() : '';
+      const typeEl = clone.querySelector('.card-type') || clone.querySelector('.insight-category');
+      const type = typeEl ? typeEl.textContent.replace(/[^a-zA-Z]/g, '').toLowerCase() : 'concept';
+      const descEl = clone.querySelector('.card-desc') || clone.querySelector('.insight-detail');
+      const desc = descEl ? descEl.textContent : '';
+      if (term) {
+        setTimeout(() => {
+          if (clone.dataset.quizzed) return;
+          const pill = document.createElement('button');
+          pill.className = 'ctx-quiz-pill';
+          pill.textContent = 'Test yourself \u2192';
+          pill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pill.remove();
+            clone.dataset.quizzed = 'true';
+            loadInlineQuiz(clone, term, type, desc);
+          });
+          clone.appendChild(pill);
+        }, 300000); // 5 minutes
+      }
+    }
+
+    function loadInlineQuiz(card, term, type, desc) {
+      fetch('https://context-extension-zv8d.vercel.app/api/quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entities: [{ term, type, description: desc }], title: document.title })
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        const questions = (data && data.questions) || [];
+        if (questions.length === 0) return;
+        const q = questions[0];
+        const quizEl = document.createElement('div');
+        quizEl.className = 'ctx-quiz-inline';
+        quizEl.innerHTML = `<div class="ctx-quiz-inline-q">${escapeHtml(q.question)}</div>` +
+          q.options.map((opt, i) => `<button class="ctx-quiz-inline-opt" data-idx="${i}">${escapeHtml(opt)}</button>`).join('');
+        quizEl.querySelectorAll('.ctx-quiz-inline-opt').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const chosen = parseInt(btn.dataset.idx);
+            quizEl.querySelectorAll('.ctx-quiz-inline-opt').forEach(b => { b.style.pointerEvents = 'none'; });
+            if (chosen === q.correct) {
+              btn.classList.add('correct');
+              const check = document.createElement('span');
+              check.className = 'ctx-quiz-check';
+              check.textContent = ' \u2713';
+              card.querySelector('.card-term').appendChild(check);
+            } else {
+              btn.classList.add('wrong');
+              quizEl.querySelectorAll('.ctx-quiz-inline-opt')[q.correct].classList.add('correct');
+            }
+          });
+        });
+        card.appendChild(quizEl);
+      })
+      .catch(() => {});
     }
 
     // "What did I miss?" bar
@@ -1697,6 +2043,9 @@ if (!window.__contextExtensionLoaded) {
     hasCards = true;
     const empty = shadowRoot.getElementById('empty-state');
     const cards = shadowRoot.getElementById('cards');
+    // Fade out briefing
+    const briefing = empty ? empty.querySelector('#empty-briefing') : null;
+    if (briefing) { briefing.style.opacity = '0'; }
     if (empty) {
       empty.style.transition = 'opacity 0.2s ease';
       empty.style.opacity = '0';
@@ -1982,6 +2331,7 @@ if (!window.__contextExtensionLoaded) {
               ${knownCount} previously known
             </div>
             <button class="ctx-session-summary-export">Export study guide</button>
+            <button class="ctx-notion-btn">Export to Notion</button>
             <button class="ctx-quiz-btn">Test yourself</button>
             ${watchNextHTML}
             <button class="ctx-session-summary-dismiss">Dismiss</button>
@@ -1989,12 +2339,18 @@ if (!window.__contextExtensionLoaded) {
 
           summaryEl.querySelector('.ctx-session-summary-export').addEventListener('click', (e) => {
             e.stopPropagation();
-            const guide = generateStudyGuide(title, history, kb);
+            const guide = generateStudyGuide(title, history, kb, window.location.href);
             navigator.clipboard.writeText(guide).then(() => {
               const btn = summaryEl.querySelector('.ctx-session-summary-export');
               btn.textContent = 'Copied!';
               setTimeout(() => { btn.textContent = 'Export study guide'; }, 1500);
             });
+          });
+
+          summaryEl.querySelector('.ctx-notion-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const sidebar = shadowRoot.getElementById('sidebar');
+            if (sidebar) exportToNotion(sidebar, history, title, window.location.href);
           });
 
           summaryEl.querySelector('.ctx-quiz-btn').addEventListener('click', (e) => {

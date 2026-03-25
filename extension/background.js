@@ -60,9 +60,16 @@ function stopUsageTimer() {
   }
 }
 
-// Reinject content script on YouTube tab navigations (SPA won't re-trigger content_scripts)
+const SUPPORTED_PLATFORMS = ['youtube.com', 'youtu.be', 'open.spotify.com', 'udemy.com/course', 'podcasts.google.com', 'soundcloud.com', 'anchor.fm', 'buzzsprout.com'];
+
+function isSupportedUrl(url) {
+  if (!url) return false;
+  return SUPPORTED_PLATFORMS.some(p => url.includes(p));
+}
+
+// Reinject content script on supported platform navigations (SPA won't re-trigger content_scripts)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url && tab.url.includes('youtube.com')) {
+  if (changeInfo.status === 'complete' && tab.url && isSupportedUrl(tab.url)) {
     chrome.scripting.executeScript({
       target: { tabId },
       files: ['content.js']
@@ -135,10 +142,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             restartAttempted = false;
             return;
           }
-          // Validate tab is still on a video page before restarting
+          // Validate tab is still on a supported page before restarting
           const url = tab.url || '';
-          if (!url.includes('youtube.com/watch') && !url.includes('youtu.be')) {
-            console.log('[BACKGROUND] Tab navigated away from video, aborting restart. URL:', url);
+          if (!isSupportedUrl(url)) {
+            console.log('[BACKGROUND] Tab navigated away from supported platform, aborting restart. URL:', url);
             restartAttempted = false;
             return;
           }
@@ -441,7 +448,7 @@ async function processNextTranscript() {
 
   try {
     // Fetch user profile and engagement history for analyze request
-    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase', 'cardReactions']);
+    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase', 'cardReactions', 'typeCalibration', 'difficultyProfile']);
     const userProfile = storageData.userProfile || null;
 
     // Build taste profile from engagement history
@@ -463,11 +470,16 @@ async function processNextTranscript() {
     });
     const reactionProfile = reactionCounts;
 
+    // Build typeCalibration from reactions (Prompt 6)
+    const typeCalibration = storageData.typeCalibration || {};
+    // Build difficultyProfile from reactions (Prompt 10)
+    const difficultyProfile = storageData.difficultyProfile || {};
+
     const depth = (storageData.extensionSettings && storageData.extensionSettings.depth) || 2;
     const knownTerms = Object.values(storageData.knowledgeBase || {}).map(e => e.term);
 
     // Step 1: Analyze (up to 3 attempts, handles both HTTP errors and network failures)
-    const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms });
+    const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms, typeCalibration, difficultyProfile });
     const retryDelays = [0, 2000, 4000];
     let analyzeRes;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -637,16 +649,20 @@ async function processNextTranscript() {
     // Step 3: Save entities to storage (content script picks them up via onChanged)
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities to storage');
     await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now(), pendingSessionId: sessionId });
+    // Calculate elapsed seconds since session start for timestamped study guide
+    const sessionStartData = await chrome.storage.local.get('sessionStart');
+    const elapsedSeconds = sessionStartData.sessionStart ? Math.floor((Date.now() - sessionStartData.sessionStart) / 1000) : 0;
+
     const newHistoryEntries = [];
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
       if (term) {
         sessionEntities.push(term.toLowerCase().replace(/s$/, ''));
-        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '' });
+        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', elapsedSeconds });
       }
     });
     dedupedInsights.forEach(i => {
-      newHistoryEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail, category: i.category });
+      newHistoryEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail, category: i.category, elapsedSeconds });
     });
     // Append to sessionHistory in storage
     const histData = await chrome.storage.local.get('sessionHistory');
@@ -667,3 +683,42 @@ async function processNextTranscript() {
 function scheduleNext() {
   setTimeout(() => processNextTranscript(), transcriptQueue.length > 0 ? 1000 : 0);
 }
+
+// --- Reaction-driven calibration (Prompts 6 & 10) ---
+chrome.storage.onChanged.addListener((changes) => {
+  if (!changes.cardReactions) return;
+  const reactions = changes.cardReactions.newValue || [];
+  if (reactions.length === 0) return;
+
+  // Build typeCalibration: { concept: { knewThis: N, tooAdvanced: N }, ... }
+  const typeCal = {};
+  reactions.forEach(r => {
+    const type = (r.type || 'other').toLowerCase();
+    if (!typeCal[type]) typeCal[type] = { knewThis: 0, tooAdvanced: 0, newToMe: 0 };
+    if (r.reaction === 'known') typeCal[type].knewThis++;
+    else if (r.reaction === 'advanced') typeCal[type].tooAdvanced++;
+    else if (r.reaction === 'new') typeCal[type].newToMe++;
+  });
+
+  // Build difficultyProfile: { tooEasy: [...], tooHard: [...], balanced: [...] }
+  const diffProfile = { tooEasy: [], tooHard: [], balanced: [] };
+  for (const [type, counts] of Object.entries(typeCal)) {
+    const total = counts.knewThis + counts.tooAdvanced + counts.newToMe;
+    if (total < 5) continue;
+    if (counts.knewThis > 0 && counts.tooAdvanced > 0) {
+      const knewRatio = counts.knewThis / counts.tooAdvanced;
+      const advRatio = counts.tooAdvanced / counts.knewThis;
+      if (knewRatio > 3) diffProfile.tooEasy.push(type);
+      else if (advRatio > 2) diffProfile.tooHard.push(type);
+      else diffProfile.balanced.push(type);
+    } else if (counts.knewThis >= 5) {
+      diffProfile.tooEasy.push(type);
+    } else if (counts.tooAdvanced >= 5) {
+      diffProfile.tooHard.push(type);
+    } else {
+      diffProfile.balanced.push(type);
+    }
+  }
+
+  chrome.storage.local.set({ typeCalibration: typeCal, difficultyProfile: diffProfile });
+});

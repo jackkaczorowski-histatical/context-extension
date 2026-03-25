@@ -147,6 +147,15 @@ async function connectAndStream(stream) {
       if (data.is_final && data.channel?.alternatives?.[0]?.transcript) {
         const transcript = data.channel.alternatives[0].transcript.trim();
         if (transcript.length > 0) {
+          // Confidence score filtering
+          const words = data.channel.alternatives[0].words || [];
+          if (words.length > 0) {
+            const avgConfidence = words.reduce((sum, w) => sum + (w.confidence || 1), 0) / words.length;
+            if (avgConfidence < 0.75 && transcript.length < 150) {
+              console.log(`[OFFSCREEN] Low confidence chunk skipped (avg: ${avgConfidence.toFixed(3)})`);
+              return;
+            }
+          }
           console.log('[OFFSCREEN] Transcript:', transcript);
           try { chrome.runtime.sendMessage({ type: 'TRANSCRIPT', transcript }); } catch (e) {}
         }

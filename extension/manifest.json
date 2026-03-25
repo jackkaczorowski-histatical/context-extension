@@ -12,7 +12,11 @@
   ],
   "host_permissions": [
     "https://context-extension-zv8d.vercel.app/*",
-    "wss://api.deepgram.com/*"
+    "wss://api.deepgram.com/*",
+    "*://*.spotify.com/*",
+    "*://*.udemy.com/*",
+    "*://*.soundcloud.com/*",
+    "*://*.podcasts.google.com/*"
   ],
   "background": {
     "service_worker": "background.js"

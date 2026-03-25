@@ -10,7 +10,42 @@ function formatCounts(counts) {
   return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
 }
 
-function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms, reactionProfile) {
+function buildCalibrationInstructions(typeCalibration) {
+  if (!typeCalibration || typeof typeCalibration !== 'object') return '';
+  const instructions = [];
+  for (const [type, counts] of Object.entries(typeCalibration)) {
+    const knew = counts.knewThis || 0;
+    const advanced = counts.tooAdvanced || 0;
+    if (knew > 0 && advanced > 0) {
+      const knewRatio = knew / advanced;
+      const advancedRatio = advanced / knew;
+      if (knewRatio > 3) {
+        instructions.push(`For '${type}' entities: the user already knows most basics. Extract fewer common ${type} terms and focus on more specific or deeper sub-concepts.`);
+      } else if (advancedRatio > 2) {
+        instructions.push(`For '${type}' entities: the user finds these challenging. Add more foundational context to descriptions and prefer simpler terminology.`);
+      }
+    } else if (knew > 3 && advanced === 0) {
+      instructions.push(`For '${type}' entities: the user already knows most basics. Extract fewer common ${type} terms and focus on more specific or deeper sub-concepts.`);
+    } else if (advanced > 2 && knew === 0) {
+      instructions.push(`For '${type}' entities: the user finds these challenging. Add more foundational context to descriptions and prefer simpler terminology.`);
+    }
+  }
+  return instructions.length > 0 ? '\n\nDifficulty calibration based on user reactions:\n' + instructions.join('\n') : '';
+}
+
+function buildDifficultyInstructions(difficultyProfile) {
+  if (!difficultyProfile || typeof difficultyProfile !== 'object') return '';
+  const parts = [];
+  if (difficultyProfile.tooEasy && difficultyProfile.tooEasy.length > 0) {
+    parts.push(`Types the user finds too easy (go deeper): ${difficultyProfile.tooEasy.join(', ')}.`);
+  }
+  if (difficultyProfile.tooHard && difficultyProfile.tooHard.length > 0) {
+    parts.push(`Types the user finds too hard (simplify): ${difficultyProfile.tooHard.join(', ')}.`);
+  }
+  return parts.length > 0 ? '\n\nDifficulty profile: ' + parts.join(' ') : '';
+}
+
+function buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms, reactionProfile, typeCalibration, difficultyProfile) {
   const title = pageTitle || "unknown content";
   const level = knowledgeLevel || "intermediate";
   const prevList = previousEntities && previousEntities.length > 0 ? previousEntities.join(", ") : "";
@@ -54,7 +89,7 @@ SECOND CATEGORY — INSIGHTS: Beyond named terms, also extract practical knowled
 
 The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}
 
-Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|stock|organization|ingredient", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "max 100 chars" }], "insights": [{ "insight": "short summary", "detail": "one sentence explanation, max 120 chars", "category": "technique|tip|why|tradeoff" }] }. Max 5 entities and 3 insights per chunk. Return { "entities": [], "insights": [] } when nothing qualifies. It is completely fine to return empty arrays.`;
+Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|stock|organization|ingredient", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "max 100 chars" }], "insights": [{ "insight": "short summary", "detail": "one sentence explanation, max 120 chars", "category": "technique|tip|why|tradeoff" }] }. Max 5 entities and 3 insights per chunk. Return { "entities": [], "insights": [] } when nothing qualifies. It is completely fine to return empty arrays.${buildCalibrationInstructions(typeCalibration)}${buildDifficultyInstructions(difficultyProfile)}`;
 }
 
 module.exports = async function handler(req, res) {
@@ -67,7 +102,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { transcript, pageTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities, sessionContext, knownTerms } = req.body || {};
+  const { transcript, pageTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities, sessionContext, knownTerms, typeCalibration, difficultyProfile } = req.body || {};
 
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -76,7 +111,7 @@ module.exports = async function handler(req, res) {
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
   const interests = userProfile?.interests?.length > 0 ? userProfile.interests : ["Finance & Economics", "History & Culture", "Politics & Law", "Science & Technology", "Business & Markets", "Arts & Society"];
-  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms, reactionProfile);
+  const systemPrompt = buildSystemPrompt(pageTitle, knowledgeLevel, interests, tasteProfile, depth, previousEntities, sessionContext, knownTerms, reactionProfile, typeCalibration, difficultyProfile);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

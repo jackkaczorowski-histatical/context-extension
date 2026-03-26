@@ -2,6 +2,15 @@ const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 
 const SMALL_WORDS = new Set(['of', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'by', 'as', 'with']);
 
+const GENERIC_TERMS = new Set([
+  'money', 'credit', 'debt', 'income', 'spending', 'economy', 'prices',
+  'assets', 'growth', 'value', 'market', 'trade', 'cash', 'cost', 'price',
+  'profit', 'loss', 'risk', 'wages', 'salary', 'food', 'water', 'land',
+  'house', 'car', 'phone', 'energy', 'power', 'oil', 'gas', 'gold',
+  'silver', 'time', 'work', 'people', 'business', 'tax', 'taxes',
+  'loan', 'interest', 'government', 'bank', 'country', 'world'
+]);
+
 function capitalizeTerm(term) {
   if (!term) return term;
   if (term !== term.toLowerCase()) return term;
@@ -194,7 +203,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!bufferTimer) {
       bufferTimer = setTimeout(() => {
         flushTranscriptBuffer();
-      }, firstFlush ? 5000 : 8000);
+      }, firstFlush ? 3000 : 5000);
     }
   }
 });
@@ -209,7 +218,7 @@ function flushTranscriptBuffer() {
     console.log('[BACKGROUND] Buffer too short (' + text.length + ' chars), deferring flush');
     bufferTimer = setTimeout(() => {
       flushTranscriptBuffer();
-    }, 5000);
+    }, 3000);
     return;
   }
   transcriptBuffer = '';
@@ -574,6 +583,21 @@ async function processNextTranscript() {
       if (term) sessionEntities.push(term);
     });
 
+    // Filter out generic/common single-word terms
+    const filteredEntities = dedupedEntities.filter(entity => {
+      const term = (entity.term || entity.name || '').trim();
+      const words = term.split(/\s+/);
+      if (words.length === 1 && GENERIC_TERMS.has(term.toLowerCase())) {
+        console.log('[BACKGROUND] Generic term filtered:', term);
+        return false;
+      }
+      if (/^\d{4}$/.test(term)) {
+        console.log('[BACKGROUND] Year-only term filtered:', term);
+        return false;
+      }
+      return true;
+    });
+
     // Fuzzy dedup insights, limit to 1 per chunk
     function normalizeInsight(s) {
       return s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
@@ -634,15 +658,15 @@ async function processNextTranscript() {
       sessionInsights.push(dedupedInsight.insight || '');
     }
 
-    if (dedupedEntities.length === 0 && dedupedInsights.length === 0) {
-      console.log('[BACKGROUND] All entities and insights filtered by dedup, skipping');
+    if (filteredEntities.length === 0 && dedupedInsights.length === 0) {
+      console.log('[BACKGROUND] All entities and insights filtered, skipping');
       scheduleNext();
       return;
     }
 
     // Step 2: Enrich entities — stocks get price data, others pass through as-is
     const enrichedEntities = await Promise.all(
-      dedupedEntities.map(async (entity) => {
+      filteredEntities.map(async (entity) => {
         if (entity.type === 'stock') {
           try {
             const stockController = new AbortController();

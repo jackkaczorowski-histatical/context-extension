@@ -10,6 +10,30 @@ if (!window.__contextExtensionLoaded) {
   window.__contextExtensionLoaded = true;
   let isLightTheme = false;
 
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    }
+    return fallbackCopy(text);
+  }
+
+  function fallbackCopy(text) {
+    return new Promise((resolve, reject) => {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
   const DEDUP_WINDOW = 600000;
   const seenTerms = new Map();
   let lastSessionStart = null;
@@ -281,8 +305,10 @@ if (!window.__contextExtensionLoaded) {
     :host {
       display: block;
       background: #12121c;
+      isolation: isolate;
     }
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    *:focus { outline: none; }
     #sidebar {
       position: relative; width: 100%; height: 100%; background: #12121c;
       display: flex; flex-direction: column; overflow: hidden; margin: 0; padding: 0;
@@ -398,6 +424,7 @@ if (!window.__contextExtensionLoaded) {
     .ctx-silence-indicator { color: #64748b; font-style: normal; margin-left: 6px; }
     #cards {
       flex: 1; overflow-y: auto; padding: 0; background: #12121c; display: none;
+      position: relative; z-index: 1;
     }
     #cards::-webkit-scrollbar { width: 3px; }
     #cards::-webkit-scrollbar-track { background: transparent; }
@@ -507,6 +534,14 @@ if (!window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
+    .card-copy-btn {
+      background: rgba(99,102,241,0.1); color: #6366f1; border: none;
+      border-radius: 10px; padding: 3px 10px; cursor: pointer;
+      margin-top: 4px; font-size: 10px; font-family: inherit;
+      display: inline-block; transition: background 0.15s, color 0.15s;
+    }
+    .card-copy-btn:hover { background: rgba(99,102,241,0.2); }
+    .card-copy-btn.copied { color: #00e676; background: rgba(0,230,118,0.1); }
     .card-share-btn {
       position: absolute; top: 8px; right: 12px; background: none; border: none;
       color: #64748b; font-size: 14px; cursor: pointer; padding: 2px 4px;
@@ -521,12 +556,6 @@ if (!window.__contextExtensionLoaded) {
       max-width: 240px; z-index: 9999; pointer-events: none;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4); line-height: 1.4; word-wrap: break-word;
     }
-    .card-more-pill {
-      display: none; font-size: 10px; color: #6366f1; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-      opacity: 0; transition: opacity 0.3s ease;
-    }
-    .context-card:not(.expanded):not(.insight-card):hover .card-more-pill { display: block; opacity: 1; }
-    .context-card.salience-background .card-more-pill { display: none !important; }
     .context-card.salience-background { opacity: 0.65; border-left-color: transparent !important; }
     .context-card.salience-background .card-term { font-size: 12px; }
     .context-card.salience-background .card-type { font-size: 10px; }
@@ -735,6 +764,9 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
     .light-theme .card-shop-link { background: rgba(255,153,0,0.1); }
     .light-theme .card-tellmore { background: rgba(99,102,241,0.08); }
+    .light-theme .card-copy-btn { background: rgba(99,102,241,0.08); color: #6366f1; }
+    .light-theme .card-copy-btn:hover { background: rgba(99,102,241,0.15); }
+    .light-theme .card-copy-btn.copied { color: #059669; background: rgba(5,150,105,0.08); }
     .light-theme .context-card.insight-card { background: rgba(245,158,11,0.05); border-left-color: #f59e0b; }
     .light-theme .context-card.insight-card:hover { background: rgba(245,158,11,0.1); }
     .light-theme .insight-text { color: #1a1a2e; }
@@ -1159,8 +1191,9 @@ if (!window.__contextExtensionLoaded) {
         <span class="card-chevron">&#x203A;</span>
       </div>
       <div class="card-expand-area">
-        <div class="insight-text">${escapeHtml(displayHeadline)}</div>
+        <div class="insight-text">${escapeHtml(insightText)}</div>
         ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
+        <button class="card-copy-btn">Copy text</button>
       </div>
     `;
 
@@ -1174,8 +1207,18 @@ if (!window.__contextExtensionLoaded) {
       if (detailEl) detailEl.setAttribute('title', insight.detail);
     }
 
-    // Custom styled tooltip for truncated headline
-    attachTruncationTooltip(card, insightText, shortInsight);
+    card.querySelector('.card-copy-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const text = insight.insight || '';
+      const det = insight.detail || '';
+      const copyText = text + (det ? ' \u2014 ' + det : '');
+      copyToClipboard(copyText).then(() => {
+        const btn = card.querySelector('.card-copy-btn');
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy text'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
 
     card.querySelector('.card-share-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1238,9 +1281,7 @@ if (!window.__contextExtensionLoaded) {
     // Title attributes for native tooltips
     const stockDescEl = card.querySelector('.card-desc');
     if (stockDescEl) {
-      const fullStockDesc = firstSentence(entity.description || '');
-      stockDescEl.setAttribute('title', fullStockDesc);
-      attachTruncationTooltip(card, fullStockDesc, stockDescEl.textContent);
+      stockDescEl.setAttribute('title', entity.description || '');
     }
 
     card.querySelector('.card-share-btn').addEventListener('click', (e) => {
@@ -1301,7 +1342,6 @@ if (!window.__contextExtensionLoaded) {
       : (entity._kbSource ? '<div class="card-source">Also came up in: ' + escapeHtml(entity._kbSource) + '</div>' : '');
 
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
-    const morePill = entity.salience !== 'background' ? '<span class="card-more-pill">More \u2192</span>' : '';
 
     card.innerHTML = `
       <button class="card-share-btn" title="Share as image">\u2197</button>
@@ -1313,12 +1353,12 @@ if (!window.__contextExtensionLoaded) {
         <span class="card-chevron">&#x203A;</span>
       </div>
       ${previewDesc ? `<div class="card-preview-text">${escapeHtml(previewDesc)}</div>` : ''}
-      ${morePill}
       <div class="card-expand-area">
         <div class="card-desc"></div>
         ${sourceLine}
         <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia \u2192</a>
         <button class="card-tellmore">Tell me more</button>
+        <button class="card-copy-btn">Copy text</button>
       </div>
     `;
 
@@ -1331,10 +1371,19 @@ if (!window.__contextExtensionLoaded) {
     const sourceEl = card.querySelector('.card-source');
     if (sourceEl) sourceEl.setAttribute('title', sourceEl.textContent);
 
-    // Custom styled tooltip for truncated preview description
-    if (entity.description && previewDesc) {
-      attachTruncationTooltip(card, entity.description, previewDesc);
-    }
+    card.querySelector('.card-copy-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const termName = entity.term || entity.name || '';
+      const descEl = card.querySelector('.card-desc');
+      const desc = descEl ? descEl.textContent : '';
+      const copyText = termName + (desc ? ' \u2014 ' + desc : '');
+      copyToClipboard(copyText).then(() => {
+        const btn = card.querySelector('.card-copy-btn');
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy text'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
 
     card.querySelector('.card-share-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1386,11 +1435,9 @@ if (!window.__contextExtensionLoaded) {
     if (inlineDesc) {
       descFetched = true;
       const descEl = card.querySelector('.card-desc');
-      const rawDesc = firstSentence(inlineDesc);
-      const desc = truncateHeadline(rawDesc);
-      descEl.textContent = desc;
-      saveDescToHistory(desc);
-      saveDescToKB(desc);
+      descEl.textContent = inlineDesc;
+      saveDescToHistory(inlineDesc);
+      saveDescToKB(inlineDesc);
     }
 
     card.addEventListener('click', (e) => {
@@ -1410,8 +1457,7 @@ if (!window.__contextExtensionLoaded) {
           const kbEntry = kb[termName.toLowerCase()];
           if (kbEntry && kbEntry.description) {
             descEl.classList.remove('card-desc-loading');
-            const displayDesc = truncateHeadline(kbEntry.description);
-            descEl.textContent = displayDesc;
+            descEl.textContent = kbEntry.description;
             saveDescToHistory(kbEntry.description);
             return;
           }
@@ -1429,11 +1475,10 @@ if (!window.__contextExtensionLoaded) {
           .then(res => res.ok ? res.json() : Promise.reject(res))
           .then(contextData => {
             descEl.classList.remove('card-desc-loading');
-            const rawDesc = firstSentence(contextData.description || '');
-            const desc = truncateHeadline(rawDesc);
-            descEl.textContent = desc;
-            saveDescToHistory(desc);
-            saveDescToKB(desc);
+            const fullDesc = contextData.description || '';
+            descEl.textContent = fullDesc;
+            saveDescToHistory(fullDesc);
+            saveDescToKB(fullDesc);
           })
           .catch(() => {
             descEl.classList.remove('card-desc-loading');
@@ -1728,7 +1773,7 @@ if (!window.__contextExtensionLoaded) {
           <span class="ctx-live-text">Live</span>
         </div>
         <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
-        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
+        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="gdocs">Open in Google Docs</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
         <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
       </div>
     `;
@@ -1808,7 +1853,7 @@ if (!window.__contextExtensionLoaded) {
       e.stopPropagation();
       exportMenu.classList.remove('visible');
       getStudyGuideData(({ guide }) => {
-        navigator.clipboard.writeText(guide).then(() => {
+        copyToClipboard(guide).then(() => {
           const tooltip = header.querySelector('.ctx-export-tooltip');
           tooltip.classList.add('visible');
           setTimeout(() => tooltip.classList.remove('visible'), 1500);
@@ -1823,6 +1868,23 @@ if (!window.__contextExtensionLoaded) {
         const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
           encodeURIComponent(title) + '&body=' + encodeURIComponent(guide);
         window.open(gmailUrl, '_blank');
+      });
+    });
+
+    exportMenu.querySelector('[data-action="gdocs"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu.classList.remove('visible');
+      getStudyGuideData(({ guide }) => {
+        copyToClipboard(guide).then(() => {
+          window.open('https://docs.google.com/document/create', '_blank');
+          const tooltip = header.querySelector('.ctx-export-tooltip');
+          tooltip.textContent = 'Copied \u2014 paste into doc';
+          tooltip.classList.add('visible');
+          setTimeout(() => {
+            tooltip.classList.remove('visible');
+            tooltip.textContent = 'Copied!';
+          }, 3000);
+        });
       });
     });
 
@@ -2515,7 +2577,7 @@ if (!window.__contextExtensionLoaded) {
           summaryEl.querySelector('.ctx-session-summary-export').addEventListener('click', (e) => {
             e.stopPropagation();
             const guide = generateStudyGuide(title, history, kb, window.location.href);
-            navigator.clipboard.writeText(guide).then(() => {
+            copyToClipboard(guide).then(() => {
               const btn = summaryEl.querySelector('.ctx-session-summary-export');
               btn.textContent = 'Copied!';
               setTimeout(() => { btn.textContent = 'Export study guide'; }, 1500);

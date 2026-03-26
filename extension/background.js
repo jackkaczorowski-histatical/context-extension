@@ -181,6 +181,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
           console.log('[BACKGROUND] Tab still on video, restarting capture');
           startCapture();
+          restartAttempted = false;
         });
       }, 2000);
     })();

@@ -2631,56 +2631,56 @@ if (!window.__contextExtensionLoaded) {
         });
       });
     }
-    if ((changes.pendingEntities && changes.pendingEntities.newValue) || (changes.pendingInsights && changes.pendingInsights.newValue)) {
-      console.log('[CONTENT] Storage change detected, pendingEntities:', JSON.stringify(changes.pendingEntities?.newValue?.length), 'pendingInsights:', JSON.stringify(changes.pendingInsights?.newValue?.length));
-      chrome.storage.local.get('pendingSessionId', (data) => {
-        if (mySessionId && data.pendingSessionId !== mySessionId) {
-          console.log('[CONTENT] Ignoring data from different session');
-          return;
-        }
-        isActiveTab((active) => {
-          if (!active) {
-            console.log('[CONTENT] Not the captured tab, ignoring');
+    {
+      const newEntities = changes.pendingEntities?.newValue || [];
+      const newInsights = changes.pendingInsights?.newValue || [];
+      if (newEntities.length === 0 && newInsights.length === 0) { /* skip — nothing to render */ }
+      else {
+        console.log('[CONTENT] onChanged fired, entities:', newEntities.length, 'insights:', newInsights.length);
+        chrome.storage.local.get('pendingSessionId', (data) => {
+          if (mySessionId && data.pendingSessionId !== mySessionId) {
+            console.log('[CONTENT] Ignoring data from different session');
             return;
           }
-          const newEntities = changes.pendingEntities ? (changes.pendingEntities.newValue || []) : [];
-          const newInsights = changes.pendingInsights ? (changes.pendingInsights.newValue || []) : [];
-          console.log('[CONTENT] Render triggered, entities:', newEntities.length, 'insights:', newInsights.length);
-          if (newEntities.length > 0) {
-            console.log('[CONTENT] storage.onChanged: pendingEntities updated with', newEntities.length, 'entities');
-            renderCards(newEntities);
-          } else {
-            chrome.storage.local.remove('pendingEntities');
-          }
-          if (newInsights.length > 0) {
-            console.log('[CONTENT] storage.onChanged: pendingInsights updated with', newInsights.length, 'insights');
-            ensureSidebar();
-            showCardsHideEmpty();
-            const cards = shadowRoot.getElementById('cards');
-            if (cards) {
-              newInsights.forEach(insight => {
-                const key = insightKey(insight.insight || '');
-                if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
-                  console.log('[CONTENT] Skipping duplicate insight card:', key);
-                  return;
-                }
-                const card = createInsightCard(insight);
-                cards.prepend(card);
-                addToNotes(card);
-              });
+          isActiveTab((active) => {
+            if (!active) {
+              console.log('[CONTENT] Not the captured tab, ignoring');
+              return;
             }
-            chrome.storage.local.remove('pendingInsights');
-          }
-          if (newEntities.length === 0 && newInsights.length === 0) {
+            // Render entities if any
+            if (newEntities.length > 0) {
+              console.log('[CONTENT] Rendering', newEntities.length, 'entities');
+              renderCards(newEntities);
+            }
+            // Render insights if any — completely independent of entities
+            if (newInsights.length > 0) {
+              console.log('[CONTENT] Rendering', newInsights.length, 'insights');
+              ensureSidebar();
+              showCardsHideEmpty();
+              const cards = shadowRoot.getElementById('cards');
+              if (cards) {
+                newInsights.forEach(insight => {
+                  const key = insightKey(insight.insight || '');
+                  if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
+                    console.log('[CONTENT] Skipping duplicate insight card:', key);
+                    return;
+                  }
+                  const card = createInsightCard(insight);
+                  cards.prepend(card);
+                  addToNotes(card);
+                });
+              }
+            }
+            // Clean up storage after rendering both
             chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
-          }
+          });
         });
-      });
+      }
     }
   });
 
-  // Check for pending entities on load
-  chrome.storage.local.get(['pendingEntities', 'sessionStart', 'activeTabUrl'], (data) => {
+  // Check for pending entities/insights on load
+  chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart', 'activeTabUrl'], (data) => {
     try {
       const activeUrl = data.activeTabUrl || '';
       const active = new URL(activeUrl);
@@ -2695,9 +2695,28 @@ if (!window.__contextExtensionLoaded) {
     if (data.sessionStart) {
       trackSessionStart(data.sessionStart);
     }
-    console.log('[CONTENT] Initial check:', data.pendingEntities ? data.pendingEntities.length + ' entities' : 'none');
-    if (data.pendingEntities) {
-      renderCards(data.pendingEntities);
+    const initEntities = data.pendingEntities || [];
+    const initInsights = data.pendingInsights || [];
+    console.log('[CONTENT] Initial check, entities:', initEntities.length, 'insights:', initInsights.length);
+    if (initEntities.length > 0) {
+      renderCards(initEntities);
+    }
+    if (initInsights.length > 0) {
+      ensureSidebar();
+      showCardsHideEmpty();
+      const cards = shadowRoot.getElementById('cards');
+      if (cards) {
+        initInsights.forEach(insight => {
+          const key = insightKey(insight.insight || '');
+          if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) return;
+          const card = createInsightCard(insight);
+          cards.prepend(card);
+          addToNotes(card);
+        });
+      }
+    }
+    if (initEntities.length > 0 || initInsights.length > 0) {
+      chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
     }
   });
 
@@ -2716,15 +2735,14 @@ if (!window.__contextExtensionLoaded) {
           if (mySessionId && data.pendingSessionId !== mySessionId) return;
           const pollEntities = data.pendingEntities || [];
           const pollInsights = data.pendingInsights || [];
-          if (pollEntities.length > 0 || pollInsights.length > 0) {
-            console.log('[CONTENT] Polling fallback render triggered, entities:', pollEntities.length, 'insights:', pollInsights.length);
-          }
+          if (pollEntities.length === 0 && pollInsights.length === 0) return;
+          console.log('[CONTENT] Poll fired, entities:', pollEntities.length, 'insights:', pollInsights.length);
+          // Render entities if any
           if (pollEntities.length > 0) {
-            console.log('[CONTENT] Polling fallback found', pollEntities.length, 'entities');
             renderCards(pollEntities);
           }
+          // Render insights if any — completely independent of entities
           if (pollInsights.length > 0) {
-            console.log('[CONTENT] Polling fallback found', pollInsights.length, 'insights');
             ensureSidebar();
             showCardsHideEmpty();
             const cards = shadowRoot.getElementById('cards');
@@ -2740,8 +2758,9 @@ if (!window.__contextExtensionLoaded) {
                 addToNotes(card);
               });
             }
-            chrome.storage.local.remove('pendingInsights');
           }
+          // Clean up storage after rendering both
+          chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
         });
       });
     } catch (e) {

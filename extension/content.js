@@ -647,13 +647,20 @@ if (!window.__contextExtensionLoaded) {
     .ctx-preview-card {
       display: none; padding: 10px 16px; background: #12121f;
       border-left: 2px solid #5a5aff; border-bottom: 1px solid rgba(255,255,255,0.03);
-      flex-shrink: 0;
+      flex-shrink: 0; transition: opacity 0.2s ease;
     }
     .ctx-preview-card.visible { display: block; }
     .ctx-preview-title {
       font-size: 10px; font-weight: 600; color: #7070ff;
-      margin-bottom: 6px;
+      margin-bottom: 6px; cursor: pointer; user-select: none;
     }
+    .ctx-preview-title:hover { color: #9090ff; }
+    .ctx-preview-title::after { content: ' \u25B4'; font-size: 8px; }
+    .ctx-preview-card.collapsed .ctx-preview-title::after { content: ' \u25BE'; }
+    .ctx-preview-items {
+      max-height: 120px; overflow-y: auto; transition: max-height 0.2s ease;
+    }
+    .ctx-preview-card.collapsed .ctx-preview-items { max-height: 0; overflow: hidden; }
     .ctx-preview-term {
       font-size: 10px; color: #5a5a7a; line-height: 1.6;
     }
@@ -2126,12 +2133,17 @@ if (!window.__contextExtensionLoaded) {
       if (matches.length >= 2) {
         const shown = matches.slice(0, 3);
         let html = '<div class="ctx-preview-title">You\'ve explored related topics before</div>';
+        html += '<div class="ctx-preview-items">';
         shown.forEach(m => {
           const source = m.source ? ' (from ' + escapeHtml(m.source) + ')' : '';
           html += '<div class="ctx-preview-term">' + escapeHtml(m.term) + source + '</div>';
         });
+        html += '</div>';
         previewCard.innerHTML = html;
         previewCard.classList.add('visible');
+        previewCard.querySelector('.ctx-preview-title').addEventListener('click', () => {
+          previewCard.classList.toggle('collapsed');
+        });
       }
     });
 
@@ -2289,6 +2301,9 @@ if (!window.__contextExtensionLoaded) {
       setTimeout(() => { empty.style.display = 'none'; }, 200);
     }
     if (cards) cards.style.display = 'block';
+    // Auto-collapse the "explored related topics" preview when first card arrives
+    const preview = shadowRoot.querySelector('.ctx-preview-card');
+    if (preview) { preview.classList.add('collapsed'); }
   }
 
   function trackSessionStart(timestamp) {

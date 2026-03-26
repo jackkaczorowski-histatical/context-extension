@@ -297,6 +297,47 @@ function initMainPopup() {
     chrome.tabs.create({ url: chrome.runtime.getURL('graph.html') });
   });
 
+  // --- Clear all history ---
+  const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+  let clearHistoryTimer = null;
+  clearHistoryBtn.addEventListener('click', () => {
+    if (clearHistoryBtn.dataset.confirming === 'true') return;
+    clearHistoryBtn.dataset.confirming = 'true';
+    const origText = clearHistoryBtn.textContent;
+    clearHistoryBtn.innerHTML = '';
+    const span = document.createElement('span');
+    span.className = 'clear-confirm';
+    span.textContent = 'Sure? ';
+    const yesBtn = document.createElement('button');
+    yesBtn.className = 'clear-confirm-link yes';
+    yesBtn.textContent = 'Yes';
+    const noBtn = document.createElement('button');
+    noBtn.className = 'clear-confirm-link no';
+    noBtn.textContent = 'No';
+    span.appendChild(yesBtn);
+    span.appendChild(noBtn);
+    clearHistoryBtn.appendChild(span);
+    function revert() {
+      if (clearHistoryTimer) { clearTimeout(clearHistoryTimer); clearHistoryTimer = null; }
+      clearHistoryBtn.textContent = origText;
+      clearHistoryBtn.dataset.confirming = 'false';
+    }
+    yesBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      chrome.storage.local.remove(['sessionHistory', 'knowledgeBase', 'sessionTranscript', 'pendingEntities', 'pendingInsights']);
+      try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
+      revert();
+      updateRecapSection();
+      updateLearningStats();
+      lastSessionInfo.classList.remove('visible');
+    });
+    noBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      revert();
+    });
+    clearHistoryTimer = setTimeout(revert, 3000);
+  });
+
   // --- Settings panel ---
   const settingsGearBtn = document.getElementById('settingsGearBtn');
   const settingsPanel = document.getElementById('settingsPanel');

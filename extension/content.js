@@ -305,11 +305,18 @@ if (!window.__contextExtensionLoaded) {
     .ctx-close-btn:hover, .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
     .ctx-export-btn { font-size: 13px; }
     .ctx-clear-btn {
-      background: none; border: none; color: #3a3a5a; font-size: 13px;
-      cursor: pointer; padding: 2px 6px; border-radius: 4px;
-      line-height: 1; transition: color 0.15s, background 0.15s;
+      background: none; border: 1px solid rgba(255,255,255,0.08); color: #64748b; font-size: 11px;
+      cursor: pointer; padding: 3px 8px; border-radius: 4px;
+      line-height: 1; transition: color 0.15s, background 0.15s; font-family: inherit;
     }
-    .ctx-clear-btn:hover { color: #ff5252; background: rgba(255,82,82,0.08); }
+    .ctx-clear-btn:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
+    .ctx-clear-confirm { font-size: 11px; color: #ef4444; display: inline-flex; align-items: center; gap: 6px; }
+    .ctx-clear-confirm-link {
+      background: none; border: none; font-size: 11px; cursor: pointer;
+      font-family: inherit; padding: 0; text-decoration: underline;
+    }
+    .ctx-clear-confirm-link.yes { color: #ef4444; }
+    .ctx-clear-confirm-link.no { color: #64748b; }
     .ctx-export-tooltip {
       position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
       background: #00e676; color: #0a0a12; font-size: 9px; font-weight: 600;
@@ -1715,7 +1722,7 @@ if (!window.__contextExtensionLoaded) {
           <span class="ctx-live-dot"></span>
           <span class="ctx-live-text">Live</span>
         </div>
-        <button class="ctx-clear-btn" title="Clear cards">&#x1F5D1;</button>
+        <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
         <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
         <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
       </div>
@@ -1726,12 +1733,44 @@ if (!window.__contextExtensionLoaded) {
       closeSidebar();
     });
 
-    // Wire up clear button
-    header.querySelector('.ctx-clear-btn').addEventListener('click', () => {
-      resetSidebar();
-      chrome.storage.local.set({ sessionHistory: [], sessionTranscript: '' });
-      chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
-      try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
+    // Wire up clear button with inline confirmation
+    const clearBtn = header.querySelector('.ctx-clear-btn');
+    let clearTimer = null;
+    clearBtn.addEventListener('click', () => {
+      if (clearBtn.dataset.confirming === 'true') return;
+      clearBtn.dataset.confirming = 'true';
+      const origHTML = clearBtn.innerHTML;
+      clearBtn.innerHTML = '';
+      const confirm = document.createElement('span');
+      confirm.className = 'ctx-clear-confirm';
+      confirm.innerHTML = 'Sure? ';
+      const yesBtn = document.createElement('button');
+      yesBtn.className = 'ctx-clear-confirm-link yes';
+      yesBtn.textContent = 'Yes';
+      const noBtn = document.createElement('button');
+      noBtn.className = 'ctx-clear-confirm-link no';
+      noBtn.textContent = 'No';
+      confirm.appendChild(yesBtn);
+      confirm.appendChild(noBtn);
+      clearBtn.appendChild(confirm);
+      function revert() {
+        if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
+        clearBtn.innerHTML = origHTML;
+        clearBtn.dataset.confirming = 'false';
+      }
+      yesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetSidebar();
+        notesCards.innerHTML = '';
+        chrome.storage.local.remove(['sessionHistory', 'knowledgeBase', 'sessionTranscript', 'pendingEntities', 'pendingInsights']);
+        try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
+        revert();
+      });
+      noBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        revert();
+      });
+      clearTimer = setTimeout(revert, 3000);
     });
 
     // Wire up export menu

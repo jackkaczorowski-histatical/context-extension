@@ -13,6 +13,7 @@
   "host_permissions": [
     "https://context-extension-zv8d.vercel.app/*",
     "wss://api.deepgram.com/*",
+    "*://*.youtube.com/*",
     "*://*.spotify.com/*",
     "*://*.udemy.com/*",
     "*://*.soundcloud.com/*",

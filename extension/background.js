@@ -67,14 +67,33 @@ function isSupportedUrl(url) {
   return SUPPORTED_PLATFORMS.some(p => url.includes(p));
 }
 
+async function reinjectContentScript(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    });
+    console.log('[BACKGROUND] Reinjected content.js into tab', tabId);
+  } catch (e) {}
+}
+
 // Reinject content script on supported platform navigations (SPA won't re-trigger content_scripts)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url && isSupportedUrl(tab.url)) {
-    chrome.scripting.executeScript({
-      target: { tabId },
-      files: ['content.js']
-    }).catch(() => {});
+    reinjectContentScript(tabId);
   }
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
+  });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
+  });
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

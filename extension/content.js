@@ -1,7 +1,14 @@
 console.log('[CONTENT] Script loaded');
 
+// Reset the guard if the sidebar was lost (extension reload, context invalidation, etc.)
+if (window.__contextExtensionLoaded && !document.getElementById('context-sidebar-host')) {
+  console.log('[CONTENT] Sidebar lost, resetting guard for reinitialization');
+  window.__contextExtensionLoaded = false;
+}
+
 if (!window.__contextExtensionLoaded) {
   window.__contextExtensionLoaded = true;
+  let isLightTheme = false;
 
   const DEDUP_WINDOW = 600000;
   const seenTerms = new Map();
@@ -1021,8 +1028,6 @@ if (!window.__contextExtensionLoaded) {
       toastTimer = null;
     }, 3000);
   }
-
-  let isLightTheme = false;
 
   function getHostPosition() {
     const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
@@ -2759,8 +2764,10 @@ if (!window.__contextExtensionLoaded) {
               });
             }
           }
-          // Clean up storage after rendering both
-          chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
+          // Only clean up if this is our session
+          if (!mySessionId || data.pendingSessionId === mySessionId) {
+            chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
+          }
         });
       });
     } catch (e) {

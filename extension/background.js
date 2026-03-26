@@ -555,6 +555,17 @@ async function processNextTranscript() {
     entities.forEach(e => { if (e.term) e.term = capitalizeTerm(e.term); });
     const insights = (analyzeData.insights || []).slice(0, 1);
 
+    // Strip em dashes from all text fields
+    function stripEmDash(s) { return s ? s.replace(/\u2014/g, ' - ').replace(/\s{2,}/g, ' ').trim() : s; }
+    entities.forEach(e => {
+      if (e.term) e.term = stripEmDash(e.term);
+      if (e.description) e.description = stripEmDash(e.description);
+    });
+    insights.forEach(i => {
+      if (i.insight) i.insight = stripEmDash(i.insight);
+      if (i.detail) i.detail = stripEmDash(i.detail);
+    });
+
     console.log('[BACKGROUND] Analyze response:', JSON.stringify(entities), 'insights:', JSON.stringify(insights));
 
     if (entities.length === 0 && insights.length === 0) {

@@ -319,7 +319,7 @@ if (!window.__contextExtensionLoaded) {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 12px 12px 16px; background: #12121c;
       border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
-      overflow: hidden;
+      overflow: visible;
     }
     .ctx-wordmark { font-size: 13px; font-weight: 600; color: #e0e0f0; letter-spacing: -0.01em; }
     .ctx-header-right { display: flex; align-items: center; gap: 10px; }
@@ -358,7 +358,7 @@ if (!window.__contextExtensionLoaded) {
     }
     .ctx-export-tooltip.visible { opacity: 1; }
     .ctx-export-menu {
-      display: none; position: absolute; bottom: 100%; right: 0;
+      display: none; position: absolute; top: 100%; right: 0;
       background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
       border-radius: 8px; padding: 4px 0; z-index: 50;
       min-width: 170px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);

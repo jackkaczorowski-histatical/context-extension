@@ -94,12 +94,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({ capturing: false });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
   });
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local.set({ capturing: false });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
   });
@@ -322,6 +324,8 @@ async function startCapture() {
 }
 
 async function stopCapture() {
+  capturingTabId = null;
+
   try {
     chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
   } catch (e) {

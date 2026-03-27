@@ -367,6 +367,29 @@
       }
     });
 
+    // Recover cards from storage if session is active
+    chrome.storage.local.get(['capturing', 'sessionHistory'], (data) => {
+      if (data.sessionHistory && data.sessionHistory.length > 0) {
+        console.log('[CONTENT] Recovering', data.sessionHistory.length, 'cards from storage');
+        if (cardContainer && cardContainer.children.length === 0) {
+          data.sessionHistory.forEach(item => {
+            const card = item.type === 'stock'
+              ? createStockCard(item)
+              : createGenericCard(item);
+            if (card) cardContainer.appendChild(card);
+          });
+        }
+      }
+      // Sync button state
+      if (data.capturing) {
+        const btn = shadowRoot.getElementById('ctx-listen-btn');
+        if (btn) {
+          btn.textContent = '\u25A0 Stop';
+          btn.classList.add('listening');
+        }
+      }
+    });
+
     // Item 14: Auto-dim older cards every 30 seconds
     setInterval(() => {
       const cards = shadowRoot?.querySelectorAll('.context-card:not(.aged):not(.quick-known)');
@@ -575,6 +598,15 @@
       }
 
       if (addedAny) {
+        // Save to sessionHistory for recovery on refresh
+        chrome.storage.local.get('sessionHistory', (data) => {
+          const history = data.sessionHistory || [];
+          for (const entity of entities) {
+            const key = entity.ticker || entity.term || entity.name || '';
+            if (key) history.push(entity);
+          }
+          chrome.storage.local.set({ sessionHistory: history });
+        });
         // Show sidebar
         host.style.width = '380px';
         host.style.pointerEvents = 'auto';

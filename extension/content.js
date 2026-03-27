@@ -1962,7 +1962,7 @@ if (!window.__contextExtensionLoaded) {
     // KB matches toggle header
     const kbToggle = document.createElement('div');
     kbToggle.className = 'kb-matches-toggle';
-    kbToggle.textContent = '\u25B8 You\'ve explored related topics before';
+    kbToggle.textContent = '\u25BE You\'ve explored related topics before';
     kbToggle.addEventListener('click', () => {
       const kbEl = shadowRoot.getElementById('empty-kb-matches');
       if (kbEl) {

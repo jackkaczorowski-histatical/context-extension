@@ -53,6 +53,7 @@ if (!window.__contextExtensionLoaded) {
   let badgeShadow = null;
   let termCount = 0;
   let askIdleTimer = null;
+  let agingInterval = null;
   let askSuggestionCount = 0;
   let lastRenderedTerm = '';
   let mySessionId = null;
@@ -314,7 +315,11 @@ if (!window.__contextExtensionLoaded) {
       display: flex; flex-direction: column; overflow: hidden; margin: 0; padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #e0e0f0;
+      transform: translateX(100%);
+      transition: transform 0.2s ease-out;
     }
+    #sidebar[data-pos="left"] { transform: translateX(-100%); }
+    #sidebar.open { transform: translateX(0) !important; }
     #header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 12px 12px 16px; background: #12121c;
@@ -685,6 +690,20 @@ if (!window.__contextExtensionLoaded) {
     }
     .kb-matches-toggle:hover { color: #9a9ab0; }
 
+    /* ─── Listen button ─── */
+    #ctx-listen-btn {
+      background: #00e676; color: #0a0a14; border: none; border-radius: 12px;
+      padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    #ctx-listen-btn:hover { background: #00c853; }
+    #ctx-listen-btn.listening { background: #ff5252; color: white; }
+    #ctx-listen-btn.listening:hover { background: #ff1744; }
+
+    /* ─── Card aging ─── */
+    .context-card.aged { opacity: 0.5; transition: opacity 0.5s ease; }
+    .context-card.aged:hover { opacity: 1; }
+
     /* ─── Preview card ─── */
     .ctx-preview-card {
       display: none; padding: 10px 16px; background: #12121f;
@@ -809,6 +828,9 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .insight-text { color: #1a1a2e; }
     .light-theme .insight-detail { color: #5a5a7a; }
     .light-theme .feedback-msg { color: #9a9ab0; }
+    .light-theme #ctx-listen-btn { background: #059669; color: white; }
+    .light-theme #ctx-listen-btn:hover { background: #047857; }
+    .light-theme #ctx-listen-btn.listening { background: #dc2626; }
     .light-theme .kb-matches-toggle { color: #8a8aa0; }
     .light-theme .kb-matches-toggle:hover { color: #5a5a70; }
     .light-theme .ctx-preview-card { background: #f0f0fa; }
@@ -1105,30 +1127,48 @@ if (!window.__contextExtensionLoaded) {
     const borderColor = isLightTheme ? '#e0e0e8' : '#1e1e2e';
     const border = pos === 'right' ? `border-left:1px solid ${borderColor};` : `border-right:1px solid ${borderColor};`;
     const bg = isLightTheme ? '#f5f5f8' : '#12121c';
-    const translate = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
-    return `position:fixed;top:0;${pos}:0;width:280px;height:100vh;z-index:2147483647;overflow:hidden;${border}background:${bg};transform:${translate};transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);margin:0;padding:0;`;
+    return `position:fixed;top:0;${pos}:0;width:0;height:100vh;z-index:2147483647;overflow:hidden;${border}background:${bg};pointer-events:none;margin:0;padding:0;`;
   }
 
   function applySidebarPosition() {
     if (!hostEl) return;
     const isOpen = hostEl.dataset.open === 'true';
     hostEl.style.cssText = getHostPosition();
-    if (isOpen) hostEl.style.transform = 'translateX(0)';
+    if (isOpen) {
+      hostEl.style.width = '280px';
+      hostEl.style.pointerEvents = 'auto';
+    }
+    const sidebar = shadowRoot?.getElementById('sidebar');
+    if (sidebar) {
+      sidebar.dataset.pos = settings.sidebarPosition || 'right';
+      if (isOpen) sidebar.classList.add('open');
+    }
   }
 
   function openSidebar() {
     if (!hostEl) return;
     hostEl.dataset.open = 'true';
-    hostEl.style.transform = 'translateX(0)';
+    hostEl.style.width = '280px';
     hostEl.style.pointerEvents = 'auto';
+    const sidebar = shadowRoot?.getElementById('sidebar');
+    if (sidebar) {
+      sidebar.dataset.pos = settings.sidebarPosition || 'right';
+      sidebar.offsetHeight; // force reflow
+      sidebar.classList.add('open');
+    }
   }
 
   function closeSidebar() {
     if (!hostEl) return;
     hostEl.dataset.open = 'false';
-    const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
-    hostEl.style.transform = pos === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
     hostEl.style.pointerEvents = 'none';
+    const sidebar = shadowRoot?.getElementById('sidebar');
+    if (sidebar) sidebar.classList.remove('open');
+    setTimeout(() => {
+      if (hostEl && hostEl.dataset.open !== 'true') {
+        hostEl.style.width = '0';
+      }
+    }, 250);
   }
 
   function resetAutoHide() {
@@ -1782,7 +1822,6 @@ if (!window.__contextExtensionLoaded) {
     hostEl = document.createElement('div');
     hostEl.id = 'context-sidebar-host';
     hostEl.style.cssText = getHostPosition();
-    hostEl.style.pointerEvents = 'none';
 
     // Shadow DOM — YouTube CSS cannot cross this boundary
     shadowRoot = hostEl.attachShadow({ mode: 'open' });
@@ -1806,6 +1845,7 @@ if (!window.__contextExtensionLoaded) {
           <span class="ctx-live-dot"></span>
           <span class="ctx-live-text">Live</span>
         </div>
+        <button id="ctx-listen-btn" title="Start Listening">&#x25CF; Start</button>
         <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
         <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="gdocs">Open in Google Docs</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
         <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
@@ -1815,6 +1855,20 @@ if (!window.__contextExtensionLoaded) {
     // Wire up close button
     header.querySelector('.ctx-close-btn').addEventListener('click', () => {
       closeSidebar();
+    });
+
+    // Wire up listen button
+    const listenBtn = header.querySelector('#ctx-listen-btn');
+    listenBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+    });
+
+    // Sync listen button state on sidebar open
+    chrome.storage.local.get('capturing', (data) => {
+      if (data.capturing) {
+        listenBtn.textContent = '\u25A0 Stop';
+        listenBtn.classList.add('listening');
+      }
     });
 
     // Wire up clear button with inline confirmation
@@ -2397,6 +2451,7 @@ if (!window.__contextExtensionLoaded) {
         ? createStockCard(entity)
         : createGenericCard(entity);
 
+      card.dataset.createdAt = Date.now().toString();
       if (sidebarClosed) card.classList.add('missed');
       cards.prepend(card);
       termCount++;
@@ -2474,11 +2529,28 @@ if (!window.__contextExtensionLoaded) {
       });
     }
     if (changes.capturing) {
+      const btn = shadowRoot?.getElementById('ctx-listen-btn');
       if (changes.capturing.newValue === true) {
         ensureBadge();
         setBadgeCapturing(true, false);
+        if (btn) { btn.textContent = '\u25A0 Stop'; btn.classList.add('listening'); }
+        // Start aging interval
+        if (!agingInterval) {
+          agingInterval = setInterval(() => {
+            const cards = shadowRoot?.querySelectorAll('.context-card:not(.aged):not(.quick-known)');
+            if (!cards) return;
+            const twoMinutesAgo = Date.now() - 120000;
+            cards.forEach(card => {
+              if (card.querySelector('.card-expand-area.visible')) return; // skip expanded
+              const created = parseInt(card.dataset.createdAt || '0');
+              if (created && created < twoMinutesAgo) card.classList.add('aged');
+            });
+          }, 30000);
+        }
       } else if (changes.capturing.newValue === false) {
         setBadgeCapturing(false, false);
+        if (btn) { btn.textContent = '\u25CF Start'; btn.classList.remove('listening'); }
+        if (agingInterval) { clearInterval(agingInterval); agingInterval = null; }
       }
     }
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
@@ -2799,14 +2871,38 @@ if (!window.__contextExtensionLoaded) {
     }
   }, 2000);
 
+  // --- Toggle sidebar helper ---
+  function toggleSidebar() {
+    ensureSidebar();
+    if (hostEl && hostEl.dataset.open === 'true') {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
+  }
+
   // --- Keyboard shortcut: Ctrl+Shift+X to toggle sidebar ---
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'X') {
       e.preventDefault();
-      if (hostEl && hostEl.dataset.open === 'true') {
-        closeSidebar();
-      } else {
-        openSidebar();
+      toggleSidebar();
+    }
+  });
+
+  // --- Listen for messages from background ---
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'TOGGLE_SIDEBAR') {
+      toggleSidebar();
+    } else if (msg.type === 'CAPTURE_STATE') {
+      const btn = shadowRoot?.getElementById('ctx-listen-btn');
+      if (btn) {
+        if (msg.capturing) {
+          btn.textContent = '\u25A0 Stop';
+          btn.classList.add('listening');
+        } else {
+          btn.textContent = '\u25CF Start';
+          btn.classList.remove('listening');
+        }
       }
     }
   });

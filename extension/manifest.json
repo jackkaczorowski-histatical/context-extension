@@ -29,16 +29,14 @@
       "run_at": "document_start"
     }
   ],
-  "action": {
-    "default_popup": "popup.html"
-  },
+  "action": {},
   "commands": {
-    "_execute_action": {
+    "toggle-sidebar": {
       "suggested_key": {
-        "default": "Ctrl+Shift+X",
-        "mac": "Command+Shift+X"
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
       },
-      "description": "Toggle Context sidebar"
+      "description": "Toggle Context Listener sidebar"
     }
   }
 }

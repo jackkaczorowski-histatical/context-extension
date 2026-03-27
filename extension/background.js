@@ -132,6 +132,22 @@ chrome.runtime.onStartup.addListener(() => {
   });
 });
 
+// Extension icon click toggles sidebar (no popup)
+chrome.action.onClicked.addListener((tab) => {
+  chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SIDEBAR' });
+});
+
+// Keyboard shortcut: Ctrl+Shift+L toggles sidebar
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'toggle-sidebar') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'TOGGLE_SIDEBAR' });
+      }
+    });
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
     startCapture();
@@ -224,6 +240,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sessionTranscript = '';
     transcriptBuffer = '';
     firstFlush = true;
+  } else if (message.type === 'TOGGLE_CAPTURE') {
+    chrome.storage.local.get('capturing', async (data) => {
+      if (data.capturing) {
+        await stopCapture();
+        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: false });
+      } else {
+        await startCapture();
+        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: true });
+      }
+    });
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);

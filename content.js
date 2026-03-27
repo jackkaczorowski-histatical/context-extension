@@ -95,6 +95,7 @@
       font-weight: 600;
       color: #fff;
       margin: 0;
+      margin-right: 4px;
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
@@ -110,7 +111,7 @@
       cursor: pointer;
       transition: all 0.2s;
       white-space: nowrap;
-      margin-left: 8px;
+      margin-left: 14px;
     }
     #ctx-listen-btn:hover { background: #00c853; }
     #ctx-listen-btn.listening {

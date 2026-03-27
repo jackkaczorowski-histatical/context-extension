@@ -89,6 +89,24 @@ async function startCapture(tabId) {
   try {
     capturingTabId = tabId || null;
 
+    // Only reset session if this is a fresh start (no existing cards)
+    const existingData = await chrome.storage.local.get('sessionHistory');
+    const isResume = existingData.sessionHistory && existingData.sessionHistory.length > 0;
+
+    if (!isResume) {
+      // Fresh session — reset everything
+      sessionTotal = 0;
+      sessionEntities = [];
+      sessionTranscript = '';
+    } else {
+      // Resuming — restore session state from storage
+      sessionTotal = existingData.sessionHistory.length;
+      sessionEntities = existingData.sessionHistory
+        .filter(e => e.term)
+        .map(e => e.term);
+      console.log('[BACKGROUND] Resuming session with', sessionTotal, 'existing cards');
+    }
+
     const stream = await chrome.tabCapture.capture({
       audio: true,
       video: false

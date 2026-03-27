@@ -2102,42 +2102,9 @@ if (!window.__contextExtensionLoaded) {
     listeningIndicator.id = 'listening-indicator';
     listeningIndicator.innerHTML = '<span class="li-dot"></span><span class="li-text">Listening for new terms...</span>';
 
-    // Preview card (knowledge base match)
-    const previewCard = document.createElement('div');
-    previewCard.className = 'ctx-preview-card';
-
     // Cards container
     const cardContainer = document.createElement('div');
     cardContainer.id = 'cards';
-
-    // Check knowledgeBase for terms related to page title
-    chrome.storage.local.get('knowledgeBase', (kbData) => {
-      const kb = kbData.knowledgeBase || {};
-      const entries = Object.values(kb);
-      if (entries.length === 0) return;
-
-      const title = document.title.toLowerCase();
-      const matches = entries.filter(e => {
-        const term = (e.term || '').toLowerCase();
-        return term.length >= 3 && title.includes(term);
-      });
-
-      if (matches.length >= 2) {
-        const shown = matches.slice(0, 3);
-        let html = '<div class="ctx-preview-title">You\'ve explored related topics before</div>';
-        html += '<div class="ctx-preview-items">';
-        shown.forEach(m => {
-          const source = m.source ? ' (from ' + escapeHtml(m.source) + ')' : '';
-          html += '<div class="ctx-preview-term">' + escapeHtml(m.term) + source + '</div>';
-        });
-        html += '</div>';
-        previewCard.innerHTML = html;
-        previewCard.classList.add('visible');
-        previewCard.querySelector('.ctx-preview-title').addEventListener('click', () => {
-          previewCard.classList.toggle('collapsed');
-        });
-      }
-    });
 
     // Ask response area
     const askResponse = document.createElement('div');
@@ -2263,7 +2230,6 @@ if (!window.__contextExtensionLoaded) {
     sidebar.appendChild(tabBar);
     sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
-    sidebar.appendChild(previewCard);
     sidebar.appendChild(emptyState);
     sidebar.appendChild(cardContainer);
     sidebar.appendChild(askResponse);
@@ -2292,9 +2258,6 @@ if (!window.__contextExtensionLoaded) {
       setTimeout(() => { empty.style.display = 'none'; }, 200);
     }
     if (cards) cards.style.display = 'block';
-    // Auto-collapse the "explored related topics" preview when first card arrives
-    const preview = shadowRoot.querySelector('.ctx-preview-card');
-    if (preview) { preview.classList.add('collapsed'); }
   }
 
   function trackSessionStart(timestamp) {

@@ -3,15 +3,61 @@ const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 let mediaRecorder = null;
 let captureStream = null;
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'START_CAPTURE') {
-    startCapture();
-  } else if (message.type === 'STOP_CAPTURE') {
-    stopCapture();
+// Item 2: Extension icon toggles sidebar
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: 'PING' });
+  } catch (e) {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    await new Promise(r => setTimeout(r, 200));
+  }
+  chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SIDEBAR' });
+});
+
+// Item 9: Keyboard shortcut
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'toggle-sidebar') {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      if (tabs[0]) {
+        try {
+          await chrome.tabs.sendMessage(tabs[0].id, { type: 'PING' });
+        } catch (e) {
+          await chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, files: ['content.js'] });
+          await new Promise(r => setTimeout(r, 200));
+        }
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'TOGGLE_SIDEBAR' });
+      }
+    });
   }
 });
 
-async function startCapture() {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'START_CAPTURE') {
+    startCapture(sender.tab?.id);
+  } else if (message.type === 'STOP_CAPTURE') {
+    stopCapture();
+  } else if (message.type === 'TOGGLE_CAPTURE') {
+    // Item 5: Handle TOGGLE_CAPTURE
+    (async () => {
+      const data = await chrome.storage.local.get('capturing');
+      if (data.capturing) {
+        stopCapture();
+        if (sender.tab) {
+          chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: false });
+        }
+      } else {
+        if (sender.tab) {
+          startCapture(sender.tab.id);
+          chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: true });
+        }
+      }
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+});
+
+async function startCapture(tabId) {
   try {
     const stream = await chrome.tabCapture.capture({
       audio: true,
@@ -33,6 +79,7 @@ async function startCapture() {
     };
 
     mediaRecorder.start(4000); // 4-second chunks
+    chrome.storage.local.set({ capturing: true });
     console.log('Capture started');
   } catch (err) {
     console.error('Capture error:', err);

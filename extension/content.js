@@ -562,6 +562,7 @@ if (!window.__contextExtensionLoaded) {
     .card-share-btn:hover { color: #f8fafc; }
     .context-card.expanded .card-share-btn { display: block; }
     .card-preview-text { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .context-card.expanded .card-preview-text { display: none; }
     .ctx-card-tooltip {
       position: absolute; background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
       border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #e2e8f0;
@@ -1376,9 +1377,10 @@ if (!window.__contextExtensionLoaded) {
       : `<span class="card-type" style="color:${color}">${typeLabel}</span>`;
     const seenTag = !isRectx && entity._kbSeen ? '<span class="card-seen">seen before</span>' : '';
 
-    const sourceLine = isRectx && entity._kbSource
-      ? '<div class="card-source">Previously seen in: ' + escapeHtml(entity._kbSource) + '</div>'
-      : (entity._kbSource ? '<div class="card-source">Also came up in: ' + escapeHtml(entity._kbSource) + '</div>' : '');
+    const shortSource = entity._kbSource ? truncateHeadline(entity._kbSource, 40) : '';
+    const sourceLine = isRectx && shortSource
+      ? '<div class="card-source">Previously in: ' + escapeHtml(shortSource) + '</div>'
+      : (shortSource ? '<div class="card-source">Also in: ' + escapeHtml(shortSource) + '</div>' : '');
 
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
 

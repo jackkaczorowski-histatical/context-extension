@@ -173,6 +173,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       clearTimeout(bufferTimer);
       bufferTimer = null;
     }
+    // Re-inject content script after seek to ensure sidebar connection
+    if (capturingTabId) {
+      chrome.tabs.sendMessage(capturingTabId, { type: 'PING' }).catch(() => {
+        console.log('[BACKGROUND] Content script disconnected after seek, reinjecting');
+        chrome.scripting.executeScript({ target: { tabId: capturingTabId }, files: ['content.js'] });
+      });
+    }
   } else if (message.type === 'CONTEXT_FETCH') {
     incrementUsage('contextFetches');
   } else if (message.type === 'STREAM_DIED') {

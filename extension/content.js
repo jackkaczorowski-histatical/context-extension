@@ -657,12 +657,19 @@ if (!window.__contextExtensionLoaded) {
     }
 
     /* ─── KB matches ─── */
+    #kb-matches-wrapper {
+      margin-top: 12px;
+      width: 100%;
+      max-width: 240px;
+      display: none;
+    }
+    #kb-matches-wrapper.visible { display: block; }
     #empty-kb-matches {
       max-height: 150px;
       overflow-y: auto;
       transition: max-height 0.3s ease, opacity 0.3s ease;
     }
-    #empty-kb-matches.collapsed {
+    #kb-matches-wrapper.collapsed #empty-kb-matches {
       max-height: 0;
       overflow: hidden;
       opacity: 0;
@@ -675,10 +682,8 @@ if (!window.__contextExtensionLoaded) {
       cursor: pointer;
       user-select: none;
       padding: 4px 0;
-      display: none;
     }
     .kb-matches-toggle:hover { color: #9a9ab0; }
-    .kb-matches-toggle.visible { display: block; }
 
     /* ─── Preview card ─── */
     .ctx-preview-card {
@@ -1938,23 +1943,23 @@ if (!window.__contextExtensionLoaded) {
     emptyState.innerHTML = `
       <div class="ctx-waveform"><span></span><span></span><span></span><span></span></div>
       <div class="ctx-empty-text">Listening for context...</div>
-      <div id="empty-kb-matches" style="margin-top:12px;width:100%;max-width:240px;"></div>
+      <div id="kb-matches-wrapper">
+        <div class="kb-matches-toggle">\u25BE You've explored related topics before</div>
+        <div id="empty-kb-matches"></div>
+      </div>
     `;
 
     // KB matches toggle header
-    const kbToggle = document.createElement('div');
-    kbToggle.className = 'kb-matches-toggle';
-    kbToggle.textContent = '\u25BE You\'ve explored related topics before';
+    const kbToggle = emptyState.querySelector('.kb-matches-toggle');
     kbToggle.addEventListener('click', () => {
-      const kbEl = shadowRoot.getElementById('empty-kb-matches');
-      if (kbEl) {
-        kbEl.classList.toggle('collapsed');
-        kbToggle.textContent = kbEl.classList.contains('collapsed')
+      const wrapper = shadowRoot.getElementById('kb-matches-wrapper');
+      if (wrapper) {
+        wrapper.classList.toggle('collapsed');
+        kbToggle.textContent = wrapper.classList.contains('collapsed')
           ? '\u25B8 You\'ve explored related topics before'
           : '\u25BE You\'ve explored related topics before';
       }
     });
-    emptyState.insertBefore(kbToggle, emptyState.querySelector('#empty-kb-matches'));
 
     // Pre-analysis briefing (Prompt 7)
     const briefingContainer = document.createElement('div');
@@ -2002,8 +2007,8 @@ if (!window.__contextExtensionLoaded) {
         if (matches.length > 0) {
           matchContainer.innerHTML =
             matches.map(m => `<div style="opacity:0.5;font-size:11px;color:#94a3b8;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);">${escapeHtml(m.term)} <span style="font-size:9px;color:#475569;">from a previous session</span></div>`).join('');
-          const toggle = emptyState.querySelector('.kb-matches-toggle');
-          if (toggle) toggle.classList.add('visible');
+          const wrapper = emptyState.querySelector('#kb-matches-wrapper');
+          if (wrapper) wrapper.classList.add('visible');
         } else {
           matchContainer.innerHTML = '<div style="font-size:12px;color:#64748b;">Terms, people, and concepts will appear here as they\'re mentioned.</div>';
         }
@@ -2655,14 +2660,10 @@ if (!window.__contextExtensionLoaded) {
       if (newEntities.length === 0 && newInsights.length === 0) { /* skip — nothing to render */ }
       else {
         console.log('[CONTENT] onChanged fired, entities:', newEntities.length, 'insights:', newInsights.length);
-        // Auto-collapse KB matches once cards start appearing
-        const kbMatchesEl = shadowRoot?.getElementById('empty-kb-matches');
-        if (kbMatchesEl && !kbMatchesEl.classList.contains('collapsed')) {
-          kbMatchesEl.classList.add('collapsed');
-          const kbToggleEl = shadowRoot?.querySelector('.kb-matches-toggle');
-          if (kbToggleEl) {
-            kbToggleEl.textContent = '\u25B8 You\'ve explored related topics before';
-          }
+        // Hide entire KB matches wrapper once cards start appearing
+        const kbWrapper = shadowRoot?.getElementById('kb-matches-wrapper');
+        if (kbWrapper) {
+          kbWrapper.classList.remove('visible');
         }
         chrome.storage.local.get('pendingSessionId', (data) => {
           if (mySessionId && data.pendingSessionId !== mySessionId) {

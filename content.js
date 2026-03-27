@@ -340,12 +340,13 @@
       });
     }
 
-    // Wire clear button
+    // Wire clear button — clears DOM cards and background session data
     const clearBtn = shadowRoot.getElementById('ctx-clear-btn');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
         cardContainer.innerHTML = '';
         recentTerms.clear();
+        chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
       });
     }
 

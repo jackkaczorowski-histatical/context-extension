@@ -3,6 +3,9 @@ const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 let mediaRecorder = null;
 let captureStream = null;
 let capturingTabTitle = '';
+let sessionTotal = 0;
+let sessionEntities = [];
+let sessionTranscript = '';
 
 // Item 2: Extension icon toggles sidebar
 chrome.action.onClicked.addListener(async (tab) => {
@@ -37,6 +40,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     startCapture(sender.tab?.id);
   } else if (message.type === 'STOP_CAPTURE') {
     stopCapture();
+  } else if (message.type === 'CLEAR_SESSION') {
+    clearSession();
+    sendResponse({ ok: true });
+    return;
   } else if (message.type === 'TOGGLE_CAPTURE') {
     // Item 5: Handle TOGGLE_CAPTURE
     (async () => {
@@ -105,6 +112,19 @@ function stopCapture() {
   mediaRecorder = null;
   chrome.storage.local.set({ capturing: false });
   console.log('Capture stopped');
+}
+
+function clearSession() {
+  sessionTotal = 0;
+  sessionEntities = [];
+  sessionTranscript = '';
+  chrome.storage.local.set({
+    sessionHistory: [],
+    pendingEntities: [],
+    pendingInsights: [],
+    pendingTimestamp: null
+  });
+  console.log('Session cleared');
 }
 
 async function processAudioChunk(blob) {

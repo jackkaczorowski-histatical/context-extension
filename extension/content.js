@@ -441,13 +441,25 @@ if (!window.__contextExtensionLoaded) {
       to { opacity: 1; transform: translateY(0); }
     }
     .context-card.collapsed { animation: none; cursor: default; }
+    .context-card.quick-known { opacity: 0.35; transition: opacity 0.3s ease; }
+    .context-card.quick-known:hover { opacity: 0.6; }
+    .card-quick-dismiss {
+      position: absolute; top: 8px; right: 8px; width: 20px; height: 20px;
+      border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); background: none;
+      color: rgba(255,255,255,0.3); font-size: 10px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; padding: 0; line-height: 1;
+    }
+    .card-quick-dismiss:hover { border-color: rgba(0,230,118,0.5); color: #00e676; background: rgba(0,230,118,0.1); }
+    .context-card.quick-known .card-quick-dismiss { border-color: rgba(0,230,118,0.4); color: #00e676; }
     .card-row {
-      display: flex; flex-direction: column; gap: 2px;
+      display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
     }
     .card-type {
       font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
       text-transform: uppercase; flex-shrink: 0;
       word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;
+      width: 100%;
     }
     .card-term {
       font-size: 13px; font-weight: 600; color: #e8e8f8;
@@ -784,6 +796,8 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-copy-btn { background: rgba(99,102,241,0.08); color: #6366f1; }
     .light-theme .card-copy-btn:hover { background: rgba(99,102,241,0.15); }
     .light-theme .card-copy-btn.copied { color: #059669; background: rgba(5,150,105,0.08); }
+    .light-theme .card-quick-dismiss { border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.3); }
+    .light-theme .card-quick-dismiss:hover { border-color: rgba(5,150,105,0.5); color: #059669; background: rgba(5,150,105,0.1); }
     .light-theme .context-card.insight-card { background: rgba(245,158,11,0.05); border-left-color: #f59e0b; }
     .light-theme .context-card.insight-card:hover { background: rgba(245,158,11,0.1); }
     .light-theme .insight-text { color: #1a1a2e; }
@@ -1202,6 +1216,7 @@ if (!window.__contextExtensionLoaded) {
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
+      <button class="card-quick-dismiss" title="I know this">\u2713</button>
       <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         <span class="insight-category">\u{1F4A1} ${category}</span>
@@ -1215,6 +1230,11 @@ if (!window.__contextExtensionLoaded) {
         <button class="card-copy-btn">Copy text</button>
       </div>
     `;
+
+    card.querySelector('.card-quick-dismiss').addEventListener('click', (e) => {
+      e.stopPropagation();
+      card.classList.toggle('quick-known');
+    });
 
     // Title attributes for native tooltips on truncated elements
     const termEl = card.querySelector('.card-term');
@@ -1363,6 +1383,7 @@ if (!window.__contextExtensionLoaded) {
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
 
     card.innerHTML = `
+      <button class="card-quick-dismiss" title="I know this">\u2713</button>
       <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         ${typeBadge}
@@ -1380,6 +1401,11 @@ if (!window.__contextExtensionLoaded) {
         <button class="card-copy-btn">Copy text</button>
       </div>
     `;
+
+    card.querySelector('.card-quick-dismiss').addEventListener('click', (e) => {
+      e.stopPropagation();
+      card.classList.toggle('quick-known');
+    });
 
     // Title attributes for native tooltips on truncated elements
     const fullTermText = entity.term || entity.name || '';

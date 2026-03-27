@@ -2,6 +2,7 @@ const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 
 let mediaRecorder = null;
 let captureStream = null;
+let capturingTabTitle = '';
 
 // Item 2: Extension icon toggles sidebar
 chrome.action.onClicked.addListener(async (tab) => {
@@ -80,6 +81,13 @@ async function startCapture(tabId) {
 
     mediaRecorder.start(4000); // 4-second chunks
     chrome.storage.local.set({ capturing: true });
+    // Store tab title for interviewer filtering
+    if (tabId) {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        capturingTabTitle = tab.title || '';
+      } catch (e) {}
+    }
     console.log('Capture started');
   } catch (err) {
     console.error('Capture error:', err);
@@ -125,7 +133,26 @@ async function processAudioChunk(blob) {
 
     if (!analyzeRes.ok) return;
     const analyzeData = await analyzeRes.json();
-    const entities = analyzeData.entities || [];
+    let entities = analyzeData.entities || [];
+
+    // Filter out interviewer/host entities client-side
+    const hostPatterns = ['sean ryan', 'shawn ryan', 'joe rogan', 'lex fridman', 'tucker carlson', 'jordan peterson'];
+    const pageTitle = capturingTabTitle?.toLowerCase() || '';
+
+    entities = entities.filter(e => {
+      const termLower = (e.term || '').toLowerCase();
+      // Filter exact host name matches
+      if (hostPatterns.includes(termLower)) {
+        console.log('[BACKGROUND] Filtered interviewer:', e.term);
+        return false;
+      }
+      // Filter if the person's name appears in the video title (likely the host)
+      if (e.type === 'person' && termLower.length > 2 && pageTitle.includes(termLower)) {
+        console.log('[BACKGROUND] Filtered title-mentioned person:', e.term);
+        return false;
+      }
+      return true;
+    });
 
     if (entities.length === 0) return;
 

@@ -3,6 +3,7 @@ const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 let mediaRecorder = null;
 let captureStream = null;
 let capturingTabTitle = '';
+let capturingTabId = null;
 let sessionTotal = 0;
 let sessionEntities = [];
 let sessionTranscript = '';
@@ -40,6 +41,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     startCapture(sender.tab?.id);
   } else if (message.type === 'STOP_CAPTURE') {
     stopCapture();
+  } else if (message.type === 'STREAM_DIED') {
+    console.log('[BACKGROUND] STREAM_DIED received');
+    // Get current active tab instead of using potentially stale capturingTabId
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab) {
+        console.log('[BACKGROUND] No active tab found, aborting restart');
+        return;
+      }
+      capturingTabId = currentTab.id;
+      console.log('[BACKGROUND] STREAM_DIED: using current active tab', capturingTabId);
+      // Stop existing capture cleanly then restart
+      stopCapture();
+      await new Promise(r => setTimeout(r, 300));
+      startCapture(capturingTabId);
+      chrome.tabs.sendMessage(capturingTabId, { type: 'CAPTURE_STATE', capturing: true });
+    });
+    sendResponse({ ok: true });
+    return true;
   } else if (message.type === 'CLEAR_SESSION') {
     clearSession();
     sendResponse({ ok: true });
@@ -67,6 +87,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function startCapture(tabId) {
   try {
+    capturingTabId = tabId || null;
+
     const stream = await chrome.tabCapture.capture({
       audio: true,
       video: false

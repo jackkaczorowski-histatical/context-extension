@@ -1377,10 +1377,9 @@ if (!window.__contextExtensionLoaded) {
       : `<span class="card-type" style="color:${color}">${typeLabel}</span>`;
     const seenTag = !isRectx && entity._kbSeen ? '<span class="card-seen">seen before</span>' : '';
 
-    const shortSource = entity._kbSource ? truncateHeadline(entity._kbSource, 40) : '';
-    const sourceLine = isRectx && shortSource
-      ? '<div class="card-source">Previously in: ' + escapeHtml(shortSource) + '</div>'
-      : (shortSource ? '<div class="card-source">Also in: ' + escapeHtml(shortSource) + '</div>' : '');
+    const sourceLine = entity._kbSource
+      ? '<div class="card-source">Seen in a previous session</div>'
+      : '';
 
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
 
@@ -1694,23 +1693,6 @@ if (!window.__contextExtensionLoaded) {
       insightEntries.forEach(ent => {
         const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
         guide += `- ${ts}\u{1F4A1} **${ent.term}**${ent.description ? ' — ' + ent.description : ''}\n`;
-      });
-      guide += '\n';
-    }
-
-    const withDesc = entityEntries.filter(h => h.description).slice(0, 5);
-    if (withDesc.length > 0) {
-      guide += `## Key Questions\n`;
-      withDesc.forEach(ent => {
-        const term = capitalizeTerm(ent.term);
-        const t = (ent.type || '').toLowerCase();
-        if (t === 'person' || t === 'people') {
-          guide += `- Who is ${term} and why do they matter?\n`;
-        } else if (t === 'event') {
-          guide += `- What was ${term} and why does it matter?\n`;
-        } else {
-          guide += `- What is ${term} and why does it matter?\n`;
-        }
       });
       guide += '\n';
     }

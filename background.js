@@ -89,8 +89,12 @@ async function startCapture(tabId) {
   try {
     capturingTabId = tabId || null;
 
+    // Debug: log sessionHistory state at start
+    const debugData = await chrome.storage.local.get('sessionHistory');
+    console.log('[BACKGROUND] startCapture: sessionHistory has', (debugData.sessionHistory || []).length, 'entries');
+
     // Only reset session if this is a fresh start (no existing cards)
-    const existingData = await chrome.storage.local.get('sessionHistory');
+    const existingData = debugData;
     const isResume = existingData.sessionHistory && existingData.sessionHistory.length > 0;
 
     if (!isResume) {

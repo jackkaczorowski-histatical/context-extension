@@ -558,14 +558,30 @@
       sendResponse({ ok: true });
     }
 
-    // Item 6: Update button state on capture changes
+    // Update button state on capture changes
     if (msg.type === 'CAPTURE_STATE') {
-      const btn = document.getElementById('context-listener-host')
-        ?.shadowRoot?.getElementById('ctx-listen-btn');
+      const hostEl = document.getElementById('context-listener-host');
+      const sr = hostEl?.shadowRoot;
+      const btn = sr?.getElementById('ctx-listen-btn');
       if (btn) {
         if (msg.capturing) {
           btn.textContent = '\u25A0 Stop';
           btn.classList.add('listening');
+          // Recover cards from storage if container is empty (Stop+Start scenario)
+          const cards = sr?.getElementById('sidebar-cards');
+          if (cards && cards.children.length === 0) {
+            chrome.storage.local.get('sessionHistory', (data) => {
+              if (data.sessionHistory && data.sessionHistory.length > 0) {
+                console.log('[CONTENT] CAPTURE_STATE: recovering', data.sessionHistory.length, 'cards');
+                data.sessionHistory.forEach(item => {
+                  const card = item.type === 'stock'
+                    ? createStockCard(item)
+                    : createGenericCard(item);
+                  if (card) cards.appendChild(card);
+                });
+              }
+            });
+          }
         } else {
           btn.textContent = '\u25CF Start';
           btn.classList.remove('listening');

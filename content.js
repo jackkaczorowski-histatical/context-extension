@@ -503,24 +503,28 @@
 
   // Message listener
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    // Item 3: Handle TOGGLE_SIDEBAR
+    // Handle TOGGLE_SIDEBAR — don't toggle on first creation
     if (msg.type === 'TOGGLE_SIDEBAR') {
-      const h = document.getElementById('context-listener-host');
+      let h = document.getElementById('context-listener-host');
+      const wasExisting = !!h;
+
       if (!h) {
         ensureSidebar();
-        // After creating, make it visible
-        if (host) {
-          host.style.width = '380px';
-          host.style.pointerEvents = 'auto';
-        }
-      } else {
-        // Item 7: Toggle using width + pointerEvents
-        if (!h.style.width || h.style.width === '0' || h.style.width === '0px') {
+        h = document.getElementById('context-listener-host');
+        // First creation — always show, don't toggle
+        if (h) {
           h.style.width = '380px';
           h.style.pointerEvents = 'auto';
-        } else {
+        }
+      } else {
+        // Already exists — toggle
+        const isVisible = h.style.width !== '0px' && h.style.width !== '0' && h.style.width !== '';
+        if (isVisible) {
           h.style.width = '0';
           h.style.pointerEvents = 'none';
+        } else {
+          h.style.width = '380px';
+          h.style.pointerEvents = 'auto';
         }
       }
       sendResponse({ ok: true });

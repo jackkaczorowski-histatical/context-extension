@@ -442,7 +442,7 @@ if (!window.__contextExtensionLoaded) {
     }
     .context-card.collapsed { animation: none; cursor: default; }
     .card-row {
-      display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;
+      display: flex; flex-direction: column; gap: 2px;
     }
     .card-type {
       font-size: 9px; font-weight: 700; letter-spacing: 0.12em;

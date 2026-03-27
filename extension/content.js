@@ -643,6 +643,30 @@ if (!window.__contextExtensionLoaded) {
       100% { box-shadow: none; }
     }
 
+    /* ─── KB matches ─── */
+    #empty-kb-matches {
+      max-height: 150px;
+      overflow-y: auto;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+    #empty-kb-matches.collapsed {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .kb-matches-toggle {
+      font-size: 10px;
+      color: #6a6a8a;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 0;
+      display: none;
+    }
+    .kb-matches-toggle:hover { color: #9a9ab0; }
+    .kb-matches-toggle.visible { display: block; }
+
     /* ─── Preview card ─── */
     .ctx-preview-card {
       display: none; padding: 10px 16px; background: #12121f;
@@ -779,6 +803,8 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .insight-text { color: #1a1a2e; }
     .light-theme .insight-detail { color: #5a5a7a; }
     .light-theme .feedback-msg { color: #9a9ab0; }
+    .light-theme .kb-matches-toggle { color: #8a8aa0; }
+    .light-theme .kb-matches-toggle:hover { color: #5a5a70; }
     .light-theme .ctx-preview-card { background: #f0f0fa; }
     .light-theme .ctx-preview-title { color: #5a5adf; }
     .light-theme .ctx-preview-term { color: #8a8aa0; }
@@ -1920,6 +1946,21 @@ if (!window.__contextExtensionLoaded) {
       <div id="empty-kb-matches" style="margin-top:12px;width:100%;max-width:240px;"></div>
     `;
 
+    // KB matches toggle header
+    const kbToggle = document.createElement('div');
+    kbToggle.className = 'kb-matches-toggle';
+    kbToggle.textContent = '\u25B8 You\'ve explored related topics before';
+    kbToggle.addEventListener('click', () => {
+      const kbEl = shadowRoot.getElementById('empty-kb-matches');
+      if (kbEl) {
+        kbEl.classList.toggle('collapsed');
+        kbToggle.textContent = kbEl.classList.contains('collapsed')
+          ? '\u25B8 You\'ve explored related topics before'
+          : '\u25BE You\'ve explored related topics before';
+      }
+    });
+    emptyState.insertBefore(kbToggle, emptyState.querySelector('#empty-kb-matches'));
+
     // Pre-analysis briefing (Prompt 7)
     const briefingContainer = document.createElement('div');
     briefingContainer.id = 'empty-briefing';
@@ -1964,8 +2005,10 @@ if (!window.__contextExtensionLoaded) {
         }).slice(0, 3);
 
         if (matches.length > 0) {
-          matchContainer.innerHTML = '<div style="font-size:10px;color:#64748b;margin-bottom:6px;">You\'ve seen before:</div>' +
+          matchContainer.innerHTML =
             matches.map(m => `<div style="opacity:0.5;font-size:11px;color:#94a3b8;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);">${escapeHtml(m.term)} <span style="font-size:9px;color:#475569;">from a previous session</span></div>`).join('');
+          const toggle = emptyState.querySelector('.kb-matches-toggle');
+          if (toggle) toggle.classList.add('visible');
         } else {
           matchContainer.innerHTML = '<div style="font-size:12px;color:#64748b;">Terms, people, and concepts will appear here as they\'re mentioned.</div>';
         }
@@ -2719,6 +2762,15 @@ if (!window.__contextExtensionLoaded) {
       if (newEntities.length === 0 && newInsights.length === 0) { /* skip — nothing to render */ }
       else {
         console.log('[CONTENT] onChanged fired, entities:', newEntities.length, 'insights:', newInsights.length);
+        // Auto-collapse KB matches once cards start appearing
+        const kbMatchesEl = shadowRoot?.getElementById('empty-kb-matches');
+        if (kbMatchesEl && !kbMatchesEl.classList.contains('collapsed')) {
+          kbMatchesEl.classList.add('collapsed');
+          const kbToggleEl = shadowRoot?.querySelector('.kb-matches-toggle');
+          if (kbToggleEl) {
+            kbToggleEl.textContent = '\u25B8 You\'ve explored related topics before';
+          }
+        }
         chrome.storage.local.get('pendingSessionId', (data) => {
           if (mySessionId && data.pendingSessionId !== mySessionId) {
             console.log('[CONTENT] Ignoring data from different session');

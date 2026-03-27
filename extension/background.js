@@ -8,8 +8,33 @@ const GENERIC_TERMS = new Set([
   'profit', 'loss', 'risk', 'wages', 'salary', 'food', 'water', 'land',
   'house', 'car', 'phone', 'energy', 'power', 'oil', 'gas', 'gold',
   'silver', 'time', 'work', 'people', 'business', 'tax', 'taxes',
-  'loan', 'interest', 'government', 'bank', 'country', 'world'
+  'loan', 'interest', 'government', 'bank', 'country', 'world',
+  'europe', 'asia', 'africa', 'america', 'russia', 'china', 'moscow'
 ]);
+
+function isLikelyAd(text) {
+  const lower = text.toLowerCase();
+  const adPatterns = [
+    /use code \w+/i,
+    /percent off/i,
+    /\d+% off/i,
+    /\.com\/\w+/i,
+    /promo code/i,
+    /check them out at/i,
+    /head to \w+\.com/i,
+    /free shipping/i,
+    /limited time only/i,
+    /click the link/i,
+    /use my link/i,
+    /sponsor/i,
+    /discount code/i
+  ];
+  let matches = 0;
+  for (const pattern of adPatterns) {
+    if (pattern.test(lower)) matches++;
+  }
+  return matches >= 2;
+}
 
 function capitalizeTerm(term) {
   if (!term) return term;
@@ -511,6 +536,14 @@ async function processNextTranscript() {
     const depth = (storageData.extensionSettings && storageData.extensionSettings.depth) || 2;
     const knownTerms = Object.values(storageData.knowledgeBase || {}).map(e => e.term);
 
+    // Skip sponsor/ad segments
+    if (isLikelyAd(transcript)) {
+      console.log('[BACKGROUND] Ad segment detected, skipping analyze:', transcript.slice(0, 60) + '...');
+      isProcessing = false;
+      scheduleNext();
+      return;
+    }
+
     // Step 1: Analyze (up to 3 attempts, handles both HTTP errors and network failures)
     const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms, typeCalibration, difficultyProfile });
     const retryDelays = [0, 2000, 4000];
@@ -730,8 +763,13 @@ async function processNextTranscript() {
     // Save pending entities/insights for content script (onChanged) and append to sessionHistory
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage');
     const histData = await chrome.storage.local.get('sessionHistory');
-    const history = histData.sessionHistory || [];
+    let history = histData.sessionHistory || [];
     history.push(...newHistoryEntries);
+    // Cap session history at 500 entries to prevent storage bloat
+    const MAX_SESSION_HISTORY = 500;
+    if (history.length > MAX_SESSION_HISTORY) {
+      history = history.slice(history.length - MAX_SESSION_HISTORY);
+    }
     await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now(), pendingSessionId: sessionId, sessionHistory: history });
     incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
     sessionTotal += enrichedEntities.length + dedupedInsights.length;

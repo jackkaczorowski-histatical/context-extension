@@ -689,22 +689,8 @@ if (!window.__contextExtensionLoaded) {
       font-size: 10px; color: #5a5a7a; line-height: 1.6;
     }
 
-    /* ─── Tab bar ─── */
-    .ctx-tab-bar {
-      display: flex; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
-    }
-    .ctx-tab {
-      font-size: 12px; font-weight: 600; padding: 8px 16px; cursor: pointer;
-      color: #64748b; border-bottom: 2px solid transparent; transition: color 0.2s;
-      background: none; border-top: none; border-left: none; border-right: none; font-family: inherit;
-      position: relative;
-    }
-    .ctx-tab.active { color: #f8fafc; border-bottom-color: #6366f1; }
-    .ctx-tab-dot {
-      display: none; width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
-      position: absolute; top: 6px; right: 6px;
-    }
-    .ctx-tab-dot.visible { display: block; }
+    /* ─── Tab bar (hidden — single view) ─── */
+    .ctx-tab-bar { display: none; }
     /* ─── Suggested questions ─── */
     .ctx-suggestions { display: none; padding: 6px 12px; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
     .ctx-suggestions.visible { display: flex; }
@@ -1165,7 +1151,7 @@ if (!window.__contextExtensionLoaded) {
           reactions.push({ term: key, type: entity.type || 'other', reaction, timestamp: Date.now() });
           chrome.storage.local.set({ cardReactions: reactions });
         });
-        if (reaction === 'new' && typeof addToNotes === 'function') addToNotes(card);
+        if (reaction === 'new') addToNotes(card);
         card.classList.add('reacted');
         setTimeout(() => {
           card.classList.remove('expanded');
@@ -1844,7 +1830,6 @@ if (!window.__contextExtensionLoaded) {
       yesBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         resetSidebar();
-        notesCards.innerHTML = '';
         chrome.storage.local.remove(['sessionHistory', 'knowledgeBase', 'sessionTranscript', 'pendingEntities', 'pendingInsights']);
         try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
         revert();
@@ -2017,75 +2002,11 @@ if (!window.__contextExtensionLoaded) {
       }
     });
 
-    // Tab bar
+    // Tab bar (hidden — single Live view)
     const tabBar = document.createElement('div');
     tabBar.className = 'ctx-tab-bar';
-    const liveTab = document.createElement('button');
-    liveTab.className = 'ctx-tab active';
-    liveTab.textContent = 'Live';
-    const notesTab = document.createElement('button');
-    notesTab.className = 'ctx-tab';
-    notesTab.innerHTML = 'Notes<span class="ctx-tab-dot"></span>';
-    tabBar.appendChild(liveTab);
-    tabBar.appendChild(notesTab);
 
-    let activeTab = 'live';
-    const notesCards = document.createElement('div');
-    notesCards.id = 'notes-cards';
-    notesCards.style.cssText = 'flex:1;overflow-y:auto;padding:0;background:#12121c;display:none;';
-
-    liveTab.addEventListener('click', () => {
-      activeTab = 'live';
-      liveTab.classList.add('active');
-      notesTab.classList.remove('active');
-      cardContainer.style.display = hasCards ? 'block' : 'none';
-      notesCards.style.display = 'none';
-      const empty = shadowRoot.getElementById('empty-state');
-      if (empty) empty.style.display = hasCards ? 'none' : '';
-    });
-
-    notesTab.addEventListener('click', () => {
-      activeTab = 'notes';
-      notesTab.classList.add('active');
-      liveTab.classList.remove('active');
-      notesTab.querySelector('.ctx-tab-dot').classList.remove('visible');
-      cardContainer.style.display = 'none';
-      notesCards.style.display = 'block';
-      const empty = shadowRoot.getElementById('empty-state');
-      if (empty) empty.style.display = 'none';
-    });
-
-    function addToNotes(card) {
-      const clone = card.cloneNode(true);
-      clone.classList.remove('missed', 'missed-glow', 'reacted');
-      clone.dataset.addedAt = Date.now().toString();
-      notesCards.prepend(clone);
-      if (activeTab !== 'notes') {
-        notesTab.querySelector('.ctx-tab-dot').classList.add('visible');
-      }
-      // Schedule quiz pill after 5 minutes
-      const termEl = clone.querySelector('.card-term');
-      const term = termEl ? termEl.textContent.trim() : '';
-      const typeEl = clone.querySelector('.card-type') || clone.querySelector('.insight-category');
-      const type = typeEl ? typeEl.textContent.replace(/[^a-zA-Z]/g, '').toLowerCase() : 'concept';
-      const descEl = clone.querySelector('.card-desc') || clone.querySelector('.insight-detail');
-      const desc = descEl ? descEl.textContent : '';
-      if (term) {
-        setTimeout(() => {
-          if (clone.dataset.quizzed) return;
-          const pill = document.createElement('button');
-          pill.className = 'ctx-quiz-pill';
-          pill.textContent = 'Test yourself \u2192';
-          pill.addEventListener('click', (e) => {
-            e.stopPropagation();
-            pill.remove();
-            clone.dataset.quizzed = 'true';
-            loadInlineQuiz(clone, term, type, desc);
-          });
-          clone.appendChild(pill);
-        }, 300000); // 5 minutes
-      }
-    }
+    function addToNotes() { /* no-op — Notes tab removed */ }
 
     function loadInlineQuiz(card, term, type, desc) {
       fetch('https://context-extension-zv8d.vercel.app/api/quiz', {
@@ -2317,7 +2238,6 @@ if (!window.__contextExtensionLoaded) {
     sidebar.appendChild(previewCard);
     sidebar.appendChild(emptyState);
     sidebar.appendChild(cardContainer);
-    sidebar.appendChild(notesCards);
     sidebar.appendChild(askResponse);
     sidebar.appendChild(suggestionsBar);
     sidebar.appendChild(askBar);

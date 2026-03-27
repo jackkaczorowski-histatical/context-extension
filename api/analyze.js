@@ -69,6 +69,8 @@ EXAMPLES:
 "add 150ml of chicken stock and a tablespoon of red wine vinegar" → [chicken stock (ingredient), red wine vinegar (ingredient)] (specific ingredients with quantities)
 "pour in some oil and add the onions" → [] (bare ingredients without quantity or preparation context)
 
+CRITICAL: Prioritize entities that would teach the viewer something new. Skip obvious, common-knowledge terms that any viewer would already know. The first entity you return should be the most surprising or educational one in the transcript. Ask yourself: would a curious person pause the video to Google this? If not, it's too obvious to include. Prefer specific technical terms, named programs, historical events, and expert concepts over generic vocabulary.
+
 Ask: would a viewer pause and think "what is that?" If yes, extract it. If any adult would understand it without help, don't.
 
 The 'stock' type is ONLY for currently publicly traded companies with real ticker symbols (e.g. AAPL, TSLA, MSFT). Cars, historical vehicles, and car models (Maserati Biturbo, Nissan 300ZX, Toyota Supra) are type 'concept' or 'event', never 'stock'. Historical currencies like Assignats, livres, mandates are type 'concept', not 'stock'.

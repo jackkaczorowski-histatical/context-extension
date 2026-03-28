@@ -290,11 +290,69 @@
     }
   `;
 
+  function _wireButtons() {
+    if (!shadowRoot) return;
+
+    // Clone-and-replace to remove any stale listeners from previous script instance
+    const closeBtn = shadowRoot.getElementById('ctx-close-btn');
+    if (closeBtn) {
+      const fresh = closeBtn.cloneNode(true);
+      closeBtn.parentNode.replaceChild(fresh, closeBtn);
+      fresh.addEventListener('click', () => {
+        host.style.width = '0';
+        host.style.pointerEvents = 'none';
+      });
+    }
+
+    const clearBtn = shadowRoot.getElementById('ctx-clear-btn');
+    if (clearBtn) {
+      const fresh = clearBtn.cloneNode(true);
+      clearBtn.parentNode.replaceChild(fresh, clearBtn);
+      fresh.addEventListener('click', () => {
+        console.log('[CONTENT] Clear button clicked, clearing cards');
+        cardContainer.innerHTML = '';
+        recentTerms.clear();
+        chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
+      });
+    }
+
+    const listenBtn = shadowRoot.getElementById('ctx-listen-btn');
+    if (listenBtn) {
+      const fresh = listenBtn.cloneNode(true);
+      listenBtn.parentNode.replaceChild(fresh, listenBtn);
+      fresh.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+      });
+    }
+
+    // Sync capture state
+    chrome.storage.local.get('capturing', (data) => {
+      const btn = shadowRoot.getElementById('ctx-listen-btn');
+      if (btn && data.capturing) {
+        btn.textContent = '\u25A0 Stop';
+        btn.classList.add('listening');
+      }
+    });
+  }
+
   function ensureSidebar() {
     console.log('[CONTENT] ensureSidebar called, existing host:', !!document.getElementById('context-listener-host'), 'closure host:', !!host);
     if (host && document.body.contains(host)) return;
 
-    // Item 7: Create host element with zero footprint when hidden
+    // Adopt existing host from DOM if present (survives script re-injection)
+    const existingHost = document.getElementById('context-listener-host');
+    if (existingHost && existingHost.shadowRoot) {
+      host = existingHost;
+      shadowRoot = existingHost.shadowRoot;
+      sidebar = shadowRoot.getElementById('sidebar');
+      cardContainer = shadowRoot.getElementById('sidebar-cards');
+      console.log('[CONTENT] Adopted existing sidebar with', cardContainer?.children?.length || 0, 'cards');
+      // Re-wire event listeners since old closure is dead
+      _wireButtons();
+      return;
+    }
+
+    // No host exists — create from scratch
     host = document.createElement('div');
     host.id = 'context-listener-host';
     host.style.pointerEvents = 'none';
@@ -340,42 +398,7 @@
     sidebar.appendChild(cardContainer);
     shadowRoot.appendChild(sidebar);
 
-    // Wire close button
-    const closeBtn = shadowRoot.getElementById('ctx-close-btn');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        host.style.width = '0';
-        host.style.pointerEvents = 'none';
-      });
-    }
-
-    // Wire clear button — clears DOM cards and background session data
-    const clearBtn = shadowRoot.getElementById('ctx-clear-btn');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
-        console.log('[CONTENT] Clear button clicked, clearing cards');
-        cardContainer.innerHTML = '';
-        recentTerms.clear();
-        chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
-      });
-    }
-
-    // Item 4: Wire Start/Stop button
-    const listenBtn = shadowRoot.getElementById('ctx-listen-btn');
-    if (listenBtn) {
-      listenBtn.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
-      });
-    }
-
-    // Item 6: Sync capture state when sidebar first opens
-    chrome.storage.local.get('capturing', (data) => {
-      const btn = shadowRoot.getElementById('ctx-listen-btn');
-      if (btn && data.capturing) {
-        btn.textContent = '\u25A0 Stop';
-        btn.classList.add('listening');
-      }
-    });
+    _wireButtons();
 
     // Recover cards from storage if session is active
     chrome.storage.local.get(['capturing', 'sessionHistory'], (data) => {
@@ -400,7 +423,7 @@
       }
     });
 
-    // Item 14: Auto-dim older cards every 30 seconds
+    // Auto-dim older cards every 30 seconds
     setInterval(() => {
       const cards = shadowRoot?.querySelectorAll('.context-card:not(.aged):not(.quick-known)');
       if (!cards) return;

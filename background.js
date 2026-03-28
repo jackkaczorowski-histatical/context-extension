@@ -101,6 +101,19 @@ async function startCapture(tabId) {
   try {
     capturingTabId = tabId || null;
 
+    // Only inject content script if not already running
+    if (tabId) {
+      try {
+        await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+        console.log('[BACKGROUND] Content script already running, skipping injection');
+      } catch (e) {
+        console.log('[BACKGROUND] Content script not running, injecting');
+        try {
+          await chrome.scripting.executeScript({ target: { tabId: tabId }, files: ['content.js'] });
+        } catch (e2) { /* no access */ }
+      }
+    }
+
     // Debug: log sessionHistory state at start
     const debugData = await chrome.storage.local.get('sessionHistory');
     console.log('[BACKGROUND] startCapture: sessionHistory has', (debugData.sessionHistory || []).length, 'entries');
@@ -166,6 +179,8 @@ function stopCapture() {
     captureStream = null;
   }
   mediaRecorder = null;
+  capturingTabId = null;
+  // Only set capturing: false — do NOT clear sessionHistory, sessionTotal, etc.
   chrome.storage.local.set({ capturing: false });
   console.log('Capture stopped');
 }
@@ -174,8 +189,10 @@ function clearSession() {
   sessionTotal = 0;
   sessionEntities = [];
   sessionTranscript = '';
+  capturingTabTitle = '';
   chrome.storage.local.set({
     sessionHistory: [],
+    sessionTranscript: '',
     pendingEntities: [],
     pendingInsights: [],
     pendingTimestamp: null

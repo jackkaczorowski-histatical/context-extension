@@ -290,6 +290,34 @@
     }
   `;
 
+  function _recoverCards() {
+    chrome.storage.local.get(['sessionHistory', 'capturing'], (data) => {
+      const history = data.sessionHistory || [];
+      if (history.length > 0 && cardContainer && cardContainer.children.length === 0) {
+        console.log('[CONTENT] Recovering', history.length, 'cards from storage');
+        history.forEach(item => {
+          try {
+            const card = item.type === 'stock'
+              ? createStockCard(item)
+              : createGenericCard(item);
+            if (card) cardContainer.appendChild(card);
+          } catch (e) {
+            console.log('[CONTENT] Failed to recover card:', e);
+          }
+        });
+        console.log('[CONTENT] Recovered', cardContainer.children.length, 'cards');
+      }
+      // Sync button state
+      if (data.capturing) {
+        const btn = shadowRoot?.getElementById('ctx-listen-btn');
+        if (btn) {
+          btn.textContent = '\u25A0 Stop';
+          btn.classList.add('listening');
+        }
+      }
+    });
+  }
+
   function _wireButtons() {
     if (!shadowRoot) return;
 
@@ -349,6 +377,8 @@
       console.log('[CONTENT] Adopted existing sidebar with', cardContainer?.children?.length || 0, 'cards');
       // Re-wire event listeners since old closure is dead
       _wireButtons();
+      // Recover cards if container is empty but storage has data
+      _recoverCards();
       return;
     }
 
@@ -399,29 +429,7 @@
     shadowRoot.appendChild(sidebar);
 
     _wireButtons();
-
-    // Recover cards from storage if session is active
-    chrome.storage.local.get(['capturing', 'sessionHistory'], (data) => {
-      if (data.sessionHistory && data.sessionHistory.length > 0) {
-        console.log('[CONTENT] Recovering', data.sessionHistory.length, 'cards from storage');
-        if (cardContainer && cardContainer.children.length === 0) {
-          data.sessionHistory.forEach(item => {
-            const card = item.type === 'stock'
-              ? createStockCard(item)
-              : createGenericCard(item);
-            if (card) cardContainer.appendChild(card);
-          });
-        }
-      }
-      // Sync button state
-      if (data.capturing) {
-        const btn = shadowRoot.getElementById('ctx-listen-btn');
-        if (btn) {
-          btn.textContent = '\u25A0 Stop';
-          btn.classList.add('listening');
-        }
-      }
-    });
+    _recoverCards();
 
     // Auto-dim older cards every 30 seconds
     setInterval(() => {
@@ -582,6 +590,12 @@
         } else {
           h.style.width = '380px';
           h.style.pointerEvents = 'auto';
+          // Recover cards if opening an empty sidebar
+          const sr = h.shadowRoot;
+          const cards = sr?.getElementById('sidebar-cards');
+          if (cards && cards.children.length === 0) {
+            _recoverCards();
+          }
         }
       }
       sendResponse({ ok: true });

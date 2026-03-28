@@ -903,6 +903,28 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .ctx-session-summary-header { color: #1a1a2e; }
     .light-theme .ctx-session-summary-stats { color: #5a5a7a; }
     .light-theme .ctx-session-summary-dismiss { color: #b0b0c0; }
+
+    .ctx-video-divider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      margin: 4px 0;
+    }
+    .ctx-divider-line {
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .ctx-divider-text {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .light-theme .ctx-divider-line { background: rgba(0, 0, 0, 0.1); }
+    .light-theme .ctx-divider-text { color: rgba(0, 0, 0, 0.35); }
   `;
 
   const BADGE_CSS = `
@@ -2594,6 +2616,20 @@ if (!window.__contextExtensionLoaded) {
           });
         }
       });
+    }
+    // Video switch divider
+    if (changes.capturingTabTitle && changes.capturingTabTitle.newValue) {
+      const newTitle = changes.capturingTabTitle.newValue;
+      const oldTitle = changes.capturingTabTitle.oldValue;
+      if (oldTitle && newTitle !== oldTitle) {
+        const cards = shadowRoot?.getElementById('cards');
+        if (cards && cards.children.length > 0) {
+          const divider = document.createElement('div');
+          divider.className = 'ctx-video-divider';
+          divider.innerHTML = `<span class="ctx-divider-line"></span><span class="ctx-divider-text">Now watching</span><span class="ctx-divider-line"></span>`;
+          cards.prepend(divider);
+        }
+      }
     }
     if (changes.capturing) {
       const btn = shadowRoot?.getElementById('ctx-listen-btn');

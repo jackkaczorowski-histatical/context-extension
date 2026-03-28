@@ -8,27 +8,31 @@ let sessionTotal = 0;
 let sessionEntities = [];
 let sessionTranscript = '';
 
-// Item 2: Extension icon toggles sidebar
+// Extension icon toggles sidebar
 chrome.action.onClicked.addListener(async (tab) => {
   try {
     await chrome.tabs.sendMessage(tab.id, { type: 'PING' });
+    console.log('[BACKGROUND] Content script already running, skipping injection');
   } catch (e) {
+    console.log('[BACKGROUND] Content script not running, injecting');
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 300));
   }
   chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SIDEBAR' });
 });
 
-// Item 9: Keyboard shortcut
+// Keyboard shortcut
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'toggle-sidebar') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (tabs[0]) {
         try {
           await chrome.tabs.sendMessage(tabs[0].id, { type: 'PING' });
+          console.log('[BACKGROUND] Content script already running, skipping injection');
         } catch (e) {
+          console.log('[BACKGROUND] Content script not running, injecting');
           await chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, files: ['content.js'] });
-          await new Promise(r => setTimeout(r, 200));
+          await new Promise(r => setTimeout(r, 300));
         }
         chrome.tabs.sendMessage(tabs[0].id, { type: 'TOGGLE_SIDEBAR' });
       }
@@ -55,6 +59,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Stop existing capture cleanly then restart
       stopCapture();
       await new Promise(r => setTimeout(r, 300));
+      // Ensure content script is running before restarting
+      try {
+        await chrome.tabs.sendMessage(capturingTabId, { type: 'PING' });
+      } catch (e) {
+        console.log('[BACKGROUND] STREAM_DIED: content script not running, injecting');
+        await chrome.scripting.executeScript({ target: { tabId: capturingTabId }, files: ['content.js'] });
+        await new Promise(r => setTimeout(r, 300));
+      }
       startCapture(capturingTabId);
       chrome.tabs.sendMessage(capturingTabId, { type: 'CAPTURE_STATE', capturing: true });
     });

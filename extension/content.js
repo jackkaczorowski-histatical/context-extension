@@ -2521,7 +2521,12 @@ if (!window.__contextExtensionLoaded) {
       isActiveTab((active) => {
         if (active) {
           trackSessionStart(changes.sessionStart.newValue);
-          resetSidebar();
+          // Only reset if no cards exist (fresh session, not resume)
+          const existingCards = shadowRoot?.getElementById('cards');
+          const hasExistingCards = existingCards && existingCards.children.length > 0;
+          if (!hasExistingCards) {
+            resetSidebar();
+          }
           chrome.storage.local.get('currentSessionId', (data) => {
             mySessionId = data.currentSessionId || null;
           });

@@ -327,16 +327,22 @@ async function startCapture() {
     capturingTabTitle = tab.title || '';
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
 
-    // Store activeTabId, URL, title, sessionStart, and sessionId for content script
+    // Store activeTabId, URL, title, and sessionId for content script
+    // Only set sessionStart on fresh sessions (no existing cards), not on resume
     sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    chrome.storage.local.set({
+    const existingSession = await chrome.storage.local.get('sessionHistory');
+    const isResume = existingSession.sessionHistory && existingSession.sessionHistory.length > 0;
+    const storageUpdate = {
       activeTabId: tab.id,
       activeTabUrl: tab.url,
       capturingTabTitle: capturingTabTitle,
       capturing: true,
-      sessionStart: Date.now(),
       currentSessionId: sessionId
-    });
+    };
+    if (!isResume) {
+      storageUpdate.sessionStart = Date.now();
+    }
+    chrome.storage.local.set(storageUpdate);
 
     chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
       try {

@@ -1,4 +1,12 @@
 (() => {
+  // Guard against double-injection — if already running, skip
+  if (window.__contextListenerInjected) {
+    console.log('[CONTENT] Already injected, skipping re-execution');
+    return;
+  }
+  window.__contextListenerInjected = true;
+  console.log('[CONTENT] Content script initializing');
+
   const DEDUP_WINDOW_MS = 600000; // 10 minutes
   const recentTerms = new Map(); // term -> timestamp
 
@@ -283,6 +291,7 @@
   `;
 
   function ensureSidebar() {
+    console.log('[CONTENT] ensureSidebar called, existing host:', !!document.getElementById('context-listener-host'), 'closure host:', !!host);
     if (host && document.body.contains(host)) return;
 
     // Item 7: Create host element with zero footprint when hidden
@@ -344,6 +353,7 @@
     const clearBtn = shadowRoot.getElementById('ctx-clear-btn');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
+        console.log('[CONTENT] Clear button clicked, clearing cards');
         cardContainer.innerHTML = '';
         recentTerms.clear();
         chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
@@ -439,6 +449,7 @@
     btn.innerHTML = '&#x1F44E;';
     btn.title = 'Not useful';
     btn.addEventListener('click', () => {
+      console.log('[CONTENT] Thumbs-down clicked for:', key);
       ignoreList.add(key);
       chrome.storage.local.set({ ignoreList: Array.from(ignoreList) });
       card.innerHTML = '<div class="feedback-msg">Thanks for the feedback</div>';
@@ -560,8 +571,11 @@
 
     // Update button state on capture changes
     if (msg.type === 'CAPTURE_STATE') {
+      console.log('[CONTENT] CAPTURE_STATE received:', msg.capturing);
       const hostEl = document.getElementById('context-listener-host');
       const sr = hostEl?.shadowRoot;
+      const debugCards = sr?.getElementById('sidebar-cards');
+      console.log('[CONTENT] Cards in DOM before state change:', debugCards?.children?.length || 0);
       const btn = sr?.getElementById('ctx-listen-btn');
       if (btn) {
         if (msg.capturing) {

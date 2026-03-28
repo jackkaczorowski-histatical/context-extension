@@ -2282,6 +2282,53 @@ if (!window.__contextExtensionLoaded) {
     ensureBadge();
     applyTheme();
     console.log('[CONTENT] Shadow DOM sidebar created');
+
+    // Recover cards from storage if session exists (e.g. page refresh)
+    chrome.storage.local.get(['sessionHistory', 'capturing'], (data) => {
+      const history = data.sessionHistory || [];
+      const cards = shadowRoot.getElementById('cards');
+      if (history.length > 0 && cards && cards.children.length === 0) {
+        console.log('[CONTENT] Recovering', history.length, 'cards from storage');
+        const emptyState = shadowRoot.getElementById('empty-state');
+        if (emptyState) emptyState.style.display = 'none';
+        cards.style.display = 'block';
+        hasCards = true;
+
+        history.forEach(item => {
+          try {
+            if (item.type === 'insight' && item.category) {
+              // Reconstruct insight object for createInsightCard
+              const card = createInsightCard({ insight: item.term, category: item.category, detail: item.description });
+              cards.prepend(card);
+            } else if (item.type === 'stock') {
+              const card = createStockCard(item);
+              cards.prepend(card);
+            } else {
+              const card = createGenericCard(item);
+              cards.prepend(card);
+            }
+          } catch (e) {
+            console.log('[CONTENT] Failed to recover card:', item.term, e.message);
+          }
+        });
+
+        // Update badge count
+        const badge = shadowRoot.querySelector('.ctx-badge-count') || (badgeShadow && badgeShadow.querySelector('.ctx-badge-count'));
+        if (badge) badge.textContent = String(cards.children.length);
+
+        console.log('[CONTENT] Recovered', cards.children.length, 'cards');
+      }
+
+      // Sync button state if currently capturing
+      if (data.capturing) {
+        const btn = shadowRoot.getElementById('ctx-listen-btn');
+        if (btn) {
+          btn.textContent = '\u25A0 Stop';
+          btn.classList.add('listening');
+        }
+      }
+    });
+
     return cardContainer;
   }
 

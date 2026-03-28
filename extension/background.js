@@ -521,7 +521,7 @@ async function stopCapture() {
   firstFlush = true;
   stopUsageTimer();
   chrome.storage.local.remove('activeTabId');
-  chrome.storage.local.set({ capturing: false, sessionHistory: [], sessionTranscript: '' });
+  chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');
 }
 

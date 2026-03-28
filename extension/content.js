@@ -1156,6 +1156,7 @@ if (!window.__contextExtensionLoaded) {
       sidebar.offsetHeight; // force reflow
       sidebar.classList.add('open');
     }
+    chrome.storage.local.set({ sidebarOpen: true });
   }
 
   function closeSidebar() {
@@ -1169,6 +1170,7 @@ if (!window.__contextExtensionLoaded) {
         hostEl.style.width = '0';
       }
     }, 250);
+    chrome.storage.local.set({ sidebarOpen: false });
   }
 
   function resetAutoHide() {
@@ -2283,8 +2285,8 @@ if (!window.__contextExtensionLoaded) {
     applyTheme();
     console.log('[CONTENT] Shadow DOM sidebar created');
 
-    // Recover cards from storage if session exists (e.g. page refresh)
-    chrome.storage.local.get(['sessionHistory', 'capturing'], (data) => {
+    // Recover cards and sidebar state from storage (e.g. page refresh)
+    chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen'], (data) => {
       const history = data.sessionHistory || [];
       const cards = shadowRoot.getElementById('cards');
       if (history.length > 0 && cards && cards.children.length === 0) {
@@ -2326,6 +2328,19 @@ if (!window.__contextExtensionLoaded) {
           btn.textContent = '\u25A0 Stop';
           btn.classList.add('listening');
         }
+      }
+
+      // Auto-reopen sidebar if it was open before refresh
+      if (data.sidebarOpen || data.capturing) {
+        hostEl.dataset.open = 'true';
+        hostEl.style.width = '280px';
+        hostEl.style.pointerEvents = 'auto';
+        const sb = shadowRoot.getElementById('sidebar');
+        if (sb) {
+          sb.dataset.pos = settings.sidebarPosition || 'right';
+          sb.classList.add('open');
+        }
+        console.log('[CONTENT] Auto-reopened sidebar after refresh');
       }
     });
 
@@ -2942,7 +2957,11 @@ if (!window.__contextExtensionLoaded) {
   });
 
   // --- Listen for messages from background ---
-  chrome.runtime.onMessage.addListener((msg) => {
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'PING') {
+      sendResponse({ ok: true });
+      return true;
+    }
     if (msg.type === 'TOGGLE_SIDEBAR') {
       toggleSidebar();
     } else if (msg.type === 'CAPTURE_STATE') {

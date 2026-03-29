@@ -129,29 +129,31 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         } catch (e) { return url; }
       };
       if (oldUrl && getVideoId(newUrl) !== getVideoId(oldUrl)) {
-        const newTitle = tab?.title || '';
-        const oldTitle = capturingTabTitle || '';
-        console.log('[BACKGROUND] Video switched:', oldUrl, '->', newUrl);
-        capturingTabTitle = newTitle;
-
-        // Append divider entry to sessionHistory so it persists across re-injections
-        chrome.storage.local.get('sessionHistory', (histData) => {
+        // Read sessionHistory and capturingTabTitle from storage for reliability
+        chrome.storage.local.get(['sessionHistory', 'capturingTabTitle'], (histData) => {
           const history = histData.sessionHistory || [];
+          const previousTitle = histData.capturingTabTitle || capturingTabTitle || '';
+
           history.push({
             type: 'video-divider',
-            term: oldTitle,
+            term: previousTitle,
+            description: '',
             url: oldUrl,
-            cardCountAtSwitch: history.length,
             timestamp: Date.now()
           });
+
+          capturingTabTitle = tab?.title || '';
+
           chrome.storage.local.set({
             sessionHistory: history,
-            capturingTabTitle: newTitle,
-            activeTabUrl: newUrl,
+            previousVideoTitle: previousTitle,
+            previousVideoUrl: oldUrl,
             videoSwitched: Date.now(),
-            previousVideoTitle: oldTitle,
-            previousVideoUrl: oldUrl
+            capturingTabTitle: capturingTabTitle,
+            activeTabUrl: newUrl
           });
+
+          console.log('[BACKGROUND] Video switched:', oldUrl, '->', newUrl);
         });
       }
     });

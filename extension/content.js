@@ -2398,17 +2398,17 @@ if (!window.__contextExtensionLoaded) {
                 </div>
                 <div class="ctx-divider-line-full"></div>
               `;
-              cards.prepend(divider);
+              cards.appendChild(divider);
             } else if (item.type === 'insight' && item.category) {
               // Reconstruct insight object for createInsightCard
               const card = createInsightCard({ insight: item.term, category: item.category, detail: item.description });
-              cards.prepend(card);
+              cards.appendChild(card);
             } else if (item.type === 'stock') {
               const card = createStockCard(item);
-              cards.prepend(card);
+              cards.appendChild(card);
             } else {
               const card = createGenericCard(item);
-              cards.prepend(card);
+              cards.appendChild(card);
             }
           } catch (e) {
             console.log('[CONTENT] Failed to recover card:', item.term, e.message);

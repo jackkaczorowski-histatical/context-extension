@@ -133,12 +133,25 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         const oldTitle = capturingTabTitle || '';
         console.log('[BACKGROUND] Video switched:', oldUrl, '->', newUrl);
         capturingTabTitle = newTitle;
-        chrome.storage.local.set({
-          capturingTabTitle: newTitle,
-          activeTabUrl: newUrl,
-          videoSwitched: Date.now(),
-          previousVideoTitle: oldTitle,
-          previousVideoUrl: oldUrl
+
+        // Append divider entry to sessionHistory so it persists across re-injections
+        chrome.storage.local.get('sessionHistory', (histData) => {
+          const history = histData.sessionHistory || [];
+          history.push({
+            type: 'video-divider',
+            term: oldTitle,
+            url: oldUrl,
+            cardCountAtSwitch: history.length,
+            timestamp: Date.now()
+          });
+          chrome.storage.local.set({
+            sessionHistory: history,
+            capturingTabTitle: newTitle,
+            activeTabUrl: newUrl,
+            videoSwitched: Date.now(),
+            previousVideoTitle: oldTitle,
+            previousVideoUrl: oldUrl
+          });
         });
       }
     });

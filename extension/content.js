@@ -2390,6 +2390,49 @@ if (!window.__contextExtensionLoaded) {
       }
     });
 
+    // Check for recent video switch divider (may have been missed if content script was re-injected)
+    chrome.storage.local.get(['previousVideoTitle', 'previousVideoUrl', 'videoSwitched'], (data) => {
+      if (!data.videoSwitched) return;
+
+      const switchAge = Date.now() - data.videoSwitched;
+      if (switchAge > 5000) return;
+
+      const cards = shadowRoot?.getElementById('cards');
+      if (!cards || cards.children.length === 0) return;
+
+      const prevTitle = escapeHtml(
+        (data.previousVideoTitle || 'Previous video')
+          .replace(/\s*-\s*YouTube$/i, '')
+          .replace(/^\(\d+\)\s*/, '')
+          .trim()
+      ) || 'Previous video';
+
+      // Don't add duplicate divider
+      const existingDividers = cards.querySelectorAll('.ctx-video-divider');
+      for (const d of existingDividers) {
+        if (d.querySelector('.ctx-divider-link')?.textContent === prevTitle) return;
+      }
+
+      const prevUrl = data.previousVideoUrl || '';
+      const prevCardCount = cards.querySelectorAll('.context-card').length;
+      const link = prevUrl
+        ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${prevTitle}</a>`
+        : `<span class="ctx-divider-link">${prevTitle}</span>`;
+
+      const divider = document.createElement('div');
+      divider.className = 'ctx-video-divider';
+      divider.innerHTML = `
+        <div class="ctx-divider-prev">
+          <span class="ctx-divider-label">PREVIOUS</span>
+          ${link}
+          <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="ctx-divider-line-full"></div>
+      `;
+      cards.prepend(divider);
+      console.log('[CONTENT] Added video switch divider on init for:', prevTitle);
+    });
+
     return cardContainer;
   }
 

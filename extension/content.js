@@ -2366,7 +2366,7 @@ if (!window.__contextExtensionLoaded) {
     console.log('[CONTENT] Shadow DOM sidebar created');
 
     // Recover cards and sidebar state from storage (e.g. page refresh)
-    chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen'], (data) => {
+    chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen', 'activeTabUrl'], (data) => {
       const history = data.sessionHistory || [];
       const cards = shadowRoot.getElementById('cards');
       if (history.length > 0 && cards && cards.children.length === 0) {
@@ -2431,8 +2431,19 @@ if (!window.__contextExtensionLoaded) {
         }
       }
 
-      // Auto-reopen sidebar if it was open before refresh
-      if (data.sidebarOpen || data.capturing) {
+      // Auto-reopen sidebar only on the capturing tab
+      const isCapturingTab = (() => {
+        try {
+          if (!data.activeTabUrl) return false;
+          const active = new URL(data.activeTabUrl);
+          const current = new URL(window.location.href);
+          return active.origin + active.pathname === current.origin + current.pathname;
+        } catch (e) {
+          return data.activeTabUrl === window.location.href;
+        }
+      })();
+
+      if (isCapturingTab && (data.sidebarOpen || data.capturing)) {
         hostEl.dataset.open = 'true';
         hostEl.style.width = '280px';
         hostEl.style.pointerEvents = 'auto';
@@ -2441,7 +2452,7 @@ if (!window.__contextExtensionLoaded) {
           sb.dataset.pos = settings.sidebarPosition || 'right';
           sb.classList.add('open');
         }
-        console.log('[CONTENT] Auto-reopened sidebar after refresh');
+        console.log('[CONTENT] Auto-reopened sidebar after refresh (capturing tab)');
       }
     });
 
@@ -3151,9 +3162,19 @@ if (!window.__contextExtensionLoaded) {
     }
   });
 
-  // --- Sync Now Watching bar on every init (including re-injection) ---
-  chrome.storage.local.get('capturing', (data) => {
-    if (data.capturing) {
+  // --- Sync Now Watching bar on every init (only on capturing tab) ---
+  chrome.storage.local.get(['capturing', 'activeTabUrl'], (data) => {
+    if (data.capturing && data.activeTabUrl) {
+      let isCapturingTab = false;
+      try {
+        const active = new URL(data.activeTabUrl);
+        const current = new URL(window.location.href);
+        isCapturingTab = active.origin + active.pathname === current.origin + current.pathname;
+      } catch (e) {
+        isCapturingTab = data.activeTabUrl === window.location.href;
+      }
+      if (!isCapturingTab) return;
+
       ensureSidebar();
       const bar = shadowRoot?.getElementById('ctx-now-watching');
       if (bar) {

@@ -282,6 +282,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sessionTranscript = '';
     transcriptBuffer = '';
     firstFlush = true;
+  } else if (message.type === 'GET_TAB_ID') {
+    sendResponse({ tabId: sender.tab?.id });
+    return true;
   } else if (message.type === 'TOGGLE_CAPTURE') {
     chrome.storage.local.get('capturing', async (data) => {
       if (data.capturing) {

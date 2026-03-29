@@ -905,30 +905,50 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .ctx-session-summary-dismiss { color: #b0b0c0; }
 
     .ctx-video-divider {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
+      padding: 6px 12px 2px 12px;
       margin: 4px 0;
     }
-    .ctx-divider-line {
-      flex: 1;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.15);
+    .ctx-divider-prev {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
     }
-    .ctx-divider-text {
-      font-size: 10px;
-      color: rgba(255, 255, 255, 0.4);
+    .ctx-divider-label {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.3);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      white-space: nowrap;
+      letter-spacing: 0.08em;
+    }
+    .ctx-divider-link {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      text-decoration: none;
+      text-align: center;
+      max-width: 90%;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 70%;
-      text-align: center;
+      white-space: nowrap;
+      display: block;
     }
-    .light-theme .ctx-divider-line { background: rgba(0, 0, 0, 0.1); }
-    .light-theme .ctx-divider-text { color: rgba(0, 0, 0, 0.35); }
+    .ctx-divider-link:hover {
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: underline;
+    }
+    .ctx-divider-count {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.25);
+    }
+    .ctx-divider-line-full {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin-top: 6px;
+    }
+    .light-theme .ctx-divider-label { color: rgba(0, 0, 0, 0.3); }
+    .light-theme .ctx-divider-link { color: rgba(0, 0, 0, 0.45); }
+    .light-theme .ctx-divider-link:hover { color: rgba(0, 0, 0, 0.7); }
+    .light-theme .ctx-divider-count { color: rgba(0, 0, 0, 0.2); }
+    .light-theme .ctx-divider-line-full { background: rgba(0, 0, 0, 0.08); }
   `;
 
   const BADGE_CSS = `
@@ -2628,11 +2648,30 @@ if (!window.__contextExtensionLoaded) {
       if (oldTitle && newTitle !== oldTitle) {
         const cards = shadowRoot?.getElementById('cards');
         if (cards && cards.children.length > 0) {
-          const divider = document.createElement('div');
-          divider.className = 'ctx-video-divider';
-          const displayTitle = newTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
-          divider.innerHTML = `<span class="ctx-divider-line"></span><span class="ctx-divider-text">${escapeHtml(displayTitle)}</span><span class="ctx-divider-line"></span>`;
-          cards.prepend(divider);
+          const prevCardCount = cards.querySelectorAll('.context-card').length;
+
+          chrome.storage.local.get('activeTabUrl', (urlData) => {
+            const prevUrl = urlData.activeTabUrl || '';
+            const displayOldTitle = escapeHtml(oldTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim());
+
+            const divider = document.createElement('div');
+            divider.className = 'ctx-video-divider';
+
+            const link = prevUrl
+              ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${displayOldTitle}</a>`
+              : `<span class="ctx-divider-link">${displayOldTitle}</span>`;
+
+            divider.innerHTML = `
+              <div class="ctx-divider-prev">
+                <span class="ctx-divider-label">Previous</span>
+                ${link}
+                <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="ctx-divider-line-full"></div>
+            `;
+
+            cards.prepend(divider);
+          });
         }
       }
     }

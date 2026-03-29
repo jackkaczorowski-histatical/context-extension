@@ -949,6 +949,31 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .ctx-divider-link:hover { color: rgba(0, 0, 0, 0.7); }
     .light-theme .ctx-divider-count { color: rgba(0, 0, 0, 0.2); }
     .light-theme .ctx-divider-line-full { background: rgba(0, 0, 0, 0.08); }
+
+    .ctx-now-watching {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .ctx-now-watching-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+    .ctx-now-watching-title {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
   `;
 
   const BADGE_CSS = `
@@ -2320,6 +2345,15 @@ if (!window.__contextExtensionLoaded) {
     sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
     sidebar.appendChild(emptyState);
+
+    // Pinned "Now Watching" bar
+    const nowWatchingBar = document.createElement('div');
+    nowWatchingBar.id = 'ctx-now-watching';
+    nowWatchingBar.className = 'ctx-now-watching';
+    nowWatchingBar.style.display = 'none';
+    nowWatchingBar.innerHTML = `<span class="ctx-now-watching-label">NOW WATCHING</span><span class="ctx-now-watching-title"></span>`;
+    sidebar.appendChild(nowWatchingBar);
+
     sidebar.appendChild(cardContainer);
     sidebar.appendChild(askResponse);
     sidebar.appendChild(suggestionsBar);
@@ -2408,6 +2442,18 @@ if (!window.__contextExtensionLoaded) {
           sb.classList.add('open');
         }
         console.log('[CONTENT] Auto-reopened sidebar after refresh');
+      }
+    });
+
+    // Restore Now Watching bar on page refresh
+    chrome.storage.local.get(['capturing', 'capturingTabTitle'], (data) => {
+      if (data.capturing && data.capturingTabTitle) {
+        const bar = shadowRoot?.getElementById('ctx-now-watching');
+        if (bar) {
+          const title = data.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+          bar.querySelector('.ctx-now-watching-title').textContent = title;
+          bar.style.display = 'flex';
+        }
       }
     });
 
@@ -2697,6 +2743,15 @@ if (!window.__contextExtensionLoaded) {
 
           cards.prepend(divider);
         }
+
+        // Update Now Watching bar with new video title
+        chrome.storage.local.get('capturingTabTitle', (titleData) => {
+          const bar = shadowRoot?.getElementById('ctx-now-watching');
+          if (bar && titleData.capturingTabTitle) {
+            const title = titleData.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+            bar.querySelector('.ctx-now-watching-title').textContent = title;
+          }
+        });
       });
     }
     if (changes.capturing) {
@@ -2705,6 +2760,15 @@ if (!window.__contextExtensionLoaded) {
         ensureBadge();
         setBadgeCapturing(true, false);
         if (btn) { btn.textContent = '\u25A0 Stop'; btn.classList.add('listening'); }
+        // Show Now Watching bar
+        chrome.storage.local.get('capturingTabTitle', (data) => {
+          const bar = shadowRoot?.getElementById('ctx-now-watching');
+          if (bar && data.capturingTabTitle) {
+            const title = data.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+            bar.querySelector('.ctx-now-watching-title').textContent = title;
+            bar.style.display = 'flex';
+          }
+        });
         // Start aging interval
         if (!agingInterval) {
           agingInterval = setInterval(() => {
@@ -2722,6 +2786,9 @@ if (!window.__contextExtensionLoaded) {
         setBadgeCapturing(false, false);
         if (btn) { btn.textContent = '\u25CF Start'; btn.classList.remove('listening'); }
         if (agingInterval) { clearInterval(agingInterval); agingInterval = null; }
+        // Hide Now Watching bar
+        const nwBar = shadowRoot?.getElementById('ctx-now-watching');
+        if (nwBar) nwBar.style.display = 'none';
       }
     }
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {

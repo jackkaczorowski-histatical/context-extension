@@ -116,6 +116,16 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url && isSupportedUrl(tab.url)) {
     reinjectContentScript(tabId);
   }
+
+  // Update stored title when the capturing tab's title changes (SPA navigation)
+  if (tabId === capturingTabId && changeInfo.title) {
+    const newTitle = changeInfo.title;
+    if (newTitle !== capturingTabTitle) {
+      console.log('[BACKGROUND] Video switched:', capturingTabTitle, '->', newTitle);
+      capturingTabTitle = newTitle;
+      chrome.storage.local.set({ capturingTabTitle: newTitle });
+    }
+  }
 });
 
 chrome.runtime.onInstalled.addListener(() => {

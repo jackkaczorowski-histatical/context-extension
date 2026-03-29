@@ -130,12 +130,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       };
       if (oldUrl && getVideoId(newUrl) !== getVideoId(oldUrl)) {
         const newTitle = tab?.title || '';
+        const oldTitle = capturingTabTitle || '';
         console.log('[BACKGROUND] Video switched:', oldUrl, '->', newUrl);
         capturingTabTitle = newTitle;
         chrome.storage.local.set({
           capturingTabTitle: newTitle,
           activeTabUrl: newUrl,
-          videoSwitched: Date.now()
+          videoSwitched: Date.now(),
+          previousVideoTitle: oldTitle,
+          previousVideoUrl: oldUrl
         });
       }
     });

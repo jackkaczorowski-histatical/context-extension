@@ -326,9 +326,9 @@ if (!window.__contextExtensionLoaded) {
       border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
       overflow: visible;
     }
-    .ctx-wordmark { font-size: 13px; font-weight: 600; color: #e0e0f0; letter-spacing: -0.01em; }
+    .ctx-wordmark { font-size: 13px; font-weight: 600; color: #e0e0f0; letter-spacing: -0.01em; margin-right: 10px; }
     .ctx-header-right { display: flex; align-items: center; gap: 10px; }
-    .ctx-live { display: flex; align-items: center; gap: 5px; }
+    .ctx-live { display: flex; align-items: center; gap: 5px; margin-left: 4px; margin-right: 10px; }
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
       animation: ctx-pulse 2s ease-in-out infinite;
@@ -341,11 +341,12 @@ if (!window.__contextExtensionLoaded) {
       position: relative;
     }
     .ctx-close-btn:hover, .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
-    .ctx-export-btn { font-size: 13px; }
+    .ctx-export-btn { font-size: 13px; margin-left: 4px; margin-right: 4px; }
     .ctx-clear-btn {
       background: none; border: 1px solid rgba(255,255,255,0.08); color: #64748b; font-size: 11px;
       cursor: pointer; padding: 3px 8px; border-radius: 4px;
       line-height: 1; transition: color 0.15s, background 0.15s; font-family: inherit;
+      margin-left: 4px; margin-right: 4px;
     }
     .ctx-clear-btn:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
     .ctx-clear-confirm { font-size: 11px; color: #ef4444; display: inline-flex; align-items: center; gap: 6px; }
@@ -694,7 +695,7 @@ if (!window.__contextExtensionLoaded) {
     #ctx-listen-btn {
       background: #00e676; color: #0a0a14; border: none; border-radius: 12px;
       padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; white-space: nowrap;
+      transition: all 0.2s; white-space: nowrap; margin-left: 8px; margin-right: 8px;
     }
     #ctx-listen-btn:hover { background: #00c853; }
     #ctx-listen-btn.listening { background: #ff5252; color: white; }

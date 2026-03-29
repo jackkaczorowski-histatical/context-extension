@@ -2445,17 +2445,34 @@ if (!window.__contextExtensionLoaded) {
       }
     });
 
-    // Restore Now Watching bar on page refresh
-    chrome.storage.local.get(['capturing', 'capturingTabTitle'], (data) => {
-      if (data.capturing && data.capturingTabTitle) {
+    // Restore Now Watching bar on page refresh — read document.title directly
+    chrome.storage.local.get('capturing', (data) => {
+      if (data.capturing) {
         const bar = shadowRoot?.getElementById('ctx-now-watching');
         if (bar) {
-          const title = data.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
-          bar.querySelector('.ctx-now-watching-title').textContent = title;
-          bar.style.display = 'flex';
+          const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+          if (title && title !== 'YouTube') {
+            bar.querySelector('.ctx-now-watching-title').textContent = title;
+            bar.style.display = 'flex';
+          }
         }
       }
     });
+
+    // Watch for title changes to keep Now Watching bar current (YouTube SPA updates title dynamically)
+    const titleObserver = new MutationObserver(() => {
+      const bar = shadowRoot?.getElementById('ctx-now-watching');
+      if (bar && bar.style.display !== 'none') {
+        const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+        if (title && title !== 'YouTube') {
+          bar.querySelector('.ctx-now-watching-title').textContent = title;
+        }
+      }
+    });
+    const titleEl = document.querySelector('title');
+    if (titleEl) {
+      titleObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
+    }
 
     return cardContainer;
   }
@@ -2710,13 +2727,16 @@ if (!window.__contextExtensionLoaded) {
     }
     // Video switch divider — triggered by URL change, not title change
     if (changes.videoSwitched && changes.videoSwitched.newValue) {
-      // Update Now Watching bar from changes object (same set call, so both arrive together)
-      const newTitle = changes.capturingTabTitle ? changes.capturingTabTitle.newValue : null;
-      if (newTitle) {
+      // Update Now Watching bar — use document.title (most current) with changes as fallback
+      {
         const bar = shadowRoot?.getElementById('ctx-now-watching');
         if (bar) {
-          const displayTitle = newTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
-          bar.querySelector('.ctx-now-watching-title').textContent = displayTitle;
+          const pageTitle = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+          const changesTitle = changes.capturingTabTitle ? changes.capturingTabTitle.newValue.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim() : '';
+          const displayTitle = (pageTitle && pageTitle !== 'YouTube') ? pageTitle : changesTitle;
+          if (displayTitle) {
+            bar.querySelector('.ctx-now-watching-title').textContent = displayTitle;
+          }
         }
       }
 
@@ -2762,15 +2782,17 @@ if (!window.__contextExtensionLoaded) {
         ensureBadge();
         setBadgeCapturing(true, false);
         if (btn) { btn.textContent = '\u25A0 Stop'; btn.classList.add('listening'); }
-        // Show Now Watching bar
-        chrome.storage.local.get('capturingTabTitle', (data) => {
+        // Show Now Watching bar — read document.title directly
+        {
           const bar = shadowRoot?.getElementById('ctx-now-watching');
-          if (bar && data.capturingTabTitle) {
-            const title = data.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
-            bar.querySelector('.ctx-now-watching-title').textContent = title;
-            bar.style.display = 'flex';
+          if (bar) {
+            const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+            if (title && title !== 'YouTube') {
+              bar.querySelector('.ctx-now-watching-title').textContent = title;
+              bar.style.display = 'flex';
+            }
           }
-        });
+        }
         // Start aging interval
         if (!agingInterval) {
           agingInterval = setInterval(() => {
@@ -3130,14 +3152,16 @@ if (!window.__contextExtensionLoaded) {
   });
 
   // --- Sync Now Watching bar on every init (including re-injection) ---
-  chrome.storage.local.get(['capturing', 'capturingTabTitle'], (data) => {
-    if (data.capturing && data.capturingTabTitle) {
+  chrome.storage.local.get('capturing', (data) => {
+    if (data.capturing) {
       ensureSidebar();
       const bar = shadowRoot?.getElementById('ctx-now-watching');
       if (bar) {
-        const title = data.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
-        bar.querySelector('.ctx-now-watching-title').textContent = title;
-        bar.style.display = 'flex';
+        const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+        if (title && title !== 'YouTube') {
+          bar.querySelector('.ctx-now-watching-title').textContent = title;
+          bar.style.display = 'flex';
+        }
       }
     }
   });

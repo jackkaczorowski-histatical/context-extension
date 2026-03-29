@@ -2710,6 +2710,17 @@ if (!window.__contextExtensionLoaded) {
     }
     // Video switch divider — triggered by URL change, not title change
     if (changes.videoSwitched && changes.videoSwitched.newValue) {
+      // Update Now Watching bar from changes object (same set call, so both arrive together)
+      const newTitle = changes.capturingTabTitle ? changes.capturingTabTitle.newValue : null;
+      if (newTitle) {
+        const bar = shadowRoot?.getElementById('ctx-now-watching');
+        if (bar) {
+          const displayTitle = newTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+          bar.querySelector('.ctx-now-watching-title').textContent = displayTitle;
+        }
+      }
+
+      // Create divider for the previous video
       chrome.storage.local.get(['previousVideoTitle', 'previousVideoUrl'], (data) => {
         const prevTitle = escapeHtml(
           (data.previousVideoTitle || 'Previous video')
@@ -2743,15 +2754,6 @@ if (!window.__contextExtensionLoaded) {
 
           cards.prepend(divider);
         }
-
-        // Update Now Watching bar with new video title
-        chrome.storage.local.get('capturingTabTitle', (titleData) => {
-          const bar = shadowRoot?.getElementById('ctx-now-watching');
-          if (bar && titleData.capturingTabTitle) {
-            const title = titleData.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
-            bar.querySelector('.ctx-now-watching-title').textContent = title;
-          }
-        });
       });
     }
     if (changes.capturing) {

@@ -2641,39 +2641,50 @@ if (!window.__contextExtensionLoaded) {
         }
       });
     }
-    // Video switch divider
-    if (changes.capturingTabTitle && changes.capturingTabTitle.newValue) {
-      const newTitle = changes.capturingTabTitle.newValue;
-      const oldTitle = changes.capturingTabTitle.oldValue;
-      if (oldTitle && newTitle !== oldTitle) {
+    // Video switch divider — triggered by URL change, not title change
+    if (changes.videoSwitched && changes.videoSwitched.newValue) {
+      chrome.storage.local.get(['capturingTabTitle', 'activeTabUrl'], (data) => {
+        const newTitle = (data.capturingTabTitle || '').replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+        if (!newTitle || newTitle === 'YouTube') return;
+
         const cards = shadowRoot?.getElementById('cards');
         if (cards && cards.children.length > 0) {
+          // Remove any existing dividers to prevent stacking
+          cards.querySelectorAll('.ctx-video-divider').forEach(d => d.remove());
+
           const prevCardCount = cards.querySelectorAll('.context-card').length;
+          const prevUrl = changes.videoSwitched.oldValue
+            ? '' // Old URL already replaced in storage; use activeTabUrl from before
+            : '';
 
-          chrome.storage.local.get('activeTabUrl', (urlData) => {
-            const prevUrl = urlData.activeTabUrl || '';
-            const displayOldTitle = escapeHtml(oldTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim());
+          // The old URL was the activeTabUrl before this change
+          const oldUrl = changes.activeTabUrl?.oldValue || '';
+          const displayOldTitle = escapeHtml(
+            (changes.capturingTabTitle?.oldValue || 'Previous video')
+              .replace(/\s*-\s*YouTube$/i, '')
+              .replace(/^\(\d+\)\s*/, '')
+              .trim()
+          );
 
-            const divider = document.createElement('div');
-            divider.className = 'ctx-video-divider';
+          const divider = document.createElement('div');
+          divider.className = 'ctx-video-divider';
 
-            const link = prevUrl
-              ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${displayOldTitle}</a>`
-              : `<span class="ctx-divider-link">${displayOldTitle}</span>`;
+          const link = oldUrl
+            ? `<a href="${escapeHtml(oldUrl)}" target="_blank" class="ctx-divider-link">${displayOldTitle}</a>`
+            : `<span class="ctx-divider-link">${displayOldTitle}</span>`;
 
-            divider.innerHTML = `
-              <div class="ctx-divider-prev">
-                <span class="ctx-divider-label">Previous</span>
-                ${link}
-                <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
-              </div>
-              <div class="ctx-divider-line-full"></div>
-            `;
+          divider.innerHTML = `
+            <div class="ctx-divider-prev">
+              <span class="ctx-divider-label">Previous</span>
+              ${link}
+              <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="ctx-divider-line-full"></div>
+          `;
 
-            cards.prepend(divider);
-          });
+          cards.prepend(divider);
         }
-      }
+      });
     }
     if (changes.capturing) {
       const btn = shadowRoot?.getElementById('ctx-listen-btn');

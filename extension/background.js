@@ -117,14 +117,28 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     reinjectContentScript(tabId);
   }
 
-  // Update stored title when the capturing tab's title changes (SPA navigation)
-  if (tabId === capturingTabId && changeInfo.title) {
-    const newTitle = changeInfo.title;
-    if (newTitle !== capturingTabTitle) {
-      console.log('[BACKGROUND] Video switched:', capturingTabTitle, '->', newTitle);
-      capturingTabTitle = newTitle;
-      chrome.storage.local.set({ capturingTabTitle: newTitle });
-    }
+  // Detect video switch via URL change (not title — titles are too noisy)
+  if (tabId === capturingTabId && changeInfo.url) {
+    const newUrl = changeInfo.url;
+    chrome.storage.local.get('activeTabUrl', (data) => {
+      const oldUrl = data.activeTabUrl || '';
+      const getVideoId = (url) => {
+        try {
+          const u = new URL(url);
+          return u.hostname + u.pathname + (u.searchParams.get('v') || '');
+        } catch (e) { return url; }
+      };
+      if (oldUrl && getVideoId(newUrl) !== getVideoId(oldUrl)) {
+        const newTitle = tab?.title || '';
+        console.log('[BACKGROUND] Video switched:', oldUrl, '->', newUrl);
+        capturingTabTitle = newTitle;
+        chrome.storage.local.set({
+          capturingTabTitle: newTitle,
+          activeTabUrl: newUrl,
+          videoSwitched: Date.now()
+        });
+      }
+    });
   }
 });
 

@@ -3129,6 +3129,19 @@ if (!window.__contextExtensionLoaded) {
     }
   });
 
+  // --- Sync Now Watching bar on every init (including re-injection) ---
+  chrome.storage.local.get(['capturing', 'capturingTabTitle'], (data) => {
+    if (data.capturing && data.capturingTabTitle) {
+      ensureSidebar();
+      const bar = shadowRoot?.getElementById('ctx-now-watching');
+      if (bar) {
+        const title = data.capturingTabTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+        bar.querySelector('.ctx-now-watching-title').textContent = title;
+        bar.style.display = 'flex';
+      }
+    }
+  });
+
   // --- Listen for messages from background ---
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'PING') {

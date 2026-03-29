@@ -922,6 +922,10 @@ if (!window.__contextExtensionLoaded) {
       text-transform: uppercase;
       letter-spacing: 0.05em;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 70%;
+      text-align: center;
     }
     .light-theme .ctx-divider-line { background: rgba(0, 0, 0, 0.1); }
     .light-theme .ctx-divider-text { color: rgba(0, 0, 0, 0.35); }
@@ -2626,7 +2630,8 @@ if (!window.__contextExtensionLoaded) {
         if (cards && cards.children.length > 0) {
           const divider = document.createElement('div');
           divider.className = 'ctx-video-divider';
-          divider.innerHTML = `<span class="ctx-divider-line"></span><span class="ctx-divider-text">Now watching</span><span class="ctx-divider-line"></span>`;
+          const displayTitle = newTitle.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+          divider.innerHTML = `<span class="ctx-divider-line"></span><span class="ctx-divider-text">${escapeHtml(displayTitle)}</span><span class="ctx-divider-line"></span>`;
           cards.prepend(divider);
         }
       }

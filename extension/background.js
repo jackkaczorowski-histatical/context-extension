@@ -63,6 +63,8 @@ let firstFlush = true;
 let restartAttempted = false;
 let sessionId = null;
 let sessionTotal = 0;
+let isStoppingCapture = false;
+let isStartingCapture = false;
 
 function getUsageKey() {
   const d = new Date();
@@ -277,6 +279,74 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
   } else if (message.type === 'CLEAR_SESSION') {
     console.log('[BACKGROUND] Session cleared by user');
+    // Save session entities to KB BEFORE clearing sessionHistory
+    chrome.storage.local.get(['sessionHistory', 'knowledgeBase'], (data) => {
+      const sessionHist = data.sessionHistory || [];
+      const kb = data.knowledgeBase || {};
+      sessionHist.forEach(entry => {
+        const key = (entry.term || entry.name || '').toLowerCase();
+        if (!key) return;
+        if (kb[key]) {
+          kb[key].timesSeen++;
+          kb[key].lastSeen = Date.now();
+        } else {
+          kb[key] = { term: entry.term || entry.name, timesSeen: 1, firstSeen: Date.now(), lastSeen: Date.now() };
+        }
+      });
+      chrome.storage.local.set({ knowledgeBase: kb });
+      console.log('[BACKGROUND] KB saved before clear, total terms:', Object.keys(kb).length);
+
+      // Check if weekly digest is due (7+ days since last)
+      chrome.storage.local.get(['lastDigestDate'], (digestData) => {
+        const lastDigest = digestData.lastDigestDate || 0;
+        const now = Date.now();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        if (now - lastDigest >= sevenDays && Object.keys(kb).length > 0) {
+          const entries = Object.values(kb);
+          const weekAgo = now - sevenDays;
+
+          const newThisWeek = entries.filter(e => e.firstSeen >= weekAgo);
+          const expanded = entries.filter(e => e.expanded).sort((a, b) => b.timesSeen - a.timesSeen).slice(0, 5);
+
+          const videoCounts = {};
+          entries.forEach(e => {
+            if (e.source) videoCounts[e.source] = (videoCounts[e.source] || 0) + 1;
+          });
+          const topVideos = Object.entries(videoCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+          const videoCount = Object.keys(videoCounts).length;
+
+          const typeCounts = {};
+          entries.forEach(e => {
+            const t = (e.type || 'other').toLowerCase();
+            typeCounts[t] = (typeCounts[t] || 0) + 1;
+          });
+          const topTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t);
+
+          const typeLabels = {
+            concept: 'concepts', event: 'history', person: 'people',
+            people: 'people', stock: 'finance', organization: 'organizations',
+            commodity: 'commodities', other: 'general'
+          };
+          const topicSummary = topTypes.map(t => typeLabels[t] || t).join(' & ');
+
+          const weeklyDigest = {
+            date: now,
+            newTerms: newThisWeek.length,
+            videoCount,
+            topicSummary,
+            topExpanded: expanded.map(e => e.term),
+            topVideos: topVideos.map(([title, count]) => ({ title, count })),
+            dismissed: false
+          };
+
+          chrome.storage.local.set({ weeklyDigest, lastDigestDate: now });
+          console.log('[BACKGROUND] Weekly digest generated:', newThisWeek.length, 'new terms from', videoCount, 'videos');
+        }
+      });
+
+      // Now clear sessionHistory
+      chrome.storage.local.set({ sessionHistory: [] });
+    });
     sessionEntities = [];
     sessionInsights = [];
     sessionTranscript = '';
@@ -338,8 +408,11 @@ function flushTranscriptBuffer() {
 }
 
 async function startCapture() {
+  if (isStartingCapture) return;
+  isStartingCapture = true;
   if (capturingTabId !== null) {
     console.log('[BACKGROUND] Already capturing, ignoring duplicate START_CAPTURE');
+    isStartingCapture = false;
     return;
   }
   restartAttempted = false;
@@ -430,10 +503,15 @@ async function startCapture() {
     });
   } catch (err) {
     console.error('[BACKGROUND] Capture error:', err.message || err);
+  } finally {
+    isStartingCapture = false;
   }
 }
 
 async function stopCapture() {
+  if (isStoppingCapture) return;
+  isStoppingCapture = true;
+
   capturingTabId = null;
 
   try {
@@ -462,94 +540,7 @@ async function stopCapture() {
     console.error('[BACKGROUND] Session count error:', e.message || e);
   }
 
-  // Save session entities to persistent knowledge base
-  try {
-    const histData = await chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle']);
-    const sessionHist = histData.sessionHistory || [];
-    const kb = histData.knowledgeBase || {};
-    const title = capturingTabTitle || histData.capturingTabTitle || '';
-    console.log('[BACKGROUND] Saving to KB with source:', title, '| sessionHistory entries:', sessionHist.length);
-    sessionHist.forEach(entry => {
-      const term = entry.term;
-      if (!term) return;
-      const key = term.toLowerCase();
-      if (kb[key]) {
-        kb[key].timesSeen++;
-        kb[key].source = title;
-        if (entry.description) kb[key].expanded = true;
-      } else {
-        kb[key] = {
-          term,
-          type: entry.type || 'other',
-          firstSeen: entry.timestamp || Date.now(),
-          timesSeen: 1,
-          expanded: !!entry.description,
-          source: title
-        };
-      }
-    });
-    await chrome.storage.local.set({ knowledgeBase: kb });
-    console.log('[BACKGROUND] Knowledge base updated, total terms:', Object.keys(kb).length);
-  } catch (e) {
-    console.error('[BACKGROUND] Knowledge base update error:', e.message || e);
-  }
-
-  // Check if weekly digest is due (7+ days since last)
-  try {
-    const digestData = await chrome.storage.local.get(['lastDigestDate', 'knowledgeBase']);
-    const kb = digestData.knowledgeBase || {};
-    const lastDigest = digestData.lastDigestDate || 0;
-    const now = Date.now();
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    if (now - lastDigest >= sevenDays && Object.keys(kb).length > 0) {
-      const entries = Object.values(kb);
-      const weekAgo = now - sevenDays;
-
-      // New terms this week
-      const newThisWeek = entries.filter(e => e.firstSeen >= weekAgo);
-
-      // Top 5 most-expanded terms
-      const expanded = entries.filter(e => e.expanded).sort((a, b) => b.timesSeen - a.timesSeen).slice(0, 5);
-
-      // Videos by term count
-      const videoCounts = {};
-      entries.forEach(e => {
-        if (e.source) videoCounts[e.source] = (videoCounts[e.source] || 0) + 1;
-      });
-      const topVideos = Object.entries(videoCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      const videoCount = Object.keys(videoCounts).length;
-
-      // Dominant topics
-      const typeCounts = {};
-      entries.forEach(e => {
-        const t = (e.type || 'other').toLowerCase();
-        typeCounts[t] = (typeCounts[t] || 0) + 1;
-      });
-      const topTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t);
-
-      const typeLabels = {
-        concept: 'concepts', event: 'history', person: 'people',
-        people: 'people', stock: 'finance', organization: 'organizations',
-        commodity: 'commodities', other: 'general'
-      };
-      const topicSummary = topTypes.map(t => typeLabels[t] || t).join(' & ');
-
-      const weeklyDigest = {
-        date: now,
-        newTerms: newThisWeek.length,
-        videoCount,
-        topicSummary,
-        topExpanded: expanded.map(e => e.term),
-        topVideos: topVideos.map(([title, count]) => ({ title, count })),
-        dismissed: false
-      };
-
-      await chrome.storage.local.set({ weeklyDigest, lastDigestDate: now });
-      console.log('[BACKGROUND] Weekly digest generated:', newThisWeek.length, 'new terms from', videoCount, 'videos');
-    }
-  } catch (e) {
-    console.error('[BACKGROUND] Digest generation error:', e.message || e);
-  }
+  // KB save removed — only happens in CLEAR_SESSION handler to avoid double-counting timesSeen
 
   // Small delay after closing offscreen doc before resetting state
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -568,6 +559,7 @@ async function stopCapture() {
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');
+  isStoppingCapture = false;
 }
 
 async function processNextTranscript() {
@@ -607,7 +599,7 @@ async function processNextTranscript() {
 
     // Build reaction profile from card reactions
     const reactionCounts = { known: 0, new: 0, advanced: 0 };
-    (storageData.cardReactions || []).forEach(r => {
+    Object.values(storageData.cardReactions || {}).forEach(r => {
       if (reactionCounts[r.reaction] !== undefined) reactionCounts[r.reaction]++;
     });
     const reactionProfile = reactionCounts;
@@ -849,9 +841,10 @@ async function processNextTranscript() {
     const kb = kbData.knowledgeBase || {};
     enrichedEntities.forEach(e => {
       const key = (e.term || e.name || '').toLowerCase();
-      if (key && kb[key] && kb[key].timesSeen > 0) {
+      if (key && kb[key] && kb[key].timesSeen > 1) {
         e.previouslyKnown = true;
         e.kbSource = kb[key].source || '';
+        console.log('[BACKGROUND] KB match:', key, 'timesSeen:', kb[key].timesSeen);
       }
     });
 
@@ -884,12 +877,13 @@ function scheduleNext() {
 // --- Reaction-driven calibration (Prompts 6 & 10) ---
 chrome.storage.onChanged.addListener((changes) => {
   if (!changes.cardReactions) return;
-  const reactions = changes.cardReactions.newValue || [];
-  if (reactions.length === 0) return;
+  const reactions = changes.cardReactions.newValue || {};
+  const reactionValues = Object.values(reactions);
+  if (reactionValues.length === 0) return;
 
   // Build typeCalibration: { concept: { knewThis: N, tooAdvanced: N }, ... }
   const typeCal = {};
-  reactions.forEach(r => {
+  reactionValues.forEach(r => {
     const type = (r.type || 'other').toLowerCase();
     if (!typeCal[type]) typeCal[type] = { knewThis: 0, tooAdvanced: 0, newToMe: 0 };
     if (r.reaction === 'known') typeCal[type].knewThis++;

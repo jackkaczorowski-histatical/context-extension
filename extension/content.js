@@ -61,14 +61,17 @@ if (!window.__contextExtensionLoaded) {
   const isYouTubeSite = window.location.hostname.includes('youtube.com');
 
   const TYPE_COLORS = {
-    event: '#6366f1',
     concept: '#6366f1',
-    person: '#6366f1',
-    people: '#6366f1',
+    person: '#22c55e',
+    people: '#22c55e',
+    organization: '#a78bfa',
+    event: '#38bdf8',
+    technique: '#ec4899',
+    why: '#eab308',
+    tradeoff: '#f97316',
     stock: '#00e676',
-    organization: '#6366f1',
-    commodity: '#6366f1',
-    ingredient: '#6366f1'
+    commodity: '#f97316',
+    ingredient: '#ec4899'
   };
 
   function toggleCardExpand(card) {
@@ -447,17 +450,19 @@ if (!window.__contextExtensionLoaded) {
       to { opacity: 1; transform: translateY(0); }
     }
     .context-card.collapsed { animation: none; cursor: default; }
-    .context-card.quick-known { opacity: 0.35; transition: opacity 0.3s ease; }
-    .context-card.quick-known:hover { opacity: 0.6; }
-    .card-quick-dismiss {
-      position: absolute; top: 8px; right: 8px; width: 20px; height: 20px;
-      border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); background: none;
-      color: rgba(255,255,255,0.3); font-size: 10px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; padding: 0; line-height: 1;
+    .context-card.card-dismissed { opacity: 0.5 !important; transition: opacity 0.2s; animation: none; }
+    .context-card.card-dismissed:hover { opacity: 0.7; }
+    .card-dismiss-inline {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.15); background: none;
+      color: rgba(255,255,255,0.3); font-size: 9px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: all 0.2s; padding: 0; line-height: 1; flex-shrink: 0;
+      margin-left: auto;
     }
-    .card-quick-dismiss:hover { border-color: rgba(0,230,118,0.5); color: #00e676; background: rgba(0,230,118,0.1); }
-    .context-card.quick-known .card-quick-dismiss { border-color: rgba(0,230,118,0.4); color: #00e676; }
+    .card-dismiss-inline:hover { border-color: rgba(0,230,118,0.5); color: #00e676; background: rgba(0,230,118,0.1); }
+    .context-card.card-dismissed .card-dismiss-inline { border-color: rgba(0,230,118,0.6); color: #fff; background: #00c853; }
+    .card-quick-dismiss { display: none; }
     .card-row {
       display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
     }
@@ -531,13 +536,14 @@ if (!window.__contextExtensionLoaded) {
     .reaction-known:hover { background: rgba(106,106,138,0.15); }
     .reaction-new { border: 1px solid #00e676; color: #00e676; }
     .reaction-new:hover { background: rgba(0,230,118,0.1); }
-    .reaction-advanced { border: 1px solid #ff9500; color: #ff9500; }
-    .reaction-advanced:hover { background: rgba(255,149,0,0.1); }
+    .reaction-btn.active { transform: scale(1.1); }
+    .reaction-known.active { background: rgba(34,197,94,0.2); border-color: #22c55e; color: #22c55e; }
+    .reaction-new.active { background: rgba(0,230,118,0.2); border-color: #00e676; color: #00e676; }
+    .card-highlighted { border-left-color: #22c55e !important; background: rgba(34,197,94,0.05); }
     .reaction-label {
       font-size: 9px; color: #4a4a6a; margin-top: 2px; text-align: center;
     }
     .reaction-group { display: flex; flex-direction: column; align-items: center; }
-    .context-card.reacted { opacity: 0.45; transition: opacity 0.4s; }
     .card-wiki-link {
       font-size: 10px; color: #3a3a5a; text-decoration: none;
       transition: color 0.15s; display: inline-block; margin-top: 4px;
@@ -826,8 +832,10 @@ if (!window.__contextExtensionLoaded) {
     .light-theme .card-copy-btn { background: rgba(99,102,241,0.08); color: #6366f1; }
     .light-theme .card-copy-btn:hover { background: rgba(99,102,241,0.15); }
     .light-theme .card-copy-btn.copied { color: #059669; background: rgba(5,150,105,0.08); }
-    .light-theme .card-quick-dismiss { border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.3); }
-    .light-theme .card-quick-dismiss:hover { border-color: rgba(5,150,105,0.5); color: #059669; background: rgba(5,150,105,0.1); }
+    .light-theme .card-quick-dismiss { display: none; }
+    .light-theme .card-dismiss-inline { border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.3); }
+    .light-theme .card-dismiss-inline:hover { border-color: rgba(5,150,105,0.5); color: #059669; background: rgba(5,150,105,0.1); }
+    .light-theme .context-card.card-dismissed .card-dismiss-inline { border-color: rgba(5,150,105,0.6); color: #fff; background: #059669; }
     .light-theme .context-card.insight-card { background: rgba(245,158,11,0.05); border-left-color: #f59e0b; }
     .light-theme .context-card.insight-card:hover { background: rgba(245,158,11,0.1); }
     .light-theme .insight-text { color: #1a1a2e; }
@@ -1226,6 +1234,8 @@ if (!window.__contextExtensionLoaded) {
     hostEl.dataset.open = 'true';
     hostEl.style.width = '280px';
     hostEl.style.pointerEvents = 'auto';
+    const pos = settings.sidebarPosition === 'left' ? 'left' : 'right';
+    document.documentElement.style.setProperty('margin-' + pos, '280px');
     const sidebar = shadowRoot?.getElementById('sidebar');
     if (sidebar) {
       sidebar.dataset.pos = settings.sidebarPosition || 'right';
@@ -1239,6 +1249,8 @@ if (!window.__contextExtensionLoaded) {
     if (!hostEl) return;
     hostEl.dataset.open = 'false';
     hostEl.style.pointerEvents = 'none';
+    document.documentElement.style.removeProperty('margin-left');
+    document.documentElement.style.removeProperty('margin-right');
     const sidebar = shadowRoot?.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
     setTimeout(() => {
@@ -1263,13 +1275,31 @@ if (!window.__contextExtensionLoaded) {
     const row = document.createElement('div');
     row.className = 'reaction-row';
 
-    const reactions = [
+    const reactionDefs = [
       { cls: 'reaction-known', icon: '\u2713', label: 'Knew this', reaction: 'known' },
-      { cls: 'reaction-new', icon: '\u2605', label: 'New to me', reaction: 'new' },
-      { cls: 'reaction-advanced', icon: '?', label: 'Too advanced', reaction: 'advanced' }
+      { cls: 'reaction-new', icon: '\u2605', label: 'New to me', reaction: 'new' }
     ];
 
-    reactions.forEach(({ cls, icon, label, reaction }) => {
+    function applyReactionVisuals(reaction) {
+      card.classList.remove('card-dismissed', 'card-highlighted');
+      row.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('active'));
+      if (!reaction) return;
+      if (reaction === 'known') {
+        card.classList.add('card-dismissed');
+      } else if (reaction === 'new') {
+        card.classList.add('card-highlighted');
+      }
+      const activeBtn = row.querySelector('.reaction-' + reaction);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    // Restore reaction state on render
+    chrome.storage.local.get('cardReactions', (data) => {
+      const reactions = data.cardReactions || {};
+      if (reactions[key]) applyReactionVisuals(reactions[key].reaction);
+    });
+
+    reactionDefs.forEach(({ cls, icon, label, reaction }) => {
       const group = document.createElement('div');
       group.className = 'reaction-group';
       const btn = document.createElement('button');
@@ -1284,16 +1314,30 @@ if (!window.__contextExtensionLoaded) {
 
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        chrome.storage.local.get('cardReactions', (data) => {
-          const reactions = data.cardReactions || [];
-          reactions.push({ term: key, type: entity.type || 'other', reaction, timestamp: Date.now() });
-          chrome.storage.local.set({ cardReactions: reactions });
+        const wasActive = btn.classList.contains('active');
+
+        chrome.storage.local.get(['cardReactions', 'dismissedEntities'], (data) => {
+          const reactions = data.cardReactions || {};
+          let dismissed = data.dismissedEntities || [];
+
+          // Remove previous dismiss effect regardless
+          dismissed = dismissed.filter(k => k !== key);
+
+          if (wasActive) {
+            // Un-select: remove reaction entirely
+            delete reactions[key];
+            applyReactionVisuals(null);
+          } else {
+            // Set new reaction (replaces any previous)
+            reactions[key] = { reaction, timestamp: Date.now(), type: entity.type || 'other' };
+            if (reaction === 'known') {
+              dismissed.push(key);
+            }
+            applyReactionVisuals(reaction);
+          }
+
+          chrome.storage.local.set({ cardReactions: reactions, dismissedEntities: dismissed });
         });
-        if (reaction === 'new') addToNotes(card);
-        card.classList.add('reacted');
-        setTimeout(() => {
-          card.classList.remove('expanded');
-        }, 500);
       });
 
       row.appendChild(group);
@@ -1340,13 +1384,13 @@ if (!window.__contextExtensionLoaded) {
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
-      <button class="card-quick-dismiss" title="I know this">\u2713</button>
       <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         <span class="insight-category">\u{1F4A1} ${category}</span>
         <span class="card-term" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; display:inline-block; vertical-align:middle;">${escapeHtml(shortInsight)}</span>
         <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
+        <span class="card-dismiss-inline" title="Dismiss">\u2713</span>
       </div>
       <div class="card-expand-area">
         <div class="insight-text">${escapeHtml(insightText)}</div>
@@ -1355,10 +1399,34 @@ if (!window.__contextExtensionLoaded) {
       </div>
     `;
 
-    card.querySelector('.card-quick-dismiss').addEventListener('click', (e) => {
-      e.stopPropagation();
-      card.classList.toggle('quick-known');
+    const insightDismissKey = (insight.insight || '').toLowerCase();
+    const iDismissEl = card.querySelector('.card-dismiss-inline');
+    chrome.storage.local.get('dismissedEntities', (data) => {
+      const dismissed = data.dismissedEntities || [];
+      if (dismissed.includes(insightDismissKey)) {
+        card.classList.add('card-dismissed');
+        if (iDismissEl) iDismissEl.title = 'Restore';
+      }
     });
+    if (iDismissEl) {
+      iDismissEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        card.classList.toggle('card-dismissed');
+        const isDismissed = card.classList.contains('card-dismissed');
+        iDismissEl.title = isDismissed ? 'Restore' : 'Dismiss';
+        chrome.storage.local.get('dismissedEntities', (data) => {
+          let dismissed = data.dismissedEntities || [];
+          if (isDismissed) {
+            if (!dismissed.includes(insightDismissKey)) dismissed.push(insightDismissKey);
+          } else {
+            dismissed = dismissed.filter(k => k !== insightDismissKey);
+          }
+          chrome.storage.local.set({ dismissedEntities: dismissed });
+        });
+      });
+    }
 
     // Title attributes for native tooltips on truncated elements
     const termEl = card.querySelector('.card-term');
@@ -1389,6 +1457,7 @@ if (!window.__contextExtensionLoaded) {
     });
 
     card.addEventListener('click', (e) => {
+      if (e.target.closest('.card-dismiss-inline') || e.target.closest('.card-quick-dismiss')) return;
       if (e.target.closest('a') || e.target.closest('.card-share-btn')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
@@ -1453,7 +1522,7 @@ if (!window.__contextExtensionLoaded) {
     });
 
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-actions') || e.target.closest('a') || e.target.closest('.card-share-btn')) return;
+      if (e.target.closest('.card-actions') || e.target.closest('a') || e.target.closest('.card-share-btn') || e.target.closest('.card-quick-dismiss')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
@@ -1509,7 +1578,6 @@ if (!window.__contextExtensionLoaded) {
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
 
     card.innerHTML = `
-      <button class="card-quick-dismiss" title="I know this">\u2713</button>
       <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         ${typeBadge}
@@ -1517,6 +1585,7 @@ if (!window.__contextExtensionLoaded) {
         ${seenTag}
         <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
+        <span class="card-dismiss-inline" title="Dismiss">\u2713</span>
       </div>
       ${previewDesc ? `<div class="card-preview-text">${escapeHtml(previewDesc)}</div>` : ''}
       <div class="card-expand-area">
@@ -1528,10 +1597,34 @@ if (!window.__contextExtensionLoaded) {
       </div>
     `;
 
-    card.querySelector('.card-quick-dismiss').addEventListener('click', (e) => {
-      e.stopPropagation();
-      card.classList.toggle('quick-known');
+    const genericDismissKey = (entity.term || entity.name || '').toLowerCase();
+    const gDismissEl = card.querySelector('.card-dismiss-inline');
+    chrome.storage.local.get('dismissedEntities', (data) => {
+      const dismissed = data.dismissedEntities || [];
+      if (dismissed.includes(genericDismissKey)) {
+        card.classList.add('card-dismissed');
+        if (gDismissEl) gDismissEl.title = 'Restore';
+      }
     });
+    if (gDismissEl) {
+      gDismissEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        card.classList.toggle('card-dismissed');
+        const isDismissed = card.classList.contains('card-dismissed');
+        gDismissEl.title = isDismissed ? 'Restore' : 'Dismiss';
+        chrome.storage.local.get('dismissedEntities', (data) => {
+          let dismissed = data.dismissedEntities || [];
+          if (isDismissed) {
+            if (!dismissed.includes(genericDismissKey)) dismissed.push(genericDismissKey);
+          } else {
+            dismissed = dismissed.filter(k => k !== genericDismissKey);
+          }
+          chrome.storage.local.set({ dismissedEntities: dismissed });
+        });
+      });
+    }
 
     // Title attributes for native tooltips on truncated elements
     const fullTermText = entity.term || entity.name || '';
@@ -1612,7 +1705,8 @@ if (!window.__contextExtensionLoaded) {
     }
 
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-actions') || e.target.closest('a')) return;
+      if (e.target.closest('.card-dismiss-inline') || e.target.closest('.card-quick-dismiss')) return;
+      if (e.target.closest('.card-actions') || e.target.closest('a') || e.target.closest('.card-share-btn')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
@@ -1775,8 +1869,9 @@ if (!window.__contextExtensionLoaded) {
     return '';
   }
 
-  function generateStudyGuide(title, history, kb, videoUrl) {
+  function generateStudyGuide(title, history, kb, videoUrl, cardReactions) {
     kb = kb || {};
+    cardReactions = cardReactions || {};
     history.forEach(entry => {
       if (!entry.description) {
         const kbEntry = kb[(entry.term || '').toLowerCase()];
@@ -1792,21 +1887,42 @@ if (!window.__contextExtensionLoaded) {
       return `[${ts}]`;
     }
 
+    function formatEntry(ent) {
+      const term = capitalizeTerm(ent.term);
+      const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
+      return `- ${ts}**${term}**${ent.description ? ' \u2014 ' + ent.description : ''}\n`;
+    }
+
     const insightEntries = history.filter(entry => (entry.type || '').toLowerCase() === 'insight');
     const entityEntries = history.filter(entry => (entry.type || '').toLowerCase() !== 'insight');
 
+    // Separate starred ("New to me") entries
+    const starredSet = new Set();
+    for (const [term, r] of Object.entries(cardReactions)) {
+      if (r.reaction === 'new') starredSet.add(term);
+    }
+    const starred = entityEntries.filter(e => starredSet.has((e.term || '').toLowerCase()));
+    const unstarred = entityEntries.filter(e => !starredSet.has((e.term || '').toLowerCase()));
+
+    let guide = `# Study Guide: ${title}\n`;
+    if (videoUrl) guide += `${videoUrl}\n`;
+    guide += '\n';
+
+    // Highlights section first
+    if (starred.length > 0) {
+      guide += `## \u2B50 Highlights\n`;
+      starred.forEach(ent => { guide += formatEntry(ent); });
+      guide += '\n';
+    }
+
     const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities', ingredient: 'Ingredients' };
     const grouped = {};
-    entityEntries.forEach(entry => {
+    unstarred.forEach(entry => {
       const t = (entry.type || 'other').toLowerCase();
       const label = TYPE_ORDER[t] || (t.charAt(0).toUpperCase() + t.slice(1));
       if (!grouped[label]) grouped[label] = [];
       grouped[label].push(entry);
     });
-
-    let guide = `# Study Guide: ${title}\n`;
-    if (videoUrl) guide += `${videoUrl}\n`;
-    guide += '\n';
 
     const sectionOrder = ['People', 'Events', 'Concepts', 'Organizations', 'Stocks', 'Commodities', 'Ingredients'];
     const sortedKeys = Object.keys(grouped).sort((a, b) => {
@@ -1815,11 +1931,7 @@ if (!window.__contextExtensionLoaded) {
     });
     sortedKeys.forEach(label => {
       guide += `## ${label}\n`;
-      grouped[label].forEach(ent => {
-        const term = capitalizeTerm(ent.term);
-        const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
-        guide += `- ${ts}**${term}**${ent.description ? ' — ' + ent.description : ''}\n`;
-      });
+      grouped[label].forEach(ent => { guide += formatEntry(ent); });
       guide += '\n';
     });
 
@@ -1827,7 +1939,7 @@ if (!window.__contextExtensionLoaded) {
       guide += `## Insights & Tips\n`;
       insightEntries.forEach(ent => {
         const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
-        guide += `- ${ts}\u{1F4A1} **${ent.term}**${ent.description ? ' — ' + ent.description : ''}\n`;
+        guide += `- ${ts}\u{1F4A1} **${ent.term}**${ent.description ? ' \u2014 ' + ent.description : ''}\n`;
       });
       guide += '\n';
     }
@@ -2018,10 +2130,10 @@ if (!window.__contextExtensionLoaded) {
     });
 
     function getStudyGuideData(callback) {
-      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase', 'activeTabUrl'], (data) => {
+      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase', 'activeTabUrl', 'cardReactions'], (data) => {
         const history = data.sessionHistory || [];
         const title = data.capturingTabTitle || document.title || 'Untitled';
-        const guide = generateStudyGuide(title, history, data.knowledgeBase || {}, data.activeTabUrl || window.location.href);
+        const guide = generateStudyGuide(title, history, data.knowledgeBase || {}, data.activeTabUrl || window.location.href, data.cardReactions || {});
         callback({ guide, title });
       });
     }
@@ -2824,7 +2936,7 @@ if (!window.__contextExtensionLoaded) {
         // Start aging interval
         if (!agingInterval) {
           agingInterval = setInterval(() => {
-            const cards = shadowRoot?.querySelectorAll('.context-card:not(.aged):not(.quick-known)');
+            const cards = shadowRoot?.querySelectorAll('.context-card:not(.aged):not(.card-dismissed)');
             if (!cards) return;
             const twoMinutesAgo = Date.now() - 120000;
             cards.forEach(card => {
@@ -2846,10 +2958,11 @@ if (!window.__contextExtensionLoaded) {
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
       isActiveTab((active) => {
         if (!active) return;
-        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle'], (data) => {
+        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions'], (data) => {
           const history = data.sessionHistory || [];
           const kb = data.knowledgeBase || {};
           const title = data.capturingTabTitle || document.title || 'Untitled Video';
+          const summaryReactions = data.cardReactions || {};
           const totalTerms = history.length;
           const expanded = history.filter(h => h.description).length;
           const knownCount = history.filter(h => {
@@ -2894,7 +3007,7 @@ if (!window.__contextExtensionLoaded) {
 
           summaryEl.querySelector('.ctx-session-summary-export').addEventListener('click', (e) => {
             e.stopPropagation();
-            const guide = generateStudyGuide(title, history, kb, window.location.href);
+            const guide = generateStudyGuide(title, history, kb, window.location.href, summaryReactions);
             copyToClipboard(guide).then(() => {
               const btn = summaryEl.querySelector('.ctx-session-summary-export');
               btn.textContent = 'Copied!';
@@ -3027,12 +3140,7 @@ if (!window.__contextExtensionLoaded) {
         if (kbWrapper) {
           kbWrapper.classList.remove('visible');
         }
-        chrome.storage.local.get('pendingSessionId', (data) => {
-          if (mySessionId && data.pendingSessionId !== mySessionId) {
-            console.log('[CONTENT] Ignoring data from different session');
-            return;
-          }
-          isActiveTab((active) => {
+        isActiveTab((active) => {
             if (!active) {
               console.log('[CONTENT] Not the captured tab, ignoring');
               return;
@@ -3064,7 +3172,6 @@ if (!window.__contextExtensionLoaded) {
             // Clean up storage after rendering both
             chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
           });
-        });
       }
     }
   });

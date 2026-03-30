@@ -844,6 +844,17 @@ async function processNextTranscript() {
       newHistoryEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail, category: i.category, elapsedSeconds });
     });
 
+    // Flag entities previously seen in knowledge base
+    const kbData = await chrome.storage.local.get('knowledgeBase');
+    const kb = kbData.knowledgeBase || {};
+    enrichedEntities.forEach(e => {
+      const key = (e.term || e.name || '').toLowerCase();
+      if (key && kb[key] && kb[key].timesSeen > 0) {
+        e.previouslyKnown = true;
+        e.kbSource = kb[key].source || '';
+      }
+    });
+
     // Save pending entities/insights for content script (onChanged) and append to sessionHistory
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage');
     const histData = await chrome.storage.local.get('sessionHistory');

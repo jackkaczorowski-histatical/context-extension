@@ -474,7 +474,7 @@ if (!window.__contextExtensionLoaded) {
     }
     .card-time { font-size: 11px; color: #64748b; flex-shrink: 0; cursor: pointer; text-decoration: none; }
     .card-time:hover { text-decoration: underline; }
-    .card-seen { font-size: 9px; color: #4a4a5a; flex-shrink: 0; }
+    .card-seen { font-size: 9px; color: #94a3b8; font-style: italic; flex-shrink: 0; }
     .card-rectx { font-size: 9px; color: #7070ff; flex-shrink: 0; }
     .context-card.recontextualized { border-left-color: #7070ff; background: rgba(112, 112, 255, 0.04); }
     .context-card.recontextualized:hover { background: rgba(112, 112, 255, 0.08); }
@@ -495,7 +495,7 @@ if (!window.__contextExtensionLoaded) {
       display: flex; gap: 10px; align-items: flex-start;
     }
     .card-thumbnail.loaded { opacity: 1; }
-    .card-source { font-size: 11px; color: #94a3b8; margin-top: 4px; font-style: italic; }
+    .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: #3a3a5a; margin-top: 4px; }
     .card-desc-loading::after {
       content: ''; display: inline-block; width: 4px; height: 4px;
@@ -1498,10 +1498,12 @@ if (!window.__contextExtensionLoaded) {
     const typeBadge = isRectx
       ? `<span class="card-type" style="color:#7070ff">&#x21BB; ${typeLabel}</span><span class="card-rectx">new context</span>`
       : `<span class="card-type" style="color:${color}">${typeLabel}</span>`;
-    const seenTag = !isRectx && entity._kbSeen ? '<span class="card-seen">seen before</span>' : '';
+    const isPrevKnown = !isRectx && (entity.previouslyKnown || entity._kbSeen);
+    const seenTag = isPrevKnown ? '<span class="card-seen">\u21A9 seen before</span>' : '';
 
-    const sourceLine = entity._kbSource
-      ? '<div class="card-source">Seen in a previous session</div>'
+    const sourceText = entity.kbSource || entity._kbSource || '';
+    const sourceLine = isPrevKnown
+      ? `<div class="card-source">\u21A9 Seen in a previous session${sourceText ? ' \u2014 ' + escapeHtml(sourceText) : ''}</div>`
       : '';
 
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
@@ -1987,7 +1989,7 @@ if (!window.__contextExtensionLoaded) {
       yesBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         resetSidebar();
-        chrome.storage.local.remove(['sessionHistory', 'knowledgeBase', 'sessionTranscript', 'pendingEntities', 'pendingInsights']);
+        chrome.storage.local.remove(['sessionHistory', 'sessionTranscript', 'pendingEntities', 'pendingInsights']);
         try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
         revert();
       });

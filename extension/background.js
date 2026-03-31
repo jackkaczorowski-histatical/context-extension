@@ -818,14 +818,44 @@ async function processNextTranscript() {
               clearTimeout(stockTimeout);
             }
             if (stockRes.ok) {
-              const stockData = await stockRes.json();
+              let stockData = await stockRes.json();
               console.log('[BACKGROUND] Stock lookup FULL result:', JSON.stringify(stockData));
-              // Merge stock data but preserve Claude's description if API didn't return price
+              // Retry once after 2s if price is null
               if (stockData.price == null) {
-                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, '— rendering as generic entity card');
+                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, '— retrying in 2s');
+                await new Promise(r => setTimeout(r, 2000));
+                try {
+                  const retryController = new AbortController();
+                  const retryTimeout = setTimeout(() => retryController.abort(), 10000);
+                  let retryRes;
+                  try {
+                    retryRes = await fetch(`${API_BASE}/stock`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ ticker: entity.ticker }),
+                      signal: retryController.signal
+                    });
+                  } finally {
+                    clearTimeout(retryTimeout);
+                  }
+                  if (retryRes.ok) {
+                    const retryData = await retryRes.json();
+                    console.log('[BACKGROUND] Stock retry result:', JSON.stringify(retryData));
+                    if (retryData.price != null) {
+                      stockData = retryData;
+                    }
+                  }
+                } catch (retryErr) {
+                  console.error('[BACKGROUND] Stock retry error for', entity.ticker, ':', retryErr.message || retryErr);
+                }
+              }
+              // If still no price after retry, fall back to organization card
+              if (stockData.price == null) {
+                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, 'after retry — rendering as organization card');
                 const fallback = { ...entity, description: entity.description || stockData.description || '' };
                 delete fallback.ticker;
                 delete fallback.stockData;
+                fallback.type = 'organization';
                 return fallback;
               }
               return { ...entity, ...stockData };

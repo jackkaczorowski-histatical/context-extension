@@ -130,7 +130,13 @@ CRITICAL: Prioritize entities that would teach the viewer something new. Skip ob
 
 Ask: would a viewer pause and think "what is that?" If yes, extract it. If any adult would understand it without help, don't.
 
-The 'stock' type is ONLY for currently publicly traded companies with real ticker symbols (e.g. AAPL, TSLA, MSFT). Cars, historical vehicles, and car models (Maserati Biturbo, Nissan 300ZX, Toyota Supra) are type 'concept' or 'event', never 'stock'. Historical currencies like Assignats, livres, mandates are type 'concept', not 'stock'.
+ENTITY TYPE RULES:
+- "stock" = ONLY tradeable securities with a real ticker symbol the user could buy — individual stocks and ETFs. Examples: Alphabet (GOOGL), Tesla (TSLA), CIBR, AIQ, MSFT. Cars, historical vehicles, and car models (Maserati Biturbo, Nissan 300ZX, Toyota Supra) are NEVER stock. Historical currencies like Assignats, livres, mandates are NEVER stock.
+- "organization" = companies, stock exchanges, institutions, banks, military units. Examples: Nasdaq, NYSE, Goldman Sachs, the Fed, 82nd Airborne, Dow Jones. CRITICAL: Stock EXCHANGES (Nasdaq, NYSE, Dow Jones, S&P) are "organization", NOT "stock" and NOT "concept". Only things you can buy with a ticker are "stock".
+- "concept" = ideas, strategies, economic principles, geographic features. Examples: Strait of Hormuz, inflation, dollar-cost averaging, divine right, laissez-faire.
+- "event" = specific historical or current events with dates. Examples: 2022 market crash, World War II, Seven Years War.
+- "person" = named individuals. Examples: Elon Musk, Robespierre, Louis XVI.
+- "ingredient" = specific named ingredients with quantity or preparation context.
 
 The 'ingredient' type is for specific named ingredients mentioned with a quantity or preparation method (e.g. "150ml chicken stock", "tablespoon of sugar", "red wine vinegar"). Do not use ingredient type for bare mentions without quantity or preparation context.
 

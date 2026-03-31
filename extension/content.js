@@ -1414,6 +1414,7 @@ if (window.__contextExtensionLoaded) {
   }
 
   function createStockCard(entity) {
+    console.log('[CONTENT] Stock card data:', JSON.stringify(entity));
     const card = document.createElement('div');
     card.className = 'context-card stock-card expanded';
     const color = getTypeColor('stock');
@@ -1489,12 +1490,21 @@ if (window.__contextExtensionLoaded) {
         </div>
       `;
     } else {
+      console.warn('[CONTENT] Stock card missing price data for:', entity.ticker, '— falling back to description');
       card.style.borderLeftColor = color;
       const stockDesc = firstSentence(entity.description || '');
       const displayStockDesc = truncateHeadline(stockDesc);
+      const yahooURL = 'https://finance.yahoo.com/quote/' + encodeURIComponent(entity.ticker || '');
       expandContent = `
-        <div class="stock-company">${companyName}</div>
+        <div class="stock-ticker-row">
+          <span class="stock-ticker">${ticker}</span>
+          <span class="stock-company">${companyName}</span>
+        </div>
         ${displayStockDesc ? `<div class="card-desc">${escapeHtml(displayStockDesc)}</div>` : ''}
+        <div class="stock-footer">
+          <div class="stock-footer-buttons"></div>
+          <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
+        </div>
       `;
     }
 

@@ -819,11 +819,18 @@ async function processNextTranscript() {
             }
             if (stockRes.ok) {
               const stockData = await stockRes.json();
-              console.log('[BACKGROUND] Stock response for', entity.ticker, ':', JSON.stringify(stockData));
+              console.log('[BACKGROUND] Stock lookup for ticker:', entity.ticker, 'result:', stockData);
+              // Merge stock data but preserve Claude's description if API didn't return price
+              if (stockData.price == null) {
+                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, '— keeping description');
+                return { ...entity, ...stockData, description: entity.description || stockData.description || '' };
+              }
               return { ...entity, ...stockData };
+            } else {
+              console.error('[BACKGROUND] Stock API HTTP error for', entity.ticker, ':', stockRes.status);
             }
           } catch (e) {
-            console.error('[BACKGROUND] Stock fetch error:', e.message || e);
+            console.error('[BACKGROUND] Stock fetch error for', entity.ticker, ':', e.message || e);
           }
         }
         return entity;

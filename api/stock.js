@@ -89,16 +89,21 @@ module.exports = async function handler(req, res) {
 
   try {
     const result = await fetchQuoteSummary(symbol);
+    console.log('[STOCK API] quoteSummary for', symbol, ':', JSON.stringify(result));
     if (result) return res.status(200).json(result);
-  } catch (_) {
+  } catch (summaryErr) {
+    console.error('[STOCK API] quoteSummary failed for', symbol, ':', summaryErr.message || summaryErr);
     // fall through to chart fallback
   }
 
   try {
+    console.log('[STOCK API] Falling back to chart endpoint for', symbol);
     const result = await fetchChartFallback(symbol);
+    console.log('[STOCK API] chart fallback for', symbol, ':', JSON.stringify(result));
     if (result) return res.status(200).json(result);
     return res.status(404).json({ error: "not found" });
   } catch (err) {
+    console.error('[STOCK API] chart fallback also failed for', symbol, ':', err.message);
     return res.status(500).json({ error: err.message });
   }
 };

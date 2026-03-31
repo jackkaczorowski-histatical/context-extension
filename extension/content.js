@@ -534,13 +534,25 @@ if (window.__contextExtensionLoaded) {
       background: #0f1a14; box-shadow: inset 2px 0 8px rgba(0, 230, 118, 0.15);
     }
     .context-card.stock-card:hover { background: #112218; }
-    .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; margin-bottom: 1px; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
-    .stock-company { font-size: 10px; color: #3a3a5a; margin-bottom: 8px; }
-    .stock-price-row { display: flex; align-items: baseline; gap: 8px; }
-    .stock-price { font-size: 16px; font-weight: 600; color: #e0e0f0; }
-    .stock-change { font-size: 12px; font-weight: 600; }
+    .stock-ticker-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+    .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; }
+    .stock-company { font-size: 11px; color: #6a6a8a; }
+    .stock-price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+    .stock-price { font-size: 22px; font-weight: 700; color: #e0e0f0; }
+    .stock-change { font-size: 13px; font-weight: 600; }
     .stock-change.positive { color: #00e676; }
     .stock-change.negative { color: #ff5252; }
+    .stock-52w-labels { display: flex; justify-content: space-between; font-size: 10px; color: #6a6a8a; margin-bottom: 2px; }
+    .stock-52w-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; position: relative; margin: 4px 0 12px; }
+    .stock-52w-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; background: #00e676; }
+    .stock-52w-dot { position: absolute; top: -3px; width: 10px; height: 10px; background: #e0e0f0; border-radius: 50%; border: 2px solid #1a1a2e; }
+    .stock-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin: 10px 0; }
+    .stock-stat-label { font-size: 10px; color: #6a6a8a; }
+    .stock-stat-value { font-size: 12px; color: #c0c0d0; font-weight: 500; }
+    .stock-stat-value.stock-div-highlight { color: #00e676; }
+    .stock-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+    .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
+    .stock-yahoo-link:hover { color: #818cf8; }
     .reaction-row {
       display: flex; gap: 10px; margin-top: 10px; justify-content: flex-start;
     }
@@ -771,6 +783,13 @@ if (window.__contextExtensionLoaded) {
     .light-theme .stock-ticker { color: #1a1a2e; }
     .light-theme .stock-company { color: #8a8aa0; }
     .light-theme .stock-price { color: #1a1a2e; }
+    .light-theme .stock-52w-labels { color: #8a8aa0; }
+    .light-theme .stock-52w-bar { background: rgba(0,0,0,0.06); }
+    .light-theme .stock-52w-dot { background: #1a1a2e; border-color: #ffffff; }
+    .light-theme .stock-stats { border-top-color: rgba(0,0,0,0.06); border-bottom-color: rgba(0,0,0,0.06); }
+    .light-theme .stock-stat-label { color: #8a8aa0; }
+    .light-theme .stock-stat-value { color: #3a3a5a; }
+    .light-theme .stock-yahoo-link { color: #6366f1; }
     .light-theme .card-actions { }
     .light-theme .reaction-known { border-color: #b0b0c0; color: #b0b0c0; }
     .light-theme .reaction-label { color: #b0b0c0; }
@@ -1193,8 +1212,8 @@ if (window.__contextExtensionLoaded) {
     }
   }
 
-  function addCardButtons(card, key, entity) {
-    const expandArea = card.querySelector('.card-expand-area');
+  function addCardButtons(card, key, entity, container) {
+    const expandArea = container || card.querySelector('.card-expand-area');
     if (!expandArea) return;
 
     const row = document.createElement('div');
@@ -1282,14 +1301,13 @@ if (window.__contextExtensionLoaded) {
 
   const SHOP_KEYWORDS = /setup|gear|tackle|recipe|ingredients|build|diy|unboxing|what\s+i\s+use|my\s+favorite|best\s+lures|starter\s+kit/i;
   const EXCLUDE_KEYWORDS = /history|politics|war|battle|election|president|congress|military|wwi|wwii|world\s*war|how\s+it\s+works|how\s+they\s+work|explained|science|economics|what\s+is|how\s+does/i;
-  const SHOP_ENTITY_TYPES = new Set(['concept', 'organization', 'stock']);
+  const SHOP_ENTITY_TYPES = new Set(['concept', 'organization']);
   const EXCLUDE_ENTITY_TYPES = new Set(['person', 'people', 'event']);
 
   function shouldShowShopLink(entity, videoTitle) {
     const type = (entity.type || '').toLowerCase();
     if (EXCLUDE_ENTITY_TYPES.has(type)) return false;
     if (EXCLUDE_KEYWORDS.test(videoTitle)) return false;
-    if (type === 'stock') return true;
     if (SHOP_ENTITY_TYPES.has(type) && SHOP_KEYWORDS.test(videoTitle)) return true;
     return false;
   }
@@ -1399,7 +1417,6 @@ if (window.__contextExtensionLoaded) {
     const card = document.createElement('div');
     card.className = 'context-card stock-card expanded';
     const color = getTypeColor('stock');
-    card.style.borderLeftColor = color;
 
     const ticker = escapeHtml(entity.ticker || '');
     const companyName = escapeHtml(entity.companyName || entity.name || '');
@@ -1409,16 +1426,70 @@ if (window.__contextExtensionLoaded) {
     if (entity.price != null && entity.price !== '') {
       const price = parseFloat(entity.price);
       const changeVal = parseFloat(entity.change) || 0;
+      const changePctVal = parseFloat(entity.changePercent) || 0;
       const changeClass = changeVal >= 0 ? 'positive' : 'negative';
       const changePrefix = changeVal >= 0 ? '+' : '';
+      const pctPrefix = changePctVal >= 0 ? '+' : '';
+
+      card.style.borderLeftColor = changeVal >= 0 ? '#00e676' : '#ff5252';
+
+      // 52-week range section
+      let rangeHTML = '';
+      const low52 = entity.fiftyTwoWeekLow != null ? parseFloat(entity.fiftyTwoWeekLow) : null;
+      const high52 = entity.fiftyTwoWeekHigh != null ? parseFloat(entity.fiftyTwoWeekHigh) : null;
+      if (low52 != null && high52 != null && high52 > low52) {
+        const pct = Math.max(0, Math.min(100, ((price - low52) / (high52 - low52)) * 100));
+        rangeHTML = `
+          <div class="stock-52w-labels">
+            <span>52w low: $${low52.toFixed(2)}</span>
+            <span>52w high: $${high52.toFixed(2)}</span>
+          </div>
+          <div class="stock-52w-bar">
+            <div class="stock-52w-fill" style="width:${pct.toFixed(1)}%"></div>
+            <div class="stock-52w-dot" style="left:calc(${pct.toFixed(1)}% - 5px)"></div>
+          </div>
+        `;
+      }
+
+      // Stats grid — only show non-null values
+      const stats = [];
+      if (entity.marketCap != null) stats.push({ label: 'Mkt cap', value: escapeHtml(String(entity.marketCap)) });
+      if (entity.peRatio != null) stats.push({ label: 'P/E ratio', value: escapeHtml(String(entity.peRatio)) });
+      if (entity.dividendYield != null) {
+        const divHighlight = parseFloat(entity.dividendYield) > 3 ? ' stock-div-highlight' : '';
+        stats.push({ label: 'Div yield', value: escapeHtml(String(entity.dividendYield)) + '%', cls: divHighlight });
+      }
+      if (entity.volume != null) stats.push({ label: 'Volume', value: escapeHtml(String(entity.volume)) });
+
+      let statsHTML = '';
+      if (stats.length > 0) {
+        const cells = stats.map(s =>
+          `<div><div class="stock-stat-label">${s.label}</div><div class="stock-stat-value${s.cls || ''}">${s.value}</div></div>`
+        ).join('');
+        statsHTML = `<div class="stock-stats">${cells}</div>`;
+      }
+
+      // Yahoo Finance link
+      const yahooURL = 'https://finance.yahoo.com/quote/' + encodeURIComponent(entity.ticker || '');
+
       expandContent = `
-        <div class="stock-company">${companyName}</div>
+        <div class="stock-ticker-row">
+          <span class="stock-ticker">${ticker}</span>
+          <span class="stock-company">${companyName}</span>
+        </div>
         <div class="stock-price-row">
           <span class="stock-price">$${price.toFixed(2)}</span>
-          <span class="stock-change ${changeClass}">${changePrefix}${changeVal.toFixed(2)}</span>
+          <span class="stock-change ${changeClass}">${changePrefix}${changeVal.toFixed(2)} (${pctPrefix}${changePctVal.toFixed(2)}%)</span>
+        </div>
+        ${rangeHTML}
+        ${statsHTML}
+        <div class="stock-footer">
+          <div class="stock-footer-buttons"></div>
+          <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
         </div>
       `;
     } else {
+      card.style.borderLeftColor = color;
       const stockDesc = firstSentence(entity.description || '');
       const displayStockDesc = truncateHeadline(stockDesc);
       expandContent = `
@@ -1430,7 +1501,6 @@ if (window.__contextExtensionLoaded) {
     card.innerHTML = `
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
-        <span class="card-term">${ticker}</span>
         <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>
@@ -1450,18 +1520,14 @@ if (window.__contextExtensionLoaded) {
       toggleCardExpand(card);
     });
 
-    // Inject shop link for stock cards
-    chrome.storage.local.get('capturingTabTitle', (data) => {
-      const videoTitle = data.capturingTabTitle || document.title || '';
-      const shopHTML = getShopLinkHTML(entity, videoTitle);
-      if (shopHTML) {
-        const expandArea = card.querySelector('.card-expand-area');
-        if (expandArea) expandArea.insertAdjacentHTML('beforeend', shopHTML);
-      }
-    });
-
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
-    addCardButtons(card, key, entity);
+    // Place reaction buttons inside footer if it exists, otherwise append normally
+    const footerBtns = card.querySelector('.stock-footer-buttons');
+    if (footerBtns) {
+      addCardButtons(card, key, entity, footerBtns);
+    } else {
+      addCardButtons(card, key, entity);
+    }
     return card;
   }
 

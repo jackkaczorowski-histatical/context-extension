@@ -397,7 +397,6 @@ if (window.__contextExtensionLoaded) {
     .ctx-export-menu-item:hover { background: rgba(255,255,255,0.05); }
     .ctx-export-menu-item:disabled { color: #4a4a6a; cursor: default; }
     .ctx-export-menu-item:disabled:hover { background: none; }
-    .ctx-export-menu-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
     @keyframes ctx-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
@@ -623,59 +622,6 @@ if (window.__contextExtensionLoaded) {
     }
     .insight-text { font-size: 12px; color: #e0e0f0; font-weight: 500; line-height: 1.4; margin-top: 2px; }
     .insight-detail { font-size: 11px; color: #9a9ab0; line-height: 1.5; margin-top: 4px; }
-    .ctx-quiz-pill {
-      display: inline-block; background: rgba(99,102,241,0.12); color: #6366f1;
-      border: none; border-radius: 12px; padding: 4px 12px; font-size: 11px;
-      cursor: pointer; font-family: inherit; margin-top: 6px; transition: background 0.15s;
-    }
-    .ctx-quiz-pill:hover { background: rgba(99,102,241,0.22); }
-    .ctx-quiz-inline { margin-top: 8px; }
-    .ctx-quiz-inline-q { font-size: 12px; color: #e0e0f0; font-weight: 500; margin-bottom: 6px; }
-    .ctx-quiz-inline-opt {
-      display: block; width: 100%; text-align: left; background: #1e1e38;
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;
-      padding: 6px 10px; margin-bottom: 4px; font-size: 11px; color: #e0e0f0;
-      cursor: pointer; font-family: inherit; transition: border-color 0.2s;
-    }
-    .ctx-quiz-inline-opt:hover { border-color: rgba(99,102,241,0.4); }
-    .ctx-quiz-inline-opt.correct { border-color: #00e676; background: rgba(0,230,118,0.1); }
-    .ctx-quiz-inline-opt.wrong { border-color: #ff5252; background: rgba(255,82,82,0.1); }
-    .ctx-quiz-check { color: #00e676; font-size: 12px; margin-left: 4px; }
-    .ctx-quiz-btn {
-      background: rgba(99,102,241,0.15); color: #6366f1; border: none;
-      border-radius: 12px; padding: 8px 16px; font-size: 12px; cursor: pointer;
-      margin-top: 8px; font-family: inherit; display: inline-block; transition: background 0.15s;
-    }
-    .ctx-quiz-btn:hover { background: rgba(99,102,241,0.25); }
-    .ctx-quiz-overlay {
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      background: #12121c; z-index: 100; display: flex; flex-direction: column;
-      padding: 20px 16px; overflow-y: auto;
-    }
-    .ctx-quiz-question {
-      font-size: 14px; color: #e0e0f0; font-weight: 600; margin-bottom: 16px; line-height: 1.4;
-    }
-    .ctx-quiz-option {
-      display: block; width: 100%; text-align: left; background: #1e1e38;
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
-      padding: 10px 14px; margin-bottom: 8px; font-size: 12px; color: #e0e0f0;
-      cursor: pointer; font-family: inherit; transition: border-color 0.2s, background 0.2s;
-    }
-    .ctx-quiz-option:hover { border-color: rgba(99,102,241,0.4); background: #24244a; }
-    .ctx-quiz-option.correct { border-color: #00e676; background: rgba(0,230,118,0.1); }
-    .ctx-quiz-option.wrong { border-color: #ff5252; background: rgba(255,82,82,0.1); }
-    .ctx-quiz-next {
-      background: rgba(99,102,241,0.15); color: #6366f1; border: none;
-      border-radius: 8px; padding: 8px 16px; font-size: 12px; cursor: pointer;
-      margin-top: 12px; font-family: inherit;
-    }
-    .ctx-quiz-score {
-      font-size: 18px; font-weight: 700; color: #6366f1; text-align: center; margin: 20px 0;
-    }
-    .ctx-quiz-close {
-      background: none; border: none; color: #3a3a5a; font-size: 14px;
-      cursor: pointer; position: absolute; top: 12px; right: 12px;
-    }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
     /* ─── KB matches ─── */
     #kb-matches-wrapper {
@@ -884,37 +830,6 @@ if (window.__contextExtensionLoaded) {
       padding: 0; font-family: inherit;
     }
     .ctx-session-summary-dismiss:hover { color: #5a5a7a; }
-    .ctx-notion-btn {
-      background: rgba(255,255,255,0.07); color: #e0e0f0; border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 8px; padding: 6px 14px; font-size: 11px;
-      cursor: pointer; margin-top: 6px; font-family: inherit; transition: background 0.15s;
-    }
-    .ctx-notion-btn:hover { background: rgba(255,255,255,0.12); }
-    .ctx-notion-modal {
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85); z-index: 200; display: flex;
-      align-items: center; justify-content: center; padding: 20px;
-    }
-    .ctx-notion-modal-inner {
-      background: #1e1e38; border-radius: 12px; padding: 20px; width: 100%; max-width: 260px;
-    }
-    .ctx-notion-modal-title { font-size: 13px; font-weight: 600; color: #e0e0f0; margin-bottom: 12px; }
-    .ctx-notion-modal-input {
-      width: 100%; height: 32px; background: #12121c;
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
-      padding: 0 8px; font-size: 11px; color: #e0e0f0;
-      font-family: inherit; outline: none; margin-bottom: 8px;
-    }
-    .ctx-notion-modal-input::placeholder { color: #6a6a8a; }
-    .ctx-notion-modal-save {
-      width: 100%; height: 32px; background: #6366f1; color: #fff; border: none;
-      border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
-      font-family: inherit; margin-top: 4px;
-    }
-    .ctx-notion-modal-cancel {
-      display: block; width: 100%; text-align: center; font-size: 10px; color: #64748b;
-      cursor: pointer; margin-top: 8px; background: none; border: none; font-family: inherit;
-    }
     .light-theme .ctx-session-summary { background: #f0f0fa; border-color: rgba(90,90,255,0.12); }
     .light-theme .ctx-session-summary-header { color: #1a1a2e; }
     .light-theme .ctx-session-summary-stats { color: #5a5a7a; }
@@ -2034,75 +1949,6 @@ if (window.__contextExtensionLoaded) {
     return html;
   }
 
-  function exportToNotion(sidebar, history, title, videoUrl) {
-    chrome.storage.local.get(['notionToken', 'notionDatabaseId'], (data) => {
-      if (data.notionToken && data.notionDatabaseId) {
-        doNotionExport(data.notionToken, data.notionDatabaseId, history, title, videoUrl, sidebar);
-      } else {
-        showNotionModal(sidebar, (token, dbId) => {
-          chrome.storage.local.set({ notionToken: token, notionDatabaseId: dbId });
-          doNotionExport(token, dbId, history, title, videoUrl, sidebar);
-        });
-      }
-    });
-  }
-
-  function showNotionModal(sidebar, onSave) {
-    const modal = document.createElement('div');
-    modal.className = 'ctx-notion-modal';
-    modal.innerHTML = `
-      <div class="ctx-notion-modal-inner">
-        <div class="ctx-notion-modal-title">Connect Notion</div>
-        <input class="ctx-notion-modal-input" id="notion-token-input" type="text" placeholder="Notion integration token">
-        <input class="ctx-notion-modal-input" id="notion-db-input" type="text" placeholder="Database ID">
-        <button class="ctx-notion-modal-save">Save & Export</button>
-        <button class="ctx-notion-modal-cancel">Cancel</button>
-      </div>
-    `;
-    modal.querySelector('.ctx-notion-modal-save').addEventListener('click', () => {
-      const token = modal.querySelector('#notion-token-input').value.trim();
-      const dbId = modal.querySelector('#notion-db-input').value.trim();
-      if (token && dbId) {
-        modal.remove();
-        onSave(token, dbId);
-      }
-    });
-    modal.querySelector('.ctx-notion-modal-cancel').addEventListener('click', () => modal.remove());
-    // Stop keyboard events from leaking
-    modal.querySelectorAll('input').forEach(inp => {
-      inp.addEventListener('keydown', e => e.stopPropagation());
-      inp.addEventListener('keyup', e => e.stopPropagation());
-      inp.addEventListener('keypress', e => e.stopPropagation());
-    });
-    sidebar.appendChild(modal);
-  }
-
-  function doNotionExport(token, databaseId, history, title, videoUrl, sidebar) {
-    const entities = history.filter(h => h.type !== 'insight');
-    const insights = history.filter(h => h.type === 'insight');
-    const btn = sidebar.querySelector('.ctx-notion-btn');
-    if (btn) { btn.textContent = 'Exporting...'; btn.disabled = true; }
-
-    fetch('https://context-extension-zv8d.vercel.app/api/notion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, databaseId, title, entities, insights, videoUrl })
-    })
-    .then(res => res.ok ? res.json() : Promise.reject(res))
-    .then(data => {
-      if (btn) {
-        btn.textContent = data.success ? 'Exported!' : 'Failed';
-        setTimeout(() => { btn.textContent = 'Export to Notion'; btn.disabled = false; }, 2000);
-      }
-    })
-    .catch(() => {
-      if (btn) {
-        btn.textContent = 'Export failed';
-        setTimeout(() => { btn.textContent = 'Export to Notion'; btn.disabled = false; }, 2000);
-      }
-    });
-  }
-
   function ensureSidebar() {
     if (shadowRoot) return shadowRoot.getElementById('cards');
 
@@ -2135,7 +1981,7 @@ if (window.__contextExtensionLoaded) {
         </div>
         <button id="ctx-listen-btn" title="Start Listening">&#x25CF; Start</button>
         <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
-        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button><div class="ctx-export-menu-divider"></div><button class="ctx-export-menu-item" data-action="quiz">Test yourself</button></div></div>
+        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
         <button class="ctx-close-btn" title="Close sidebar">&times;</button>
       </div>
     `;
@@ -2273,119 +2119,6 @@ if (window.__contextExtensionLoaded) {
       });
     });
 
-    function launchQuiz() {
-      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle'], (data) => {
-        const history = data.sessionHistory || [];
-        const title = data.capturingTabTitle || document.title || 'Untitled';
-        const quizEntities = history
-          .filter(h => h.term && h.description)
-          .slice(0, 15)
-          .map(h => ({ term: h.term, type: h.type || 'concept', description: h.description }));
-
-        if (quizEntities.length < 3) return;
-
-        const sidebarEl = shadowRoot.getElementById('sidebar');
-        if (!sidebarEl) return;
-
-        // Remove any existing quiz overlay
-        const existing = sidebarEl.querySelector('.ctx-quiz-overlay');
-        if (existing) existing.remove();
-
-        const overlay = document.createElement('div');
-        overlay.className = 'ctx-quiz-overlay';
-        let currentQ = 0;
-        let score = 0;
-
-        overlay.innerHTML = '<div style="text-align:center;padding:40px 0;color:#6a6a8a;font-size:12px;">Loading quiz...</div>';
-        sidebarEl.style.position = 'relative';
-        sidebarEl.appendChild(overlay);
-
-        fetch('https://context-extension-zv8d.vercel.app/api/quiz', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entities: quizEntities, title })
-        })
-        .then(res => res.ok ? res.json() : Promise.reject(res))
-        .then(qData => {
-          const questions = qData.questions || [];
-          if (questions.length === 0) {
-            overlay.innerHTML = '<div style="text-align:center;padding:40px 0;color:#6a6a8a;font-size:12px;">No questions generated</div>';
-            setTimeout(() => overlay.remove(), 1500);
-            return;
-          }
-
-          function renderQuestion() {
-            const q = questions[currentQ];
-            overlay.innerHTML = `
-              <button class="ctx-quiz-close">&times;</button>
-              <div style="font-size: 10px; color: #6a6a8a; margin-bottom: 12px;">Question ${currentQ + 1} of ${questions.length}</div>
-              <div class="ctx-quiz-question">${escapeHtml(q.question)}</div>
-              ${q.options.map((opt, i) => `<button class="ctx-quiz-option" data-idx="${i}">${escapeHtml(opt)}</button>`).join('')}
-            `;
-            overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
-            const optBtns = overlay.querySelectorAll('.ctx-quiz-option');
-            optBtns.forEach(btn => {
-              btn.addEventListener('click', () => {
-                const chosen = parseInt(btn.dataset.idx);
-                const correct = q.correct;
-                optBtns.forEach(b => { b.style.pointerEvents = 'none'; });
-                if (chosen === correct) {
-                  btn.classList.add('correct');
-                  score++;
-                } else {
-                  btn.classList.add('wrong');
-                  optBtns[correct].classList.add('correct');
-                }
-                const nextBtn = document.createElement('button');
-                nextBtn.className = 'ctx-quiz-next';
-                nextBtn.textContent = currentQ < questions.length - 1 ? 'Next \u2192' : 'See results';
-                nextBtn.addEventListener('click', () => {
-                  currentQ++;
-                  if (currentQ < questions.length) {
-                    renderQuestion();
-                  } else {
-                    renderScore();
-                  }
-                });
-                overlay.appendChild(nextBtn);
-              });
-            });
-          }
-
-          function renderScore() {
-            overlay.innerHTML = `
-              <button class="ctx-quiz-close">&times;</button>
-              <div class="ctx-quiz-score">${score}/${questions.length} correct!</div>
-              <button class="ctx-quiz-next" style="align-self: center;">Done</button>
-            `;
-            overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
-            overlay.querySelector('.ctx-quiz-next').addEventListener('click', () => overlay.remove());
-          }
-
-          renderQuestion();
-        })
-        .catch(() => {
-          overlay.innerHTML = '<div style="text-align:center;padding:40px 0;color:#6a6a8a;font-size:12px;">Quiz failed</div>';
-          setTimeout(() => overlay.remove(), 1500);
-        });
-      });
-    }
-
-    const quizMenuItem = exportMenu.querySelector('[data-action="quiz"]');
-    // Update quiz button disabled state when menu opens
-    exportBtn.addEventListener('click', () => {
-      chrome.storage.local.get('sessionHistory', (data) => {
-        const count = (data.sessionHistory || []).filter(h => h.term && h.description).length;
-        quizMenuItem.disabled = count < 3;
-        quizMenuItem.textContent = count < 3 ? `Test yourself (${count}/3 terms)` : 'Test yourself';
-      });
-    });
-    quizMenuItem.addEventListener('click', (e) => {
-      e.stopPropagation();
-      exportMenu.classList.remove('visible');
-      launchQuiz();
-    });
-
     // Empty state
     const emptyState = document.createElement('div');
     emptyState.id = 'empty-state';
@@ -2442,43 +2175,6 @@ if (window.__contextExtensionLoaded) {
     tabBar.className = 'ctx-tab-bar';
 
     function addToNotes() { /* no-op — Notes tab removed */ }
-
-    function loadInlineQuiz(card, term, type, desc) {
-      fetch('https://context-extension-zv8d.vercel.app/api/quiz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entities: [{ term, type, description: desc }], title: document.title })
-      })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        const questions = (data && data.questions) || [];
-        if (questions.length === 0) return;
-        const q = questions[0];
-        const quizEl = document.createElement('div');
-        quizEl.className = 'ctx-quiz-inline';
-        quizEl.innerHTML = `<div class="ctx-quiz-inline-q">${escapeHtml(q.question)}</div>` +
-          q.options.map((opt, i) => `<button class="ctx-quiz-inline-opt" data-idx="${i}">${escapeHtml(opt)}</button>`).join('');
-        quizEl.querySelectorAll('.ctx-quiz-inline-opt').forEach(btn => {
-          btn.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            const chosen = parseInt(btn.dataset.idx);
-            quizEl.querySelectorAll('.ctx-quiz-inline-opt').forEach(b => { b.style.pointerEvents = 'none'; });
-            if (chosen === q.correct) {
-              btn.classList.add('correct');
-              const check = document.createElement('span');
-              check.className = 'ctx-quiz-check';
-              check.textContent = ' \u2713';
-              card.querySelector('.card-term').appendChild(check);
-            } else {
-              btn.classList.add('wrong');
-              quizEl.querySelectorAll('.ctx-quiz-inline-opt')[q.correct].classList.add('correct');
-            }
-          });
-        });
-        card.appendChild(quizEl);
-      })
-      .catch(() => {});
-    }
 
     // Listening indicator
     const listeningIndicator = document.createElement('div');
@@ -3140,8 +2836,6 @@ if (window.__contextExtensionLoaded) {
               ${knownCount} previously known
             </div>
             <button class="ctx-session-summary-export">Export study guide</button>
-            <button class="ctx-notion-btn">Export to Notion</button>
-            <button class="ctx-quiz-btn">Test yourself</button>
             ${watchNextHTML}
             <button class="ctx-session-summary-dismiss">Dismiss</button>
           `;
@@ -3154,17 +2848,6 @@ if (window.__contextExtensionLoaded) {
               btn.textContent = 'Copied!';
               setTimeout(() => { btn.textContent = 'Export study guide'; }, 1500);
             });
-          });
-
-          summaryEl.querySelector('.ctx-notion-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            const sidebar = shadowRoot.getElementById('sidebar');
-            if (sidebar) exportToNotion(sidebar, history, title, window.location.href);
-          });
-
-          summaryEl.querySelector('.ctx-quiz-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            launchQuiz();
           });
 
           summaryEl.querySelector('.ctx-session-summary-dismiss').addEventListener('click', (e) => {

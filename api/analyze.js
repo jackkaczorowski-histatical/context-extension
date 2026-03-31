@@ -4,6 +4,63 @@ const cors = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+const CORRECTIONS = {
+  'jacques nacare': 'Jacques Necker',
+  'jacques nacre': 'Jacques Necker',
+  'jacques naker': 'Jacques Necker',
+  'jack nacare': 'Jacques Necker',
+  'anne robert turgot': 'Anne Robert Turgot',
+  'assignettes': 'Assignats',
+  'assignets': 'Assignats',
+  'acidnets': 'Assignats',
+  'acid nets': 'Assignats',
+  'ethnic nets': 'Assignats',
+  'asking nats': 'Assignats',
+  'aztec gnats': 'Assignats',
+  'sean ryan': 'Shawn Ryan',
+  'signets': 'Assignats',
+};
+
+function correctTranscript(text) {
+  let result = text;
+  for (const [wrong, right] of Object.entries(CORRECTIONS)) {
+    result = result.replace(new RegExp(wrong, 'gi'), right);
+  }
+  return result;
+}
+
+function correctEntities(parsed) {
+  if (!parsed) return parsed;
+  if (Array.isArray(parsed.entities)) {
+    parsed.entities.forEach(entity => {
+      const key = (entity.term || '').toLowerCase();
+      if (CORRECTIONS[key]) {
+        entity.term = CORRECTIONS[key];
+      }
+      if (entity.description) {
+        for (const [wrong, right] of Object.entries(CORRECTIONS)) {
+          entity.description = entity.description.replace(new RegExp(wrong, 'gi'), right);
+        }
+      }
+    });
+  }
+  if (Array.isArray(parsed.insights)) {
+    parsed.insights.forEach(insight => {
+      if (insight.insight) {
+        for (const [wrong, right] of Object.entries(CORRECTIONS)) {
+          insight.insight = insight.insight.replace(new RegExp(wrong, 'gi'), right);
+        }
+      }
+      if (insight.detail) {
+        for (const [wrong, right] of Object.entries(CORRECTIONS)) {
+          insight.detail = insight.detail.replace(new RegExp(wrong, 'gi'), right);
+        }
+      }
+    });
+  }
+  return parsed;
+}
+
 function formatCounts(counts) {
   const entries = Object.entries(counts || {}).filter(([, v]) => v > 0);
   if (entries.length === 0) return "none yet";
@@ -127,7 +184,7 @@ module.exports = async function handler(req, res) {
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         system: systemPrompt,
-        messages: [{ role: "user", content: transcript }],
+        messages: [{ role: "user", content: correctTranscript(transcript) }],
       }),
     });
 
@@ -144,7 +201,7 @@ module.exports = async function handler(req, res) {
     const message = await response.json();
     let text = message.content[0].text;
     text = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?\s*```$/, "");
-    const parsed = JSON.parse(text);
+    const parsed = correctEntities(JSON.parse(text));
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json(parsed);

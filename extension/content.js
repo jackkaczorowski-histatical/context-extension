@@ -1416,9 +1416,9 @@ if (window.__contextExtensionLoaded) {
   function createStockCard(entity) {
     console.log('[CONTENT] Stock card data:', JSON.stringify(entity));
 
-    // If entity has no ticker AND no price AND no name, skip stock card entirely
-    if (!entity.ticker && entity.price == null && !entity.name && !entity.companyName) {
-      console.warn('[CONTENT] Stock entity has no ticker, price, or name — rendering as generic card');
+    // If entity has no ticker AND no price, don't render an empty stock card
+    if (!entity.ticker && entity.price == null) {
+      console.warn('[CONTENT] Stock entity has no ticker or price — rendering as generic card');
       return createGenericCard(entity);
     }
 
@@ -1519,6 +1519,7 @@ if (window.__contextExtensionLoaded) {
     card.innerHTML = `
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
+        <span class="card-term">${ticker || companyName}</span>
         <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>

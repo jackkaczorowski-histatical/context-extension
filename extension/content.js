@@ -550,7 +550,8 @@ if (window.__contextExtensionLoaded) {
     .stock-stat-label { font-size: 10px; color: #6a6a8a; }
     .stock-stat-value { font-size: 12px; color: #c0c0d0; font-weight: 500; }
     .stock-stat-value.stock-div-highlight { color: #38bdf8; }
-    .stock-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+    .stock-footer { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .stock-footer-row { display: flex; justify-content: space-between; align-items: center; }
     .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
     .stock-yahoo-link:hover { color: #818cf8; }
     .reaction-row {
@@ -1488,9 +1489,13 @@ if (window.__contextExtensionLoaded) {
         ${rangeHTML}
         ${statsHTML}
         <div class="stock-footer">
-          <div class="stock-footer-buttons"></div>
-          <button class="card-tellmore stock-tellmore">Tell me more</button>
-          <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
+          <div class="stock-footer-row">
+            <div class="stock-footer-buttons"></div>
+            <button class="card-tellmore stock-tellmore">Tell me more</button>
+          </div>
+          <div class="stock-footer-row" style="justify-content:flex-end;">
+            <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
+          </div>
         </div>
       `;
     } else {
@@ -1503,9 +1508,13 @@ if (window.__contextExtensionLoaded) {
         <div style="color:#999;font-size:12px;margin:4px 0;">Price unavailable</div>
         ${displayStockDesc ? `<div class="card-desc">${escapeHtml(displayStockDesc)}</div>` : ''}
         <div class="stock-footer">
-          <div class="stock-footer-buttons"></div>
-          <button class="card-tellmore stock-tellmore">Tell me more</button>
-          <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
+          <div class="stock-footer-row">
+            <div class="stock-footer-buttons"></div>
+            <button class="card-tellmore stock-tellmore">Tell me more</button>
+          </div>
+          <div class="stock-footer-row" style="justify-content:flex-end;">
+            <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
+          </div>
         </div>
       `;
     }

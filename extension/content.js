@@ -17,6 +17,15 @@ if (!window.__contextExtensionLoaded) {
     return fallbackCopy(text);
   }
 
+  function copyRichToClipboard(html, plain) {
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+      const htmlBlob = new Blob([html], { type: 'text/html' });
+      const plainBlob = new Blob([plain], { type: 'text/plain' });
+      return navigator.clipboard.write([new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': plainBlob })]).catch(() => copyToClipboard(plain));
+    }
+    return copyToClipboard(plain);
+  }
+
   function fallbackCopy(text) {
     return new Promise((resolve, reject) => {
       try {
@@ -53,7 +62,6 @@ if (!window.__contextExtensionLoaded) {
   let badgeShadow = null;
   let termCount = 0;
   let askIdleTimer = null;
-  let agingInterval = null;
   let askSuggestionCount = 0;
   let lastRenderedTerm = '';
   let mySessionId = null;
@@ -330,35 +338,46 @@ if (!window.__contextExtensionLoaded) {
       overflow: visible;
     }
     .ctx-wordmark { font-size: 13px; font-weight: 600; color: #e0e0f0; letter-spacing: -0.01em; margin-right: 10px; }
-    .ctx-header-right { display: flex; align-items: center; gap: 10px; }
-    .ctx-live { display: flex; align-items: center; gap: 5px; margin-left: 4px; margin-right: 10px; }
+    .ctx-header-right { display: flex; align-items: center; gap: 4px; position: relative; }
+    .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
       animation: ctx-pulse 2s ease-in-out infinite;
     }
     .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
-    .ctx-close-btn, .ctx-export-btn {
+    .ctx-export-btn {
       background: none; border: none; color: #3a3a5a; font-size: 16px;
       cursor: pointer; padding: 2px 6px; border-radius: 4px;
       line-height: 1; transition: color 0.15s, background 0.15s;
       position: relative;
     }
-    .ctx-close-btn:hover, .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
-    .ctx-export-btn { font-size: 13px; margin-left: 4px; margin-right: 4px; }
+    .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
+    .ctx-export-btn { font-size: 13px; }
     .ctx-clear-btn {
       background: none; border: 1px solid rgba(255,255,255,0.08); color: #64748b; font-size: 11px;
       cursor: pointer; padding: 3px 8px; border-radius: 4px;
       line-height: 1; transition: color 0.15s, background 0.15s; font-family: inherit;
-      margin-left: 4px; margin-right: 4px;
     }
     .ctx-clear-btn:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
-    .ctx-clear-confirm { font-size: 11px; color: #ef4444; display: inline-flex; align-items: center; gap: 6px; }
-    .ctx-clear-confirm-link {
-      background: none; border: none; font-size: 11px; cursor: pointer;
-      font-family: inherit; padding: 0; text-decoration: underline;
+    .ctx-close-btn {
+      background: none; border: none; color: #64748b; font-size: 18px;
+      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
+      flex-shrink: 0;
     }
-    .ctx-clear-confirm-link.yes { color: #ef4444; }
-    .ctx-clear-confirm-link.no { color: #64748b; }
+    .ctx-close-btn:hover { color: #f8fafc; }
+    .ctx-clear-confirm {
+      position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+      background: #12121c; z-index: 10; padding: 4px 10px;
+      font-size: 11px; color: #ef4444; display: inline-flex; align-items: center; gap: 6px;
+      white-space: nowrap; border-radius: 4px;
+    }
+    .ctx-clear-confirm-link {
+      border: none; font-size: 11px; cursor: pointer;
+      font-family: inherit; padding: 3px 10px; border-radius: 4px;
+      min-width: 28px; text-align: center; text-decoration: none;
+    }
+    .ctx-clear-confirm-link.yes { color: #ef4444; background: rgba(239,68,68,0.15); }
+    .ctx-clear-confirm-link.no { color: #94a3b8; background: rgba(255,255,255,0.08); }
     .ctx-export-tooltip {
       position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
       background: #00e676; color: #0a0a12; font-size: 9px; font-weight: 600;
@@ -458,10 +477,12 @@ if (!window.__contextExtensionLoaded) {
       color: rgba(255,255,255,0.3); font-size: 9px; cursor: pointer;
       display: inline-flex; align-items: center; justify-content: center;
       transition: all 0.2s; padding: 0; line-height: 1; flex-shrink: 0;
-      margin-left: auto;
+      margin-left: auto; position: relative; z-index: 3;
     }
     .card-dismiss-inline:hover { border-color: rgba(0,230,118,0.5); color: #00e676; background: rgba(0,230,118,0.1); }
     .context-card.card-dismissed .card-dismiss-inline { border-color: rgba(0,230,118,0.6); color: #fff; background: #00c853; }
+    .card-dismiss-inline.dismiss-starred { background: #eab308; border-color: #eab308; color: #fff; }
+    .card-dismiss-inline.dismiss-starred:hover { background: #ca9a06; border-color: #ca9a06; }
     .card-quick-dismiss { display: none; }
     .card-row {
       display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
@@ -534,12 +555,25 @@ if (!window.__contextExtensionLoaded) {
     .reaction-btn:hover { transform: scale(1.15); }
     .reaction-known { border: 1px solid #6a6a8a; color: #6a6a8a; }
     .reaction-known:hover { background: rgba(106,106,138,0.15); }
-    .reaction-new { border: 1px solid #00e676; color: #00e676; }
-    .reaction-new:hover { background: rgba(0,230,118,0.1); }
+    .reaction-new { border: 1px solid #6a6a8a; color: #6a6a8a; }
+    .reaction-new:hover { background: rgba(106,106,138,0.15); }
     .reaction-btn.active { transform: scale(1.1); }
     .reaction-known.active { background: rgba(34,197,94,0.2); border-color: #22c55e; color: #22c55e; }
-    .reaction-new.active { background: rgba(0,230,118,0.2); border-color: #00e676; color: #00e676; }
-    .card-highlighted { border-left-color: #22c55e !important; background: rgba(34,197,94,0.05); }
+    .reaction-new.active { background: rgba(234,179,8,0.2); border-color: #eab308; color: #eab308; }
+    .card-highlighted { border-left-color: #eab308 !important; background: rgba(234,179,8,0.05); }
+    .ctx-filter-bar {
+      display: flex; gap: 6px; padding: 6px 16px;
+      background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.04); flex-shrink: 0;
+    }
+    .ctx-filter-btn {
+      font-size: 10px; padding: 3px 10px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1); background: none;
+      color: #64748b; cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .ctx-filter-btn:hover { border-color: rgba(255,255,255,0.2); color: #94a3b8; }
+    .ctx-filter-btn.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.3); }
+    .filter-hide-known .context-card.card-dismissed { display: none; }
+    .filter-starred-only .context-card:not(.card-highlighted) { display: none; }
     .reaction-label {
       font-size: 9px; color: #4a4a6a; margin-top: 2px; text-align: center;
     }
@@ -570,13 +604,6 @@ if (!window.__contextExtensionLoaded) {
     }
     .card-copy-btn:hover { background: rgba(99,102,241,0.2); }
     .card-copy-btn.copied { color: #00e676; background: rgba(0,230,118,0.1); }
-    .card-share-btn {
-      position: absolute; top: 8px; right: 12px; background: none; border: none;
-      color: #64748b; font-size: 14px; cursor: pointer; padding: 2px 4px;
-      line-height: 1; transition: color 0.15s; display: none; z-index: 2;
-    }
-    .card-share-btn:hover { color: #f8fafc; }
-    .context-card.expanded .card-share-btn { display: block; }
     .card-preview-text { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .context-card.expanded .card-preview-text { display: none; }
     .ctx-card-tooltip {
@@ -651,27 +678,6 @@ if (!window.__contextExtensionLoaded) {
       cursor: pointer; position: absolute; top: 12px; right: 12px;
     }
     .feedback-msg { font-size: 11px; color: #3a3a5a; padding: 4px 0; text-align: center; }
-    #missed-bar {
-      display: none; padding: 6px 16px; background: #12121c;
-      border-bottom: 1px solid rgba(255,255,255,0.03); flex-shrink: 0;
-    }
-    #missed-bar.visible { display: block; }
-    #missed-btn {
-      font-size: 10px; color: #00e676; background: rgba(0,230,118,0.08);
-      border: none; border-radius: 12px; padding: 3px 10px;
-      cursor: pointer; font-family: inherit; font-weight: 500;
-      transition: background 0.15s;
-    }
-    #missed-btn:hover { background: rgba(0,230,118,0.15); }
-    .context-card.missed { }
-    .context-card.missed-glow {
-      animation: missed-highlight 1.5s ease-out;
-    }
-    @keyframes missed-highlight {
-      0% { box-shadow: inset 3px 0 10px rgba(0,230,118,0.3); }
-      100% { box-shadow: none; }
-    }
-
     /* ─── KB matches ─── */
     #kb-matches-wrapper {
       margin-top: 12px;
@@ -705,15 +711,11 @@ if (!window.__contextExtensionLoaded) {
     #ctx-listen-btn {
       background: #00e676; color: #0a0a14; border: none; border-radius: 12px;
       padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; white-space: nowrap; margin-left: 8px; margin-right: 8px;
+      transition: all 0.2s; white-space: nowrap;
     }
     #ctx-listen-btn:hover { background: #00c853; }
     #ctx-listen-btn.listening { background: #ff5252; color: white; }
     #ctx-listen-btn.listening:hover { background: #ff1744; }
-
-    /* ─── Card aging ─── */
-    .context-card.aged { opacity: 0.5; transition: opacity 0.5s ease; }
-    .context-card.aged:hover { opacity: 1; }
 
     /* ─── Preview card ─── */
     .ctx-preview-card {
@@ -790,10 +792,13 @@ if (!window.__contextExtensionLoaded) {
     #sidebar.light-theme { background: #f5f5f8; color: #1a1a2e; }
     .light-theme #header { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.1); }
     .light-theme .ctx-wordmark { color: #1a1a2e; }
-    .light-theme .ctx-close-btn, .light-theme .ctx-export-btn { color: #9a9ab0; }
-    .light-theme .ctx-close-btn:hover, .light-theme .ctx-export-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
+    .light-theme .ctx-export-btn { color: #9a9ab0; }
+    .light-theme .ctx-export-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
     .light-theme .ctx-clear-btn { color: #9a9ab0; }
     .light-theme .ctx-clear-btn:hover { color: #ff5252; background: rgba(255,82,82,0.06); }
+    .light-theme .ctx-close-btn { color: #9a9ab0; }
+    .light-theme .ctx-close-btn:hover { color: #333; }
+    .light-theme .ctx-clear-confirm { background: #f5f5f8; }
     .light-theme #empty-state { background: #f5f5f8; }
     .light-theme .ctx-waveform span { background: #c0c0d0; }
     .light-theme .ctx-empty-text { color: #7a7a9a; }
@@ -803,7 +808,6 @@ if (!window.__contextExtensionLoaded) {
     .light-theme #listening-indicator { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
     .light-theme #listening-indicator .li-dot { background: #9a9ab0; }
     .light-theme #listening-indicator .li-text { color: #9a9ab0; }
-    .light-theme #missed-bar { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.04); }
     .light-theme .context-card { background: #ffffff; border-bottom-color: rgba(0,0,0,0.06); }
     .light-theme .context-card:hover { background: #f0f0f5; }
     .light-theme .context-card.stock-card { background: #f0faf4; }
@@ -1283,11 +1287,20 @@ if (!window.__contextExtensionLoaded) {
     function applyReactionVisuals(reaction) {
       card.classList.remove('card-dismissed', 'card-highlighted');
       row.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('active'));
+      const dismissEl = card.querySelector('.card-dismiss-inline');
+      if (dismissEl) {
+        dismissEl.classList.remove('dismiss-starred');
+        dismissEl.textContent = '\u2713';
+      }
       if (!reaction) return;
       if (reaction === 'known') {
         card.classList.add('card-dismissed');
       } else if (reaction === 'new') {
         card.classList.add('card-highlighted');
+        if (dismissEl) {
+          dismissEl.classList.add('dismiss-starred');
+          dismissEl.textContent = '\u2605';
+        }
       }
       const activeBtn = row.querySelector('.reaction-' + reaction);
       if (activeBtn) activeBtn.classList.add('active');
@@ -1384,7 +1397,6 @@ if (!window.__contextExtensionLoaded) {
     const detail = escapeHtml(insight.detail || '');
 
     card.innerHTML = `
-      <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         <span class="insight-category">\u{1F4A1} ${category}</span>
         <span class="card-term" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; display:inline-block; vertical-align:middle;">${escapeHtml(shortInsight)}</span>
@@ -1451,14 +1463,9 @@ if (!window.__contextExtensionLoaded) {
       });
     });
 
-    card.querySelector('.card-share-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      generateCardPNG({ term: insightText, type: 'insight', description: insight.detail || '' });
-    });
-
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-dismiss-inline') || e.target.closest('.card-quick-dismiss')) return;
-      if (e.target.closest('a') || e.target.closest('.card-share-btn')) return;
+      if (e.target.closest('a')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
@@ -1500,7 +1507,6 @@ if (!window.__contextExtensionLoaded) {
     }
 
     card.innerHTML = `
-      <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
         <span class="card-term">${ticker}</span>
@@ -1516,13 +1522,8 @@ if (!window.__contextExtensionLoaded) {
       stockDescEl.setAttribute('title', entity.description || '');
     }
 
-    card.querySelector('.card-share-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      generateCardPNG(entity);
-    });
-
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-actions') || e.target.closest('a') || e.target.closest('.card-share-btn') || e.target.closest('.card-quick-dismiss')) return;
+      if (e.target.closest('.card-actions') || e.target.closest('a') || e.target.closest('.card-quick-dismiss')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
@@ -1578,7 +1579,6 @@ if (!window.__contextExtensionLoaded) {
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
 
     card.innerHTML = `
-      <button class="card-share-btn" title="Share as image">\u2197</button>
       <div class="card-row">
         ${typeBadge}
         <span class="card-term">${termText}</span>
@@ -1649,11 +1649,6 @@ if (!window.__contextExtensionLoaded) {
       });
     });
 
-    card.querySelector('.card-share-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const descEl = card.querySelector('.card-desc');
-      generateCardPNG({ ...entity, description: descEl ? descEl.textContent : entity.description });
-    });
 
     // Inject shop link for eligible generic cards
     chrome.storage.local.get('capturingTabTitle', (data) => {
@@ -1706,7 +1701,7 @@ if (!window.__contextExtensionLoaded) {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-dismiss-inline') || e.target.closest('.card-quick-dismiss')) return;
-      if (e.target.closest('.card-actions') || e.target.closest('a') || e.target.closest('.card-share-btn')) return;
+      if (e.target.closest('.card-actions') || e.target.closest('a')) return;
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
@@ -1948,6 +1943,91 @@ if (!window.__contextExtensionLoaded) {
     return guide;
   }
 
+  function generateStudyGuideHTML(title, history, kb, videoUrl, cardReactions) {
+    kb = kb || {};
+    cardReactions = cardReactions || {};
+    history.forEach(entry => {
+      if (!entry.description) {
+        const kbEntry = kb[(entry.term || '').toLowerCase()];
+        if (kbEntry && kbEntry.description) entry.description = kbEntry.description;
+      }
+    });
+
+    const videoId = getVideoIdFromUrl(videoUrl || '');
+    function tsLink(sec) {
+      if (!sec && sec !== 0) return '';
+      const ts = formatTimestamp(sec);
+      if (videoId) return `<a href="https://youtube.com/watch?v=${videoId}&t=${sec}" style="color:#64b5f6;text-decoration:underline;">${ts}</a>`;
+      return `<span style="color:#94a3b8;">${ts}</span>`;
+    }
+
+    function typeLabel(type) {
+      const t = (type || '').toLowerCase();
+      const color = TYPE_COLORS[t] || '#4a4a6a';
+      const label = t.toUpperCase();
+      return label ? `<span style="color:${color};font-size:11px;font-weight:600;">${label}</span> ` : '';
+    }
+
+    function formatEntry(ent) {
+      const term = escapeHtml(capitalizeTerm(ent.term));
+      const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
+      const desc = ent.description ? ' \u2014 ' + escapeHtml(ent.description) : '';
+      return `<li>${ts}${typeLabel(ent.type)}<strong>${term}</strong>${desc}</li>`;
+    }
+
+    const insightEntries = history.filter(entry => (entry.type || '').toLowerCase() === 'insight');
+    const entityEntries = history.filter(entry => (entry.type || '').toLowerCase() !== 'insight');
+
+    const starredSet = new Set();
+    for (const [term, r] of Object.entries(cardReactions)) {
+      if (r.reaction === 'new') starredSet.add(term);
+    }
+    const starred = entityEntries.filter(e => starredSet.has((e.term || '').toLowerCase()));
+    const unstarred = entityEntries.filter(e => !starredSet.has((e.term || '').toLowerCase()));
+
+    let html = `<h1 style="margin:0 0 4px 0;font-size:18px;">Study Guide: ${escapeHtml(title)}</h1>`;
+    if (videoUrl) html += `<p style="margin:0 0 12px 0;"><a href="${escapeHtml(videoUrl)}" style="color:#64b5f6;">${escapeHtml(videoUrl)}</a></p>`;
+
+    if (starred.length > 0) {
+      html += `<h2 style="color:#eab308;font-size:15px;margin:16px 0 6px 0;">\u2B50 Highlights</h2><ul style="margin:0 0 8px 0;padding-left:20px;">`;
+      starred.forEach(ent => { html += formatEntry(ent); });
+      html += '</ul>';
+    }
+
+    const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities', ingredient: 'Ingredients' };
+    const grouped = {};
+    unstarred.forEach(entry => {
+      const t = (entry.type || 'other').toLowerCase();
+      const label = TYPE_ORDER[t] || (t.charAt(0).toUpperCase() + t.slice(1));
+      if (!grouped[label]) grouped[label] = [];
+      grouped[label].push(entry);
+    });
+
+    const sectionOrder = ['People', 'Events', 'Concepts', 'Organizations', 'Stocks', 'Commodities', 'Ingredients'];
+    const sortedKeys = Object.keys(grouped).sort((a, b) => {
+      const ia = sectionOrder.indexOf(a), ib = sectionOrder.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+    sortedKeys.forEach(label => {
+      html += `<h2 style="font-size:15px;margin:16px 0 6px 0;">${escapeHtml(label)}</h2><ul style="margin:0 0 8px 0;padding-left:20px;">`;
+      grouped[label].forEach(ent => { html += formatEntry(ent); });
+      html += '</ul>';
+    });
+
+    if (insightEntries.length > 0) {
+      html += `<h2 style="font-size:15px;margin:16px 0 6px 0;">Insights &amp; Tips</h2><ul style="margin:0 0 8px 0;padding-left:20px;">`;
+      insightEntries.forEach(ent => {
+        const ts = ent.elapsedSeconds != null ? tsLink(ent.elapsedSeconds) + ' ' : '';
+        const desc = ent.description ? ' \u2014 ' + escapeHtml(ent.description) : '';
+        html += `<li>${ts}\u{1F4A1} <strong>${escapeHtml(capitalizeTerm(ent.term))}</strong>${desc}</li>`;
+      });
+      html += '</ul>';
+    }
+
+    html += `<hr style="border:none;border-top:1px solid #ccc;margin:16px 0 8px 0;"><p style="margin:0;font-size:12px;color:#888;">Generated by Context Listener</p>`;
+    return html;
+  }
+
   function exportToNotion(sidebar, history, title, videoUrl) {
     chrome.storage.local.get(['notionToken', 'notionDatabaseId'], (data) => {
       if (data.notionToken && data.notionDatabaseId) {
@@ -2049,17 +2129,15 @@ if (!window.__contextExtensionLoaded) {
         </div>
         <button id="ctx-listen-btn" title="Start Listening">&#x25CF; Start</button>
         <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
-        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="gdocs">Open in Google Docs</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
-        <button class="ctx-close-btn" title="Close sidebar">&#x2715;</button>
+        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
+        <button class="ctx-close-btn" title="Close sidebar">&times;</button>
       </div>
     `;
 
-    // Wire up close button
-    header.querySelector('.ctx-close-btn').addEventListener('click', () => {
-      closeSidebar();
-    });
-
     // Wire up listen button
+    // Wire up close button
+    header.querySelector('.ctx-close-btn').addEventListener('click', () => closeSidebar());
+
     const listenBtn = header.querySelector('#ctx-listen-btn');
     listenBtn.addEventListener('click', () => {
       chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
@@ -2075,12 +2153,11 @@ if (!window.__contextExtensionLoaded) {
 
     // Wire up clear button with inline confirmation
     const clearBtn = header.querySelector('.ctx-clear-btn');
+    const headerRight = header.querySelector('.ctx-header-right');
     let clearTimer = null;
     clearBtn.addEventListener('click', () => {
       if (clearBtn.dataset.confirming === 'true') return;
       clearBtn.dataset.confirming = 'true';
-      const origHTML = clearBtn.innerHTML;
-      clearBtn.innerHTML = '';
       const confirm = document.createElement('span');
       confirm.className = 'ctx-clear-confirm';
       confirm.innerHTML = 'Sure? ';
@@ -2092,10 +2169,10 @@ if (!window.__contextExtensionLoaded) {
       noBtn.textContent = 'No';
       confirm.appendChild(yesBtn);
       confirm.appendChild(noBtn);
-      clearBtn.appendChild(confirm);
+      headerRight.appendChild(confirm);
       function revert() {
         if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
-        clearBtn.innerHTML = origHTML;
+        confirm.remove();
         clearBtn.dataset.confirming = 'false';
       }
       yesBtn.addEventListener('click', (e) => {
@@ -2133,16 +2210,20 @@ if (!window.__contextExtensionLoaded) {
       chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase', 'activeTabUrl', 'cardReactions'], (data) => {
         const history = data.sessionHistory || [];
         const title = data.capturingTabTitle || document.title || 'Untitled';
-        const guide = generateStudyGuide(title, history, data.knowledgeBase || {}, data.activeTabUrl || window.location.href, data.cardReactions || {});
-        callback({ guide, title });
+        const url = data.activeTabUrl || window.location.href;
+        const kb = data.knowledgeBase || {};
+        const reactions = data.cardReactions || {};
+        const guide = generateStudyGuide(title, history, kb, url, reactions);
+        const guideHtml = generateStudyGuideHTML(title, history, kb, url, reactions);
+        callback({ guide, guideHtml, title });
       });
     }
 
     exportMenu.querySelector('[data-action="clipboard"]').addEventListener('click', (e) => {
       e.stopPropagation();
       exportMenu.classList.remove('visible');
-      getStudyGuideData(({ guide }) => {
-        copyToClipboard(guide).then(() => {
+      getStudyGuideData(({ guide, guideHtml }) => {
+        copyRichToClipboard(guideHtml, guide).then(() => {
           const tooltip = header.querySelector('.ctx-export-tooltip');
           tooltip.classList.add('visible');
           setTimeout(() => tooltip.classList.remove('visible'), 1500);
@@ -2153,26 +2234,15 @@ if (!window.__contextExtensionLoaded) {
     exportMenu.querySelector('[data-action="gmail"]').addEventListener('click', (e) => {
       e.stopPropagation();
       exportMenu.classList.remove('visible');
-      getStudyGuideData(({ guide, title }) => {
-        const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
-          encodeURIComponent(title) + '&body=' + encodeURIComponent(guide);
-        window.open(gmailUrl, '_blank');
-      });
-    });
-
-    exportMenu.querySelector('[data-action="gdocs"]').addEventListener('click', (e) => {
-      e.stopPropagation();
-      exportMenu.classList.remove('visible');
-      getStudyGuideData(({ guide }) => {
-        copyToClipboard(guide).then(() => {
-          window.open('https://docs.google.com/document/create', '_blank');
+      getStudyGuideData(({ guide, guideHtml, title }) => {
+        copyRichToClipboard(guideHtml, guide).then(() => {
           const tooltip = header.querySelector('.ctx-export-tooltip');
-          tooltip.textContent = 'Copied \u2014 paste into doc';
+          tooltip.textContent = 'Study guide copied \u2014 paste into your email';
           tooltip.classList.add('visible');
-          setTimeout(() => {
-            tooltip.classList.remove('visible');
-            tooltip.textContent = 'Copied!';
-          }, 3000);
+          setTimeout(() => { tooltip.classList.remove('visible'); tooltip.textContent = 'Copied!'; }, 3000);
+          const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
+            encodeURIComponent(title);
+          window.open(gmailUrl, '_blank');
         });
       });
     });
@@ -2215,35 +2285,6 @@ if (!window.__contextExtensionLoaded) {
           ? '\u25B8 You\'ve explored related topics before'
           : '\u25BE You\'ve explored related topics before';
       }
-    });
-
-    // Pre-analysis briefing (Prompt 7)
-    const briefingContainer = document.createElement('div');
-    briefingContainer.id = 'empty-briefing';
-    briefingContainer.style.cssText = 'margin-top:12px;width:100%;max-width:240px;transition:opacity 0.3s ease;';
-    emptyState.appendChild(briefingContainer);
-
-    chrome.storage.local.get(['capturingTabTitle', 'knowledgeBase', 'capturing'], (briefData) => {
-      if (!briefData.capturing) return;
-      const videoTitle = briefData.capturingTabTitle || document.title || '';
-      if (!videoTitle) return;
-      const descEl = document.querySelector('#description-inner');
-      const videoDescription = descEl ? descEl.textContent.slice(0, 500) : '';
-      const knownTerms = Object.values(briefData.knowledgeBase || {}).map(e => e.term).slice(0, 50);
-
-      fetch('https://context-extension-zv8d.vercel.app/api/brief', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoTitle, videoDescription, knownTerms })
-      })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (!data || !data.bullets || data.bullets.length === 0) return;
-        if (hasCards) return; // Cards already arrived
-        briefingContainer.innerHTML = '<div style="font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:6px;">Before you watch:</div>' +
-          data.bullets.map(b => `<div style="font-size:12px;color:#64748b;padding:3px 0;padding-left:12px;position:relative;"><span style="position:absolute;left:0;">\u2022</span>${escapeHtml(b)}</div>`).join('');
-      })
-      .catch(() => {});
     });
 
     // Smart empty state: show KB matches from previous sessions
@@ -2315,30 +2356,6 @@ if (!window.__contextExtensionLoaded) {
       })
       .catch(() => {});
     }
-
-    // "What did I miss?" bar
-    const missedBar = document.createElement('div');
-    missedBar.id = 'missed-bar';
-    missedBar.innerHTML = '<button id="missed-btn">What did I miss?</button>';
-    missedBar.querySelector('#missed-btn').addEventListener('click', () => {
-      const cardsEl = shadowRoot.getElementById('cards');
-      const missedCards = cardsEl.querySelectorAll('.context-card.missed');
-      if (missedCards.length > 0) {
-        // Scroll to the oldest missed card (last in DOM since prepended)
-        const oldest = missedCards[missedCards.length - 1];
-        oldest.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Glow all missed cards
-        missedCards.forEach(c => {
-          c.classList.add('missed-glow');
-          c.classList.remove('missed');
-        });
-        // Clean up after animation
-        setTimeout(() => {
-          cardsEl.querySelectorAll('.missed-glow').forEach(c => c.classList.remove('missed-glow'));
-        }, 1500);
-      }
-      missedBar.classList.remove('visible');
-    });
 
     // Listening indicator
     const listeningIndicator = document.createElement('div');
@@ -2471,7 +2488,6 @@ if (!window.__contextExtensionLoaded) {
     sidebar.appendChild(header);
     sidebar.appendChild(transcriptStrip);
     sidebar.appendChild(tabBar);
-    sidebar.appendChild(missedBar);
     sidebar.appendChild(listeningIndicator);
     sidebar.appendChild(emptyState);
 
@@ -2482,6 +2498,27 @@ if (!window.__contextExtensionLoaded) {
     nowWatchingBar.style.display = 'none';
     nowWatchingBar.innerHTML = `<span class="ctx-now-watching-label">NOW WATCHING</span><span class="ctx-now-watching-title"></span>`;
     sidebar.appendChild(nowWatchingBar);
+
+    // Filter bar
+    const filterBar = document.createElement('div');
+    filterBar.className = 'ctx-filter-bar';
+    const hideKnownBtn = document.createElement('button');
+    hideKnownBtn.className = 'ctx-filter-btn';
+    hideKnownBtn.textContent = 'Hide known';
+    const starredOnlyBtn = document.createElement('button');
+    starredOnlyBtn.className = 'ctx-filter-btn';
+    starredOnlyBtn.textContent = '\u2605 only';
+    hideKnownBtn.addEventListener('click', () => {
+      hideKnownBtn.classList.toggle('active');
+      cardContainer.classList.toggle('filter-hide-known');
+    });
+    starredOnlyBtn.addEventListener('click', () => {
+      starredOnlyBtn.classList.toggle('active');
+      cardContainer.classList.toggle('filter-starred-only');
+    });
+    filterBar.appendChild(hideKnownBtn);
+    filterBar.appendChild(starredOnlyBtn);
+    sidebar.appendChild(filterBar);
 
     sidebar.appendChild(cardContainer);
     sidebar.appendChild(askResponse);
@@ -2531,12 +2568,15 @@ if (!window.__contextExtensionLoaded) {
             } else if (item.type === 'insight' && item.category) {
               // Reconstruct insight object for createInsightCard
               const card = createInsightCard({ insight: item.term, category: item.category, detail: item.description });
+              card.dataset.createdAt = (item.timestamp || Date.now()).toString();
               cards.appendChild(card);
             } else if (item.type === 'stock') {
               const card = createStockCard(item);
+              card.dataset.createdAt = (item.timestamp || Date.now()).toString();
               cards.appendChild(card);
             } else {
               const card = createGenericCard(item);
+              card.dataset.createdAt = (item.timestamp || Date.now()).toString();
               cards.appendChild(card);
             }
           } catch (e) {
@@ -2784,18 +2824,10 @@ if (!window.__contextExtensionLoaded) {
         : createGenericCard(entity);
 
       card.dataset.createdAt = Date.now().toString();
-      if (sidebarClosed) card.classList.add('missed');
       cards.prepend(card);
       termCount++;
       console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
     });
-
-    // Show "What did I miss?" if enough missed cards
-    if (sidebarClosed && shadowRoot) {
-      const missedCount = cards.querySelectorAll('.context-card.missed').length;
-      const mb = shadowRoot.getElementById('missed-bar');
-      if (mb) mb.classList.toggle('visible', missedCount > 3);
-    }
 
     updateBadge(limited.length);
 
@@ -2933,23 +2965,9 @@ if (!window.__contextExtensionLoaded) {
             }
           }
         }
-        // Start aging interval
-        if (!agingInterval) {
-          agingInterval = setInterval(() => {
-            const cards = shadowRoot?.querySelectorAll('.context-card:not(.aged):not(.card-dismissed)');
-            if (!cards) return;
-            const twoMinutesAgo = Date.now() - 120000;
-            cards.forEach(card => {
-              if (card.querySelector('.card-expand-area.visible')) return; // skip expanded
-              const created = parseInt(card.dataset.createdAt || '0');
-              if (created && created < twoMinutesAgo) card.classList.add('aged');
-            });
-          }, 30000);
-        }
       } else if (changes.capturing.newValue === false) {
         setBadgeCapturing(false, false);
         if (btn) { btn.textContent = '\u25CF Start'; btn.classList.remove('listening'); }
-        if (agingInterval) { clearInterval(agingInterval); agingInterval = null; }
         // Hide Now Watching bar
         const nwBar = shadowRoot?.getElementById('ctx-now-watching');
         if (nwBar) nwBar.style.display = 'none';
@@ -3164,6 +3182,7 @@ if (!window.__contextExtensionLoaded) {
                     return;
                   }
                   const card = createInsightCard(insight);
+                  card.dataset.createdAt = Date.now().toString();
                   cards.prepend(card);
                   addToNotes(card);
                 });
@@ -3207,6 +3226,7 @@ if (!window.__contextExtensionLoaded) {
           const key = insightKey(insight.insight || '');
           if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) return;
           const card = createInsightCard(insight);
+          card.dataset.createdAt = Date.now().toString();
           cards.prepend(card);
           addToNotes(card);
         });
@@ -3251,6 +3271,7 @@ if (!window.__contextExtensionLoaded) {
                   return;
                 }
                 const card = createInsightCard(insight);
+                card.dataset.createdAt = Date.now().toString();
                 cards.prepend(card);
                 addToNotes(card);
               });
@@ -3267,6 +3288,66 @@ if (!window.__contextExtensionLoaded) {
       clearInterval(pollId);
     }
   }, 2000);
+
+  // --- YouTube SPA navigation: detect video switches directly ---
+  let lastDetectedUrl = window.location.href;
+  function handleUrlChange() {
+    const newUrl = window.location.href;
+    if (newUrl === lastDetectedUrl) return;
+    const oldUrl = lastDetectedUrl;
+    lastDetectedUrl = newUrl;
+
+    const getVid = (url) => {
+      try { return new URL(url).searchParams.get('v') || ''; }
+      catch (e) { return ''; }
+    };
+    const oldVid = getVid(oldUrl);
+    const newVid = getVid(newUrl);
+    if (!oldVid || !newVid || oldVid === newVid) return;
+
+    try { if (!chrome.runtime?.id) return; } catch (e) { return; }
+
+    chrome.storage.local.get('capturing', (data) => {
+      if (!data.capturing) return;
+      const cards = shadowRoot?.getElementById('cards');
+      if (!cards || cards.children.length === 0) return;
+      // Skip if a divider was already added by the storage listener
+      const firstChild = cards.firstElementChild;
+      if (firstChild && firstChild.classList.contains('ctx-video-divider')) return;
+
+      const prevTitle = escapeHtml(
+        (document.title || 'Previous video')
+          .replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim()
+      ) || 'Previous video';
+      const prevCardCount = cards.querySelectorAll('.context-card').length;
+      const link = oldUrl
+        ? `<a href="${escapeHtml(oldUrl)}" target="_blank" class="ctx-divider-link">${prevTitle}</a>`
+        : `<span class="ctx-divider-link">${prevTitle}</span>`;
+      const divider = document.createElement('div');
+      divider.className = 'ctx-video-divider';
+      divider.innerHTML = `
+        <div class="ctx-divider-prev">
+          <span class="ctx-divider-label">PREVIOUS</span>
+          ${link}
+          <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="ctx-divider-line-full"></div>
+      `;
+      cards.prepend(divider);
+      console.log('[CONTENT] Video switch divider added via SPA detection:', oldVid, '->', newVid);
+
+      // Update Now Watching bar
+      const bar = shadowRoot?.getElementById('ctx-now-watching');
+      if (bar) {
+        const newTitle = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+        if (newTitle && newTitle !== 'YouTube') {
+          bar.querySelector('.ctx-now-watching-title').textContent = newTitle;
+        }
+      }
+    });
+  }
+  document.addEventListener('yt-navigate-finish', handleUrlChange);
+  window.addEventListener('popstate', handleUrlChange);
 
   // --- Toggle sidebar helper ---
   function toggleSidebar() {

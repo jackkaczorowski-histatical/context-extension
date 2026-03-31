@@ -73,7 +73,7 @@ if (window.__contextExtensionLoaded) {
     technique: '#ec4899',
     why: '#eab308',
     tradeoff: '#f97316',
-    stock: '#00e676',
+    stock: '#38bdf8',
     commodity: '#f97316',
     ingredient: '#ec4899'
   };
@@ -531,9 +531,9 @@ if (window.__contextExtensionLoaded) {
       50% { opacity: 1; }
     }
     .context-card.stock-card {
-      background: #0f1a14; box-shadow: inset 2px 0 8px rgba(0, 230, 118, 0.15);
+      background: #0f1520; box-shadow: inset 2px 0 8px rgba(56, 189, 248, 0.15);
     }
-    .context-card.stock-card:hover { background: #112218; }
+    .context-card.stock-card:hover { background: #111a26; }
     .stock-ticker-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
     .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; }
     .stock-company { font-size: 11px; color: #6a6a8a; }
@@ -544,12 +544,12 @@ if (window.__contextExtensionLoaded) {
     .stock-change.negative { color: #ff5252; }
     .stock-52w-labels { display: flex; justify-content: space-between; font-size: 10px; color: #6a6a8a; margin-bottom: 2px; }
     .stock-52w-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; position: relative; margin: 4px 0 12px; }
-    .stock-52w-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; background: #00e676; }
+    .stock-52w-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; background: #38bdf8; }
     .stock-52w-dot { position: absolute; top: -3px; width: 10px; height: 10px; background: #e0e0f0; border-radius: 50%; border: 2px solid #1a1a2e; }
     .stock-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin: 10px 0; }
     .stock-stat-label { font-size: 10px; color: #6a6a8a; }
     .stock-stat-value { font-size: 12px; color: #c0c0d0; font-weight: 500; }
-    .stock-stat-value.stock-div-highlight { color: #00e676; }
+    .stock-stat-value.stock-div-highlight { color: #38bdf8; }
     .stock-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
     .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
     .stock-yahoo-link:hover { color: #818cf8; }
@@ -767,8 +767,8 @@ if (window.__contextExtensionLoaded) {
     .light-theme #listening-indicator .li-text { color: #9a9ab0; }
     .light-theme .context-card { background: #ffffff; border-bottom-color: rgba(0,0,0,0.06); }
     .light-theme .context-card:hover { background: #f0f0f5; }
-    .light-theme .context-card.stock-card { background: #f0faf4; }
-    .light-theme .context-card.stock-card:hover { background: #e8f5ee; }
+    .light-theme .context-card.stock-card { background: #f0f7ff; }
+    .light-theme .context-card.stock-card:hover { background: #e8f1fb; }
     .light-theme .card-term { color: #1a1a2e; }
     .light-theme .card-time { color: #9a9ab0; }
     .light-theme .card-seen { color: #9a9ab0; }
@@ -1439,7 +1439,7 @@ if (window.__contextExtensionLoaded) {
       const changePrefix = changeVal >= 0 ? '+' : '';
       const pctPrefix = changePctVal >= 0 ? '+' : '';
 
-      card.style.borderLeftColor = changeVal >= 0 ? '#00e676' : '#ff5252';
+      card.style.borderLeftColor = color;
 
       // 52-week range section
       let rangeHTML = '';
@@ -1481,10 +1481,6 @@ if (window.__contextExtensionLoaded) {
       const yahooURL = 'https://finance.yahoo.com/quote/' + encodeURIComponent(entity.ticker || '');
 
       expandContent = `
-        <div class="stock-ticker-row">
-          <span class="stock-ticker">${ticker}</span>
-          <span class="stock-company">${companyName}</span>
-        </div>
         <div class="stock-price-row">
           <span class="stock-price">$${price.toFixed(2)}</span>
           <span class="stock-change ${changeClass}">${changePrefix}${changeVal.toFixed(2)} (${pctPrefix}${changePctVal.toFixed(2)}%)</span>
@@ -1493,6 +1489,7 @@ if (window.__contextExtensionLoaded) {
         ${statsHTML}
         <div class="stock-footer">
           <div class="stock-footer-buttons"></div>
+          <button class="card-tellmore stock-tellmore">Tell me more</button>
           <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
         </div>
       `;
@@ -1503,14 +1500,11 @@ if (window.__contextExtensionLoaded) {
       const displayStockDesc = truncateHeadline(stockDesc);
       const yahooURL = 'https://finance.yahoo.com/quote/' + encodeURIComponent(entity.ticker || '');
       expandContent = `
-        <div class="stock-ticker-row">
-          <span class="stock-ticker">${ticker}</span>
-          <span class="stock-company">${companyName}</span>
-        </div>
         <div style="color:#999;font-size:12px;margin:4px 0;">Price unavailable</div>
         ${displayStockDesc ? `<div class="card-desc">${escapeHtml(displayStockDesc)}</div>` : ''}
         <div class="stock-footer">
           <div class="stock-footer-buttons"></div>
+          <button class="card-tellmore stock-tellmore">Tell me more</button>
           <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
         </div>
       `;
@@ -1538,6 +1532,21 @@ if (window.__contextExtensionLoaded) {
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
     });
+
+    const tellMoreBtn = card.querySelector('.stock-tellmore');
+    if (tellMoreBtn) {
+      tellMoreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = shadowRoot.querySelector('.ctx-ask-input');
+        if (input) {
+          const name = entity.companyName || entity.name || entity.ticker || '';
+          const tickerStr = entity.ticker ? ` (${entity.ticker})` : '';
+          input.value = `Explain ${name}${tickerStr} — what does the company do, its business model, and why it matters in this video`;
+          input.focus();
+          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        }
+      });
+    }
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
     // Place reaction buttons inside footer if it exists, otherwise append normally

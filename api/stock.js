@@ -4,6 +4,78 @@ const cors = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+function formatLargeNumber(num) {
+  if (num == null) return null;
+  if (num >= 1e12) return `$${(num / 1e12).toFixed(1)}T`;
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
+  if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
+  return `$${num}`;
+}
+
+function formatVolume(num) {
+  if (num == null) return null;
+  if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+  return `${num}`;
+}
+
+const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" };
+
+async function fetchQuoteSummary(ticker) {
+  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=price,summaryDetail,defaultKeyStatistics`;
+  const response = await fetch(url, { headers: UA });
+  const data = await response.json();
+  const result = data?.quoteSummary?.result?.[0];
+  if (!result) return null;
+
+  const price = result.price || {};
+  const summary = result.summaryDetail || {};
+
+  const divYieldRaw = summary.dividendYield?.raw;
+
+  return {
+    ticker: price.symbol || ticker,
+    name: price.shortName || price.longName || ticker,
+    price: price.regularMarketPrice?.raw ?? null,
+    change: price.regularMarketChange?.raw != null ? Math.round(price.regularMarketChange.raw * 100) / 100 : null,
+    changePercent: price.regularMarketChangePercent?.raw != null ? Math.round(price.regularMarketChangePercent.raw * 100) / 100 : null,
+    marketCap: formatLargeNumber(price.marketCap?.raw),
+    peRatio: summary.trailingPE?.raw != null ? Math.round(summary.trailingPE.raw * 10) / 10 : null,
+    dividendYield: divYieldRaw != null ? Math.round(divYieldRaw * 100 * 100) / 100 : null,
+    fiftyTwoWeekLow: summary.fiftyTwoWeekLow?.raw != null ? Math.round(summary.fiftyTwoWeekLow.raw * 100) / 100 : null,
+    fiftyTwoWeekHigh: summary.fiftyTwoWeekHigh?.raw != null ? Math.round(summary.fiftyTwoWeekHigh.raw * 100) / 100 : null,
+    volume: formatVolume(price.regularMarketVolume?.raw),
+    sector: null,
+    ytdReturn: null,
+  };
+}
+
+async function fetchChartFallback(ticker) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+  const response = await fetch(url, { headers: UA });
+  const data = await response.json();
+  const meta = data?.chart?.result?.[0]?.meta;
+  if (!meta) return null;
+
+  return {
+    ticker: meta.symbol,
+    name: meta.shortName || meta.symbol,
+    price: meta.regularMarketPrice,
+    change: Math.round((meta.regularMarketPrice - meta.chartPreviousClose) * 100) / 100,
+    changePercent: Math.round(((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100 * 100) / 100,
+    marketCap: formatLargeNumber(meta.marketCap),
+    peRatio: null,
+    dividendYield: null,
+    fiftyTwoWeekLow: null,
+    fiftyTwoWeekHigh: null,
+    volume: null,
+    sector: null,
+    ytdReturn: null,
+  };
+}
+
 module.exports = async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
 
@@ -13,23 +85,19 @@ module.exports = async function handler(req, res) {
   const { ticker } = req.body || {};
   if (!ticker) return res.status(400).json({ error: "Missing ticker" });
 
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?interval=1d&range=1d`;
-    const response = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" }
-    });
-    const data = await response.json();
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta) return res.status(404).json({ error: "not found" });
+  const symbol = ticker.toUpperCase();
 
-    return res.status(200).json({
-      ticker: meta.symbol,
-      name: meta.shortName || meta.symbol,
-      price: meta.regularMarketPrice,
-      change: (meta.regularMarketPrice - meta.chartPreviousClose).toFixed(2),
-      changePercent: (((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100).toFixed(2),
-      marketCap: meta.marketCap
-    });
+  try {
+    const result = await fetchQuoteSummary(symbol);
+    if (result) return res.status(200).json(result);
+  } catch (_) {
+    // fall through to chart fallback
+  }
+
+  try {
+    const result = await fetchChartFallback(symbol);
+    if (result) return res.status(200).json(result);
+    return res.status(404).json({ error: "not found" });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

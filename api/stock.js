@@ -48,21 +48,52 @@ async function fetchChart1D(ticker) {
   return meta;
 }
 
-async function fetchQuoteData(ticker) {
-  const url = `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${ticker}`;
+async function fetchQuotePage(ticker) {
+  const url = `https://finance.yahoo.com/quote/${ticker}?.tsrc=fin-srch`;
   const response = await fetch(url, { headers: UA });
-  const data = await response.json();
-  console.log('[STOCK API] v6 quote raw response:', JSON.stringify(data).substring(0, 500));
-  const quote = data?.quoteResponse?.result?.[0];
-  if (!quote) return null;
-  console.log('[STOCK API] v6 quote keys:', Object.keys(quote));
+  console.log('[STOCK API] quote page HTTP status:', response.status);
+  if (!response.ok) {
+    console.error('[STOCK API] quote page HTTP error:', response.status);
+    return null;
+  }
+  const html = await response.text();
+  console.log('[STOCK API] quote page fetched, length:', html.length);
+  console.log('[STOCK API] quote page first 500 chars:', html.substring(0, 500));
+  console.log('[STOCK API] quote page contains "trailingPE":', html.includes('trailingPE'));
+  console.log('[STOCK API] quote page contains "PE Ratio":', html.includes('PE Ratio'));
+  console.log('[STOCK API] quote page contains "marketCap":', html.includes('marketCap'));
+  console.log('[STOCK API] quote page contains "Market Cap":', html.includes('Market Cap'));
 
-  return {
-    peRatio: quote.trailingPE != null ? Math.round(quote.trailingPE * 10) / 10 : null,
-    dividendYield: quote.dividendYield != null ? Math.round(quote.dividendYield * 100) / 100 : null,
-    marketCap: quote.marketCap != null ? formatLargeNumber(quote.marketCap) : null,
-    sector: quote.sector || null,
-  };
+  let peRatio = null;
+  let marketCap = null;
+  let dividendYield = null;
+
+  try {
+    // Extract from embedded JSON data in script tags
+    const peMatch = html.match(/"trailingPE":\{"raw":([\d.]+)/);
+    if (peMatch) peRatio = Math.round(parseFloat(peMatch[1]) * 10) / 10;
+
+    const mcMatch = html.match(/"marketCap":\{"raw":([\d.eE+]+)/);
+    if (mcMatch) marketCap = formatLargeNumber(parseFloat(mcMatch[1]));
+
+    const dyMatch = html.match(/"dividendYield":\{"raw":([\d.]+)/);
+    if (dyMatch) dividendYield = Math.round(parseFloat(dyMatch[1]) * 100 * 100) / 100;
+
+    // Fallback: parse HTML table cells if JSON patterns didn't match
+    if (peRatio == null) {
+      const peFallback = html.match(/PE Ratio \(TTM\)<\/span>.*?<span[^>]*>([\d.]+)/s);
+      if (peFallback) peRatio = Math.round(parseFloat(peFallback[1]) * 10) / 10;
+    }
+    if (marketCap == null) {
+      const mcFallback = html.match(/Market Cap<\/span>.*?<span[^>]*>([\d.]+[TBMK]?)/s);
+      if (mcFallback) marketCap = mcFallback[1];
+    }
+  } catch (parseErr) {
+    console.error('[STOCK API] quote page parse error:', parseErr.message);
+  }
+
+  console.log('[STOCK API] quote page parsed: peRatio=', peRatio, 'marketCap=', marketCap, 'dividendYield=', dividendYield);
+  return { peRatio, marketCap, dividendYield };
 }
 
 module.exports = async function handler(req, res) {
@@ -76,13 +107,15 @@ module.exports = async function handler(req, res) {
 
   const symbol = ticker.toUpperCase();
 
-  // Fetch 1y chart (52-week data) and 1d chart (daily change) in parallel
+  // Fetch 1y chart, 1d chart, and quote page in parallel
   let meta1Y = null;
   let meta1D = null;
+  let quoteData = null;
   try {
-    [meta1Y, meta1D] = await Promise.all([
+    [meta1Y, meta1D, quoteData] = await Promise.all([
       fetchChart1Y(symbol).catch(err => { console.error('[STOCK API] chart 1y failed:', err.message); return null; }),
       fetchChart1D(symbol).catch(err => { console.error('[STOCK API] chart 1d failed:', err.message); return null; }),
+      fetchQuotePage(symbol).catch(err => { console.error('[STOCK API] quote page failed:', err.message); return null; }),
     ]);
   } catch (err) {
     console.error('[STOCK API] parallel fetch failed for', symbol, ':', err.message);
@@ -121,29 +154,15 @@ module.exports = async function handler(req, res) {
     price: price ?? null,
     change,
     changePercent,
-    marketCap: formatLargeNumber(marketCapRaw),
+    marketCap: quoteData?.marketCap ?? formatLargeNumber(marketCapRaw),
     fiftyTwoWeekLow,
     fiftyTwoWeekHigh,
     volume: formatVolume(volumeRaw),
-    peRatio: null,
-    dividendYield: null,
+    peRatio: quoteData?.peRatio ?? null,
+    dividendYield: quoteData?.dividendYield ?? null,
     sector: null,
     ytdReturn: null,
   };
-
-  // Secondary: v6 quote endpoint for P/E and dividend (best-effort)
-  try {
-    const quoteData = await fetchQuoteData(symbol);
-    console.log('[STOCK API] v6 quote data for', symbol, ':', JSON.stringify(quoteData));
-    if (quoteData) {
-      if (quoteData.peRatio != null) result.peRatio = quoteData.peRatio;
-      if (quoteData.dividendYield != null) result.dividendYield = quoteData.dividendYield;
-      if (quoteData.marketCap != null) result.marketCap = quoteData.marketCap;
-      if (quoteData.sector != null) result.sector = quoteData.sector;
-    }
-  } catch (quoteErr) {
-    console.error('[STOCK API] v6 quote failed for', symbol, '(non-fatal):', quoteErr.message || quoteErr);
-  }
 
   console.log('[STOCK API] Final result for', symbol, ':', JSON.stringify(result));
   return res.status(200).json(result);

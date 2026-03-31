@@ -819,7 +819,7 @@ async function processNextTranscript() {
             }
             if (stockRes.ok) {
               const stockData = await stockRes.json();
-              console.log('[BACKGROUND] Stock lookup for ticker:', entity.ticker, 'result:', stockData);
+              console.log('[BACKGROUND] Stock lookup FULL result:', JSON.stringify(stockData));
               // Merge stock data but preserve Claude's description if API didn't return price
               if (stockData.price == null) {
                 console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, '— keeping description');

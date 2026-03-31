@@ -23,56 +23,47 @@ function formatVolume(num) {
 
 const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" };
 
-async function fetchQuoteSummary(ticker) {
-  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=price,summaryDetail,defaultKeyStatistics`;
+async function fetchChartData(ticker) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1y&includePrePost=false`;
   const response = await fetch(url, { headers: UA });
   const data = await response.json();
-  const result = data?.quoteSummary?.result?.[0];
-  if (!result) return null;
+  console.log('Stock API chart raw response:', JSON.stringify(data).substring(0, 500));
+  const meta = data?.chart?.result?.[0]?.meta;
+  if (!meta) return null;
 
-  const price = result.price || {};
-  const summary = result.summaryDetail || {};
-
-  const divYieldRaw = summary.dividendYield?.raw;
+  const price = meta.regularMarketPrice;
+  const prevClose = meta.chartPreviousClose;
 
   return {
-    ticker: price.symbol || ticker,
-    name: price.shortName || price.longName || ticker,
-    price: price.regularMarketPrice?.raw ?? null,
-    change: price.regularMarketChange?.raw != null ? Math.round(price.regularMarketChange.raw * 100) / 100 : null,
-    changePercent: price.regularMarketChangePercent?.raw != null ? Math.round(price.regularMarketChangePercent.raw * 100) / 100 : null,
-    marketCap: formatLargeNumber(price.marketCap?.raw),
-    peRatio: summary.trailingPE?.raw != null ? Math.round(summary.trailingPE.raw * 10) / 10 : null,
-    dividendYield: divYieldRaw != null ? Math.round(divYieldRaw * 100 * 100) / 100 : null,
-    fiftyTwoWeekLow: summary.fiftyTwoWeekLow?.raw != null ? Math.round(summary.fiftyTwoWeekLow.raw * 100) / 100 : null,
-    fiftyTwoWeekHigh: summary.fiftyTwoWeekHigh?.raw != null ? Math.round(summary.fiftyTwoWeekHigh.raw * 100) / 100 : null,
-    volume: formatVolume(price.regularMarketVolume?.raw),
+    ticker: meta.symbol || ticker,
+    name: meta.shortName || meta.symbol || ticker,
+    price: price ?? null,
+    change: price != null && prevClose != null ? Math.round((price - prevClose) * 100) / 100 : null,
+    changePercent: price != null && prevClose != null && prevClose !== 0 ? Math.round(((price - prevClose) / prevClose) * 100 * 100) / 100 : null,
+    marketCap: formatLargeNumber(meta.marketCap),
+    fiftyTwoWeekLow: meta.fiftyTwoWeekLow != null ? Math.round(meta.fiftyTwoWeekLow * 100) / 100 : null,
+    fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh != null ? Math.round(meta.fiftyTwoWeekHigh * 100) / 100 : null,
+    volume: formatVolume(meta.regularMarketVolume),
+    peRatio: null,
+    dividendYield: null,
     sector: null,
     ytdReturn: null,
   };
 }
 
-async function fetchChartFallback(ticker) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+async function fetchQuoteData(ticker) {
+  const url = `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${ticker}`;
   const response = await fetch(url, { headers: UA });
   const data = await response.json();
-  const meta = data?.chart?.result?.[0]?.meta;
-  if (!meta) return null;
+  console.log('Stock API v6 quote raw response:', JSON.stringify(data).substring(0, 500));
+  const quote = data?.quoteResponse?.result?.[0];
+  if (!quote) return null;
 
   return {
-    ticker: meta.symbol,
-    name: meta.shortName || meta.symbol,
-    price: meta.regularMarketPrice,
-    change: Math.round((meta.regularMarketPrice - meta.chartPreviousClose) * 100) / 100,
-    changePercent: Math.round(((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100 * 100) / 100,
-    marketCap: formatLargeNumber(meta.marketCap),
-    peRatio: null,
-    dividendYield: null,
-    fiftyTwoWeekLow: null,
-    fiftyTwoWeekHigh: null,
-    volume: null,
-    sector: null,
-    ytdReturn: null,
+    peRatio: quote.trailingPE != null ? Math.round(quote.trailingPE * 10) / 10 : null,
+    dividendYield: quote.dividendYield != null ? Math.round(quote.dividendYield * 100) / 100 : null,
+    marketCap: quote.marketCap != null ? formatLargeNumber(quote.marketCap) : null,
+    sector: quote.sector || null,
   };
 }
 
@@ -87,23 +78,33 @@ module.exports = async function handler(req, res) {
 
   const symbol = ticker.toUpperCase();
 
+  // Primary: v8 chart endpoint with 1y range for 52-week data
+  let chartResult = null;
   try {
-    const result = await fetchQuoteSummary(symbol);
-    console.log('[STOCK API] quoteSummary for', symbol, ':', JSON.stringify(result));
-    if (result) return res.status(200).json(result);
-  } catch (summaryErr) {
-    console.error('[STOCK API] quoteSummary failed for', symbol, ':', summaryErr.message || summaryErr);
-    // fall through to chart fallback
+    chartResult = await fetchChartData(symbol);
+    console.log('[STOCK API] chart data for', symbol, ':', JSON.stringify(chartResult));
+  } catch (chartErr) {
+    console.error('[STOCK API] chart endpoint failed for', symbol, ':', chartErr.message || chartErr);
   }
 
-  try {
-    console.log('[STOCK API] Falling back to chart endpoint for', symbol);
-    const result = await fetchChartFallback(symbol);
-    console.log('[STOCK API] chart fallback for', symbol, ':', JSON.stringify(result));
-    if (result) return res.status(200).json(result);
+  if (!chartResult) {
     return res.status(404).json({ error: "not found" });
-  } catch (err) {
-    console.error('[STOCK API] chart fallback also failed for', symbol, ':', err.message);
-    return res.status(500).json({ error: err.message });
   }
+
+  // Secondary: v6 quote endpoint for P/E and dividend (best-effort)
+  try {
+    const quoteData = await fetchQuoteData(symbol);
+    console.log('[STOCK API] v6 quote data for', symbol, ':', JSON.stringify(quoteData));
+    if (quoteData) {
+      if (quoteData.peRatio != null) chartResult.peRatio = quoteData.peRatio;
+      if (quoteData.dividendYield != null) chartResult.dividendYield = quoteData.dividendYield;
+      if (quoteData.marketCap != null) chartResult.marketCap = quoteData.marketCap;
+      if (quoteData.sector != null) chartResult.sector = quoteData.sector;
+    }
+  } catch (quoteErr) {
+    console.error('[STOCK API] v6 quote failed for', symbol, '(non-fatal):', quoteErr.message || quoteErr);
+  }
+
+  console.log('[STOCK API] Final result for', symbol, ':', JSON.stringify(chartResult));
+  return res.status(200).json(chartResult);
 };

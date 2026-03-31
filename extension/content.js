@@ -1,12 +1,8 @@
-console.log('[CONTENT] Script loaded');
+console.log('[CONTENT] Script loaded, guard=', !!window.__contextExtensionLoaded);
 
-// Reset the guard if the sidebar was lost (extension reload, context invalidation, etc.)
-if (window.__contextExtensionLoaded && !document.getElementById('context-sidebar-host')) {
-  console.log('[CONTENT] Sidebar lost, resetting guard for reinitialization');
-  window.__contextExtensionLoaded = false;
-}
-
-if (!window.__contextExtensionLoaded) {
+if (window.__contextExtensionLoaded) {
+  console.log('[CONTENT] Already initialized, skipping duplicate injection');
+} else {
   window.__contextExtensionLoaded = true;
   let isLightTheme = false;
 
@@ -1113,7 +1109,6 @@ if (!window.__contextExtensionLoaded) {
     badge.className = 'ctx-badge';
     badge.innerHTML = '<span class="ctx-badge-play">\u25B6</span><div class="ctx-badge-waveform"><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div></div><span class="ctx-badge-count">0</span>';
     badge.addEventListener('click', () => {
-      console.log('[CLOSE] Badge clicked. hostEl.dataset.open=', hostEl?.dataset.open);
       ensureSidebar();
       if (hostEl && hostEl.dataset.open === 'true') {
         closeSidebar();
@@ -1192,7 +1187,6 @@ if (!window.__contextExtensionLoaded) {
     toast.style.borderLeftColor = color;
     toast.innerHTML = `<div class="ctx-toast-term">${escapeHtml(entity.term || entity.name || '')}</div>`;
     toast.addEventListener('click', () => {
-      console.log('[CLOSE] Toast clicked, opening sidebar');
       toast.remove();
       if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
       ensureSidebar();
@@ -1239,8 +1233,6 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function openSidebar() {
-    console.log('[CLOSE] openSidebar() called. hostEl=', !!hostEl, 'dataset.open=', hostEl?.dataset.open);
-    console.trace('[CLOSE] openSidebar callstack');
     if (!hostEl) return;
     hostEl.dataset.open = 'true';
     hostEl.style.width = '280px';
@@ -1257,27 +1249,21 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function closeSidebar() {
-    console.log('[CLOSE] closeSidebar() called. hostEl=', !!hostEl, 'dataset.open=', hostEl?.dataset.open, 'width=', hostEl?.style.width);
-    console.trace('[CLOSE] closeSidebar callstack');
     if (!hostEl) return;
     // Dismiss any open overlays first
     if (shadowRoot) {
       const menu = shadowRoot.querySelector('.ctx-export-menu');
-      if (menu) { console.log('[CLOSE] export menu visible=', menu.classList.contains('visible')); menu.classList.remove('visible'); }
+      if (menu) menu.classList.remove('visible');
       const confirm = shadowRoot.querySelector('.ctx-clear-confirm');
-      if (confirm) { console.log('[CLOSE] removing clear confirm overlay'); confirm.remove(); }
+      if (confirm) confirm.remove();
     }
     hostEl.dataset.open = 'false';
     hostEl.style.pointerEvents = 'none';
     document.documentElement.style.removeProperty('margin-left');
     document.documentElement.style.removeProperty('margin-right');
     const sidebar = shadowRoot?.getElementById('sidebar');
-    if (sidebar) {
-      console.log('[CLOSE] removing .open class, had it=', sidebar.classList.contains('open'));
-      sidebar.classList.remove('open');
-    }
+    if (sidebar) sidebar.classList.remove('open');
     setTimeout(() => {
-      console.log('[CLOSE] 250ms timeout fired. dataset.open=', hostEl?.dataset.open, 'setting width=0');
       if (hostEl && hostEl.dataset.open !== 'true') {
         hostEl.style.width = '0';
       }
@@ -1288,7 +1274,7 @@ if (!window.__contextExtensionLoaded) {
   function resetAutoHide() {
     if (autoHideTimer) clearTimeout(autoHideTimer);
     if (settings.autoHide && hostEl) {
-      autoHideTimer = setTimeout(() => { console.log('[CLOSE] autoHide timer fired'); closeSidebar(); }, 30000);
+      autoHideTimer = setTimeout(() => closeSidebar(), 30000);
     }
   }
 
@@ -2158,9 +2144,7 @@ if (!window.__contextExtensionLoaded) {
     // Wire up close button
     header.querySelector('.ctx-close-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      e.stopImmediatePropagation();
       e.preventDefault();
-      console.log('[CLOSE] X button clicked. hostEl.dataset.open=', hostEl?.dataset.open, 'pointerEvents=', hostEl?.style.pointerEvents);
       closeSidebar();
     });
 
@@ -2227,7 +2211,6 @@ if (!window.__contextExtensionLoaded) {
 
     // Close menu when clicking outside
     sidebar.addEventListener('click', (e) => {
-      console.log('[CLOSE] sidebar click handler fired. target=', e.target.tagName, e.target.className);
       if (!e.target.closest('.ctx-export-btn')) {
         exportMenu.classList.remove('visible');
       }
@@ -2670,22 +2653,6 @@ if (!window.__contextExtensionLoaded) {
     ensureBadge();
     applyTheme();
     console.log('[CONTENT] Shadow DOM sidebar created');
-
-    // DEBUG: Log ALL clicks in shadow root to trace what's intercepting
-    shadowRoot.addEventListener('click', (e) => {
-      const path = e.composedPath().slice(0, 5).map(el => el.tagName ? `${el.tagName}.${el.className}` : el.constructor?.name).join(' > ');
-      console.log('[CLOSE-DEBUG] Shadow root click. target=', e.target.tagName, e.target.className, 'path=', path);
-    }, true); // capture phase — fires BEFORE any handler
-
-    // DEBUG: Watch for sidebar re-opening after close
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach(m => {
-        if (m.attributeName === 'class' && m.target.id === 'sidebar') {
-          console.log('[CLOSE-DEBUG] sidebar class changed to:', m.target.className, 'has open=', m.target.classList.contains('open'));
-        }
-      });
-    });
-    observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
 
     // Recover cards and sidebar state from storage (e.g. page refresh)
     chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen', 'activeTabUrl'], (data) => {
@@ -3417,7 +3384,6 @@ if (!window.__contextExtensionLoaded) {
 
   // --- Toggle sidebar helper ---
   function toggleSidebar() {
-    console.log('[CLOSE] toggleSidebar() called. hostEl.dataset.open=', hostEl?.dataset.open);
     ensureSidebar();
     if (hostEl && hostEl.dataset.open === 'true') {
       closeSidebar();
@@ -3430,7 +3396,6 @@ if (!window.__contextExtensionLoaded) {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'X') {
       e.preventDefault();
-      console.log('[CLOSE] Ctrl+Shift+X keyboard shortcut');
       toggleSidebar();
     }
   });
@@ -3467,7 +3432,6 @@ if (!window.__contextExtensionLoaded) {
       return true;
     }
     if (msg.type === 'TOGGLE_SIDEBAR') {
-      console.log('[CLOSE] TOGGLE_SIDEBAR message received');
       toggleSidebar();
     } else if (msg.type === 'CAPTURE_STATE') {
       const btn = shadowRoot?.getElementById('ctx-listen-btn');

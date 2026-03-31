@@ -105,12 +105,18 @@ function isSupportedUrl(url) {
 
 async function reinjectContentScript(tabId) {
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ['content.js']
-    });
-    console.log('[BACKGROUND] Reinjected content.js into tab', tabId);
-  } catch (e) {}
+    await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+    // Content script already running, skip
+  } catch (e) {
+    // Content script not running, inject it
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content.js']
+      });
+      console.log('[BACKGROUND] Reinjected content.js into tab', tabId);
+    } catch (e2) {}
+  }
 }
 
 // Reinject content script on supported platform navigations (SPA won't re-trigger content_scripts)
@@ -436,10 +442,14 @@ async function startCapture() {
       return;
     }
 
-    // Force-inject content script in case it didn't autoload
+    // Inject content script only if not already running
     try {
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
-    } catch (e) { /* already injected or no access */ }
+      await chrome.tabs.sendMessage(tab.id, { type: 'PING' });
+    } catch (e) {
+      try {
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+      } catch (e2) { /* no access */ }
+    }
 
     capturingTabId = tab.id;
     capturingTabTitle = tab.title || '';

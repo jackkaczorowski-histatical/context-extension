@@ -399,6 +399,9 @@ if (!window.__contextExtensionLoaded) {
       transition: background 0.15s;
     }
     .ctx-export-menu-item:hover { background: rgba(255,255,255,0.05); }
+    .ctx-export-menu-item:disabled { color: #4a4a6a; cursor: default; }
+    .ctx-export-menu-item:disabled:hover { background: none; }
+    .ctx-export-menu-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
     @keyframes ctx-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
@@ -1110,6 +1113,7 @@ if (!window.__contextExtensionLoaded) {
     badge.className = 'ctx-badge';
     badge.innerHTML = '<span class="ctx-badge-play">\u25B6</span><div class="ctx-badge-waveform"><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div><div class="ctx-badge-bar"></div></div><span class="ctx-badge-count">0</span>';
     badge.addEventListener('click', () => {
+      console.log('[CLOSE] Badge clicked. hostEl.dataset.open=', hostEl?.dataset.open);
       ensureSidebar();
       if (hostEl && hostEl.dataset.open === 'true') {
         closeSidebar();
@@ -1188,6 +1192,7 @@ if (!window.__contextExtensionLoaded) {
     toast.style.borderLeftColor = color;
     toast.innerHTML = `<div class="ctx-toast-term">${escapeHtml(entity.term || entity.name || '')}</div>`;
     toast.addEventListener('click', () => {
+      console.log('[CLOSE] Toast clicked, opening sidebar');
       toast.remove();
       if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
       ensureSidebar();
@@ -1234,6 +1239,8 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function openSidebar() {
+    console.log('[CLOSE] openSidebar() called. hostEl=', !!hostEl, 'dataset.open=', hostEl?.dataset.open);
+    console.trace('[CLOSE] openSidebar callstack');
     if (!hostEl) return;
     hostEl.dataset.open = 'true';
     hostEl.style.width = '280px';
@@ -1250,14 +1257,27 @@ if (!window.__contextExtensionLoaded) {
   }
 
   function closeSidebar() {
+    console.log('[CLOSE] closeSidebar() called. hostEl=', !!hostEl, 'dataset.open=', hostEl?.dataset.open, 'width=', hostEl?.style.width);
+    console.trace('[CLOSE] closeSidebar callstack');
     if (!hostEl) return;
+    // Dismiss any open overlays first
+    if (shadowRoot) {
+      const menu = shadowRoot.querySelector('.ctx-export-menu');
+      if (menu) { console.log('[CLOSE] export menu visible=', menu.classList.contains('visible')); menu.classList.remove('visible'); }
+      const confirm = shadowRoot.querySelector('.ctx-clear-confirm');
+      if (confirm) { console.log('[CLOSE] removing clear confirm overlay'); confirm.remove(); }
+    }
     hostEl.dataset.open = 'false';
     hostEl.style.pointerEvents = 'none';
     document.documentElement.style.removeProperty('margin-left');
     document.documentElement.style.removeProperty('margin-right');
     const sidebar = shadowRoot?.getElementById('sidebar');
-    if (sidebar) sidebar.classList.remove('open');
+    if (sidebar) {
+      console.log('[CLOSE] removing .open class, had it=', sidebar.classList.contains('open'));
+      sidebar.classList.remove('open');
+    }
     setTimeout(() => {
+      console.log('[CLOSE] 250ms timeout fired. dataset.open=', hostEl?.dataset.open, 'setting width=0');
       if (hostEl && hostEl.dataset.open !== 'true') {
         hostEl.style.width = '0';
       }
@@ -1268,7 +1288,7 @@ if (!window.__contextExtensionLoaded) {
   function resetAutoHide() {
     if (autoHideTimer) clearTimeout(autoHideTimer);
     if (settings.autoHide && hostEl) {
-      autoHideTimer = setTimeout(() => closeSidebar(), 30000);
+      autoHideTimer = setTimeout(() => { console.log('[CLOSE] autoHide timer fired'); closeSidebar(); }, 30000);
     }
   }
 
@@ -2129,14 +2149,20 @@ if (!window.__contextExtensionLoaded) {
         </div>
         <button id="ctx-listen-btn" title="Start Listening">&#x25CF; Start</button>
         <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
-        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
+        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button><div class="ctx-export-menu-divider"></div><button class="ctx-export-menu-item" data-action="quiz">Test yourself</button></div></div>
         <button class="ctx-close-btn" title="Close sidebar">&times;</button>
       </div>
     `;
 
     // Wire up listen button
     // Wire up close button
-    header.querySelector('.ctx-close-btn').addEventListener('click', () => closeSidebar());
+    header.querySelector('.ctx-close-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      console.log('[CLOSE] X button clicked. hostEl.dataset.open=', hostEl?.dataset.open, 'pointerEvents=', hostEl?.style.pointerEvents);
+      closeSidebar();
+    });
 
     const listenBtn = header.querySelector('#ctx-listen-btn');
     listenBtn.addEventListener('click', () => {
@@ -2201,6 +2227,7 @@ if (!window.__contextExtensionLoaded) {
 
     // Close menu when clicking outside
     sidebar.addEventListener('click', (e) => {
+      console.log('[CLOSE] sidebar click handler fired. target=', e.target.tagName, e.target.className);
       if (!e.target.closest('.ctx-export-btn')) {
         exportMenu.classList.remove('visible');
       }
@@ -2261,6 +2288,119 @@ if (!window.__contextExtensionLoaded) {
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
+    });
+
+    function launchQuiz() {
+      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle'], (data) => {
+        const history = data.sessionHistory || [];
+        const title = data.capturingTabTitle || document.title || 'Untitled';
+        const quizEntities = history
+          .filter(h => h.term && h.description)
+          .slice(0, 15)
+          .map(h => ({ term: h.term, type: h.type || 'concept', description: h.description }));
+
+        if (quizEntities.length < 3) return;
+
+        const sidebarEl = shadowRoot.getElementById('sidebar');
+        if (!sidebarEl) return;
+
+        // Remove any existing quiz overlay
+        const existing = sidebarEl.querySelector('.ctx-quiz-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'ctx-quiz-overlay';
+        let currentQ = 0;
+        let score = 0;
+
+        overlay.innerHTML = '<div style="text-align:center;padding:40px 0;color:#6a6a8a;font-size:12px;">Loading quiz...</div>';
+        sidebarEl.style.position = 'relative';
+        sidebarEl.appendChild(overlay);
+
+        fetch('https://context-extension-zv8d.vercel.app/api/quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entities: quizEntities, title })
+        })
+        .then(res => res.ok ? res.json() : Promise.reject(res))
+        .then(qData => {
+          const questions = qData.questions || [];
+          if (questions.length === 0) {
+            overlay.innerHTML = '<div style="text-align:center;padding:40px 0;color:#6a6a8a;font-size:12px;">No questions generated</div>';
+            setTimeout(() => overlay.remove(), 1500);
+            return;
+          }
+
+          function renderQuestion() {
+            const q = questions[currentQ];
+            overlay.innerHTML = `
+              <button class="ctx-quiz-close">&times;</button>
+              <div style="font-size: 10px; color: #6a6a8a; margin-bottom: 12px;">Question ${currentQ + 1} of ${questions.length}</div>
+              <div class="ctx-quiz-question">${escapeHtml(q.question)}</div>
+              ${q.options.map((opt, i) => `<button class="ctx-quiz-option" data-idx="${i}">${escapeHtml(opt)}</button>`).join('')}
+            `;
+            overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
+            const optBtns = overlay.querySelectorAll('.ctx-quiz-option');
+            optBtns.forEach(btn => {
+              btn.addEventListener('click', () => {
+                const chosen = parseInt(btn.dataset.idx);
+                const correct = q.correct;
+                optBtns.forEach(b => { b.style.pointerEvents = 'none'; });
+                if (chosen === correct) {
+                  btn.classList.add('correct');
+                  score++;
+                } else {
+                  btn.classList.add('wrong');
+                  optBtns[correct].classList.add('correct');
+                }
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'ctx-quiz-next';
+                nextBtn.textContent = currentQ < questions.length - 1 ? 'Next \u2192' : 'See results';
+                nextBtn.addEventListener('click', () => {
+                  currentQ++;
+                  if (currentQ < questions.length) {
+                    renderQuestion();
+                  } else {
+                    renderScore();
+                  }
+                });
+                overlay.appendChild(nextBtn);
+              });
+            });
+          }
+
+          function renderScore() {
+            overlay.innerHTML = `
+              <button class="ctx-quiz-close">&times;</button>
+              <div class="ctx-quiz-score">${score}/${questions.length} correct!</div>
+              <button class="ctx-quiz-next" style="align-self: center;">Done</button>
+            `;
+            overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
+            overlay.querySelector('.ctx-quiz-next').addEventListener('click', () => overlay.remove());
+          }
+
+          renderQuestion();
+        })
+        .catch(() => {
+          overlay.innerHTML = '<div style="text-align:center;padding:40px 0;color:#6a6a8a;font-size:12px;">Quiz failed</div>';
+          setTimeout(() => overlay.remove(), 1500);
+        });
+      });
+    }
+
+    const quizMenuItem = exportMenu.querySelector('[data-action="quiz"]');
+    // Update quiz button disabled state when menu opens
+    exportBtn.addEventListener('click', () => {
+      chrome.storage.local.get('sessionHistory', (data) => {
+        const count = (data.sessionHistory || []).filter(h => h.term && h.description).length;
+        quizMenuItem.disabled = count < 3;
+        quizMenuItem.textContent = count < 3 ? `Test yourself (${count}/3 terms)` : 'Test yourself';
+      });
+    });
+    quizMenuItem.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu.classList.remove('visible');
+      launchQuiz();
     });
 
     // Empty state
@@ -2530,6 +2670,22 @@ if (!window.__contextExtensionLoaded) {
     ensureBadge();
     applyTheme();
     console.log('[CONTENT] Shadow DOM sidebar created');
+
+    // DEBUG: Log ALL clicks in shadow root to trace what's intercepting
+    shadowRoot.addEventListener('click', (e) => {
+      const path = e.composedPath().slice(0, 5).map(el => el.tagName ? `${el.tagName}.${el.className}` : el.constructor?.name).join(' > ');
+      console.log('[CLOSE-DEBUG] Shadow root click. target=', e.target.tagName, e.target.className, 'path=', path);
+    }, true); // capture phase — fires BEFORE any handler
+
+    // DEBUG: Watch for sidebar re-opening after close
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(m => {
+        if (m.attributeName === 'class' && m.target.id === 'sidebar') {
+          console.log('[CLOSE-DEBUG] sidebar class changed to:', m.target.className, 'has open=', m.target.classList.contains('open'));
+        }
+      });
+    });
+    observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
 
     // Recover cards and sidebar state from storage (e.g. page refresh)
     chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen', 'activeTabUrl'], (data) => {
@@ -3041,97 +3197,7 @@ if (!window.__contextExtensionLoaded) {
 
           summaryEl.querySelector('.ctx-quiz-btn').addEventListener('click', (e) => {
             e.stopPropagation();
-            const quizBtn = summaryEl.querySelector('.ctx-quiz-btn');
-            quizBtn.textContent = 'Loading...';
-            quizBtn.disabled = true;
-
-            const quizEntities = history
-              .filter(h => h.term && h.description)
-              .slice(0, 15)
-              .map(h => ({ term: h.term, type: h.type || 'concept', description: h.description }));
-
-            fetch('https://context-extension-zv8d.vercel.app/api/quiz', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ entities: quizEntities, title })
-            })
-            .then(res => res.ok ? res.json() : Promise.reject(res))
-            .then(data => {
-              const questions = data.questions || [];
-              if (questions.length === 0) {
-                quizBtn.textContent = 'No questions generated';
-                setTimeout(() => { quizBtn.textContent = 'Test yourself'; quizBtn.disabled = false; }, 1500);
-                return;
-              }
-
-              const sidebar = shadowRoot.getElementById('sidebar');
-              if (!sidebar) return;
-
-              const overlay = document.createElement('div');
-              overlay.className = 'ctx-quiz-overlay';
-              let currentQ = 0;
-              let score = 0;
-
-              function renderQuestion() {
-                const q = questions[currentQ];
-                overlay.innerHTML = `
-                  <button class="ctx-quiz-close">&times;</button>
-                  <div style="font-size: 10px; color: #6a6a8a; margin-bottom: 12px;">Question ${currentQ + 1} of ${questions.length}</div>
-                  <div class="ctx-quiz-question">${escapeHtml(q.question)}</div>
-                  ${q.options.map((opt, i) => `<button class="ctx-quiz-option" data-idx="${i}">${escapeHtml(opt)}</button>`).join('')}
-                `;
-
-                overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
-
-                const optBtns = overlay.querySelectorAll('.ctx-quiz-option');
-                optBtns.forEach(btn => {
-                  btn.addEventListener('click', () => {
-                    const chosen = parseInt(btn.dataset.idx);
-                    const correct = q.correct;
-                    optBtns.forEach(b => { b.style.pointerEvents = 'none'; });
-
-                    if (chosen === correct) {
-                      btn.classList.add('correct');
-                      score++;
-                    } else {
-                      btn.classList.add('wrong');
-                      optBtns[correct].classList.add('correct');
-                    }
-
-                    const nextBtn = document.createElement('button');
-                    nextBtn.className = 'ctx-quiz-next';
-                    nextBtn.textContent = currentQ < questions.length - 1 ? 'Next \u2192' : 'See results';
-                    nextBtn.addEventListener('click', () => {
-                      currentQ++;
-                      if (currentQ < questions.length) {
-                        renderQuestion();
-                      } else {
-                        renderScore();
-                      }
-                    });
-                    overlay.appendChild(nextBtn);
-                  });
-                });
-              }
-
-              function renderScore() {
-                overlay.innerHTML = `
-                  <button class="ctx-quiz-close">&times;</button>
-                  <div class="ctx-quiz-score">${score}/${questions.length} correct!</div>
-                  <button class="ctx-quiz-next" style="align-self: center;">Done</button>
-                `;
-                overlay.querySelector('.ctx-quiz-close').addEventListener('click', () => overlay.remove());
-                overlay.querySelector('.ctx-quiz-next').addEventListener('click', () => overlay.remove());
-              }
-
-              sidebar.style.position = 'relative';
-              sidebar.appendChild(overlay);
-              renderQuestion();
-            })
-            .catch(() => {
-              quizBtn.textContent = 'Quiz failed';
-              setTimeout(() => { quizBtn.textContent = 'Test yourself'; quizBtn.disabled = false; }, 1500);
-            });
+            launchQuiz();
           });
 
           summaryEl.querySelector('.ctx-session-summary-dismiss').addEventListener('click', (e) => {
@@ -3351,6 +3417,7 @@ if (!window.__contextExtensionLoaded) {
 
   // --- Toggle sidebar helper ---
   function toggleSidebar() {
+    console.log('[CLOSE] toggleSidebar() called. hostEl.dataset.open=', hostEl?.dataset.open);
     ensureSidebar();
     if (hostEl && hostEl.dataset.open === 'true') {
       closeSidebar();
@@ -3363,6 +3430,7 @@ if (!window.__contextExtensionLoaded) {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'X') {
       e.preventDefault();
+      console.log('[CLOSE] Ctrl+Shift+X keyboard shortcut');
       toggleSidebar();
     }
   });
@@ -3399,6 +3467,7 @@ if (!window.__contextExtensionLoaded) {
       return true;
     }
     if (msg.type === 'TOGGLE_SIDEBAR') {
+      console.log('[CLOSE] TOGGLE_SIDEBAR message received');
       toggleSidebar();
     } else if (msg.type === 'CAPTURE_STATE') {
       const btn = shadowRoot?.getElementById('ctx-listen-btn');

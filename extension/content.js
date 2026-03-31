@@ -537,21 +537,25 @@ if (window.__contextExtensionLoaded) {
     .stock-ticker-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
     .stock-ticker { font-size: 18px; font-weight: 700; color: #e0e0f0; }
     .stock-company { font-size: 11px; color: #6a6a8a; }
-    .stock-price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
-    .stock-price { font-size: 22px; font-weight: 700; color: #e0e0f0; }
+    .stock-price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+    .stock-price { font-size: 20px; font-weight: 700; color: #e0e0f0; }
     .stock-change { font-size: 13px; font-weight: 600; }
     .stock-change.positive { color: #00e676; }
     .stock-change.negative { color: #ff5252; }
     .stock-52w-labels { display: flex; justify-content: space-between; font-size: 10px; color: #6a6a8a; margin-bottom: 2px; }
-    .stock-52w-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; position: relative; margin: 4px 0 12px; }
+    .stock-52w-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; position: relative; margin: 2px 0 6px; }
     .stock-52w-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; background: #38bdf8; }
     .stock-52w-dot { position: absolute; top: -3px; width: 10px; height: 10px; background: #e0e0f0; border-radius: 50%; border: 2px solid #1a1a2e; }
-    .stock-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin: 10px 0; }
+    .stock-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin: 6px 0; }
     .stock-stat-label { font-size: 10px; color: #6a6a8a; }
     .stock-stat-value { font-size: 12px; color: #c0c0d0; font-weight: 500; }
     .stock-stat-value.stock-div-highlight { color: #38bdf8; }
-    .stock-footer { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .stock-footer { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
     .stock-footer-row { display: flex; justify-content: space-between; align-items: center; }
+    .stock-volume-reactions { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+    .stock-volume-inline { display: flex; align-items: baseline; gap: 4px; }
+    .stock-volume-inline .stock-stat-label { font-size: 10px; color: #6a6a8a; }
+    .stock-volume-inline .stock-stat-value { font-size: 12px; color: #c0c0d0; font-weight: 500; }
     .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
     .stock-yahoo-link:hover { color: #818cf8; }
     .reaction-row {
@@ -1460,7 +1464,7 @@ if (window.__contextExtensionLoaded) {
         `;
       }
 
-      // Stats grid — only show non-null values
+      // Stats grid — only show non-null values (volume handled separately)
       const stats = [];
       if (entity.marketCap != null) stats.push({ label: 'Mkt cap', value: escapeHtml(String(entity.marketCap)) });
       if (entity.peRatio != null) stats.push({ label: 'P/E ratio', value: escapeHtml(String(entity.peRatio)) });
@@ -1468,7 +1472,6 @@ if (window.__contextExtensionLoaded) {
         const divHighlight = parseFloat(entity.dividendYield) > 3 ? ' stock-div-highlight' : '';
         stats.push({ label: 'Div yield', value: escapeHtml(String(entity.dividendYield)) + '%', cls: divHighlight });
       }
-      if (entity.volume != null) stats.push({ label: 'Volume', value: escapeHtml(String(entity.volume)) });
 
       let statsHTML = '';
       if (stats.length > 0) {
@@ -1476,6 +1479,12 @@ if (window.__contextExtensionLoaded) {
           `<div><div class="stock-stat-label">${s.label}</div><div class="stock-stat-value${s.cls || ''}">${s.value}</div></div>`
         ).join('');
         statsHTML = `<div class="stock-stats">${cells}</div>`;
+      }
+
+      // Volume inline (shown on same row as reaction buttons)
+      let volumeHTML = '';
+      if (entity.volume != null) {
+        volumeHTML = `<div class="stock-volume-inline"><span class="stock-stat-label">Vol</span><span class="stock-stat-value">${escapeHtml(String(entity.volume))}</span></div>`;
       }
 
       // Yahoo Finance link
@@ -1488,11 +1497,11 @@ if (window.__contextExtensionLoaded) {
         </div>
         ${rangeHTML}
         ${statsHTML}
+        <div class="stock-volume-reactions">
+          ${volumeHTML}
+          <div class="stock-footer-buttons"></div>
+        </div>
         <div class="stock-footer">
-          <div class="stock-footer-row">
-            <div class="stock-footer-buttons"></div>
-            <button class="card-tellmore stock-tellmore">Tell me more</button>
-          </div>
           <div class="stock-footer-row" style="justify-content:flex-end;">
             <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
           </div>
@@ -1507,11 +1516,11 @@ if (window.__contextExtensionLoaded) {
       expandContent = `
         <div style="color:#999;font-size:12px;margin:4px 0;">Price unavailable</div>
         ${displayStockDesc ? `<div class="card-desc">${escapeHtml(displayStockDesc)}</div>` : ''}
+        <div class="stock-volume-reactions">
+          <div></div>
+          <div class="stock-footer-buttons"></div>
+        </div>
         <div class="stock-footer">
-          <div class="stock-footer-row">
-            <div class="stock-footer-buttons"></div>
-            <button class="card-tellmore stock-tellmore">Tell me more</button>
-          </div>
           <div class="stock-footer-row" style="justify-content:flex-end;">
             <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
           </div>
@@ -1541,21 +1550,6 @@ if (window.__contextExtensionLoaded) {
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
     });
-
-    const tellMoreBtn = card.querySelector('.stock-tellmore');
-    if (tellMoreBtn) {
-      tellMoreBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const input = shadowRoot.querySelector('.ctx-ask-input');
-        if (input) {
-          const name = entity.companyName || entity.name || entity.ticker || '';
-          const tickerStr = entity.ticker ? ` (${entity.ticker})` : '';
-          input.value = `Explain ${name}${tickerStr} — what does the company do, its business model, and why it matters in this video`;
-          input.focus();
-          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        }
-      });
-    }
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
     // Place reaction buttons inside footer if it exists, otherwise append normally

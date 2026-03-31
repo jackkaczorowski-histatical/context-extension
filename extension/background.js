@@ -822,8 +822,11 @@ async function processNextTranscript() {
               console.log('[BACKGROUND] Stock lookup FULL result:', JSON.stringify(stockData));
               // Merge stock data but preserve Claude's description if API didn't return price
               if (stockData.price == null) {
-                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, '— keeping description');
-                return { ...entity, ...stockData, description: entity.description || stockData.description || '' };
+                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, '— rendering as generic entity card');
+                const fallback = { ...entity, description: entity.description || stockData.description || '' };
+                delete fallback.ticker;
+                delete fallback.stockData;
+                return fallback;
               }
               return { ...entity, ...stockData };
             } else {

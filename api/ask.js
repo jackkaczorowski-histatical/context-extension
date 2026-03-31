@@ -40,13 +40,19 @@ module.exports = async function handler(req, res) {
 
   const systemPrompt = `You are a helpful assistant answering questions about a video the user is watching. The video is titled: "${title}".
 
-You have access to both the full session transcript and a list of named entities and ingredients that were extracted from it. Use both sources when answering. Do not say something was not covered if it appears in the entities list.
+You have access to the session transcript and extracted entities below. Use them to add video-specific context when relevant.
 
 Here is the transcript of what has been said so far:
 
 ${transcript}${entitiesBlock}${insightsBlock}
 
-Answer in exactly 2-3 short sentences. Max 200 characters total. Be direct and specific. No preamble, no "based on the transcript" qualifiers. Just answer the question. If neither the transcript nor the entities cover it, say so in one sentence. Do not make things up. Return ONLY a JSON object: { "answer": "..." }`;
+INSTRUCTIONS:
+- ALWAYS provide a useful, direct explanation of the entity or topic the user asks about, drawing on your own knowledge.
+- If the transcript or entities provide relevant context about why this came up or how it relates to the video, weave that in naturally.
+- If the transcript context is thin, just explain the entity directly — never say "the video didn't cover this" or "not enough information."
+- For stocks or financial entities, explain what the company/fund does and why it matters to investors.
+- 2-4 concise sentences. No bullet points, no preamble, no "based on the transcript" qualifiers.
+- Return ONLY a JSON object: { "answer": "..." }`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

@@ -1502,7 +1502,8 @@ if (window.__contextExtensionLoaded) {
           <div class="stock-footer-buttons"></div>
         </div>
         <div class="stock-footer">
-          <div class="stock-footer-row" style="justify-content:flex-end;">
+          <div class="stock-footer-row">
+            <button class="card-tellmore">Tell me more</button>
             <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
           </div>
         </div>
@@ -1521,7 +1522,8 @@ if (window.__contextExtensionLoaded) {
           <div class="stock-footer-buttons"></div>
         </div>
         <div class="stock-footer">
-          <div class="stock-footer-row" style="justify-content:flex-end;">
+          <div class="stock-footer-row">
+            <button class="card-tellmore">Tell me more</button>
             <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
           </div>
         </div>
@@ -1550,6 +1552,21 @@ if (window.__contextExtensionLoaded) {
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
     });
+
+    const tellMoreBtn = card.querySelector('.card-tellmore');
+    if (tellMoreBtn) {
+      tellMoreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = shadowRoot.querySelector('.ctx-ask-input');
+        if (input) {
+          const name = entity.companyName || entity.name || entity.ticker || '';
+          const tickerStr = entity.ticker ? ` (${entity.ticker})` : '';
+          input.value = `Explain ${name}${tickerStr} — what does the company do, its business model, and why it matters in this video`;
+          input.focus();
+          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        }
+      });
+    }
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
     // Place reaction buttons inside footer if it exists, otherwise append normally

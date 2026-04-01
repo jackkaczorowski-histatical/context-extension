@@ -65,6 +65,18 @@ if (window.__contextExtensionLoaded) {
   let transcriptAutoScroll = true;
   let consecutiveErrors = 0;
   let statusHideTimer = null;
+
+  // Virtual scrolling state
+  const VIRTUAL_THRESHOLD = 50;
+  const VIRTUAL_BUFFER = 5;
+  const HEIGHT_COLLAPSED = 44;
+  const HEIGHT_EXPANDED = 120;
+  const HEIGHT_INSIGHT = 80;
+  const HEIGHT_DIVIDER = 48;
+  let virtualCards = []; // { data, height, type: 'entity'|'insight'|'stock'|'divider', el: null }
+  let virtualActive = false;
+  let virtualScrollRAF = null;
+  let virtualRenderedRange = { start: -1, end: -1 };
   const isYouTubeSite = window.location.hostname.includes('youtube.com');
 
   const TYPE_COLORS = {
@@ -1293,6 +1305,11 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-status-bar.warning { background: rgba(245,158,11,0.1); color: #d97706; }
     .light-theme .ctx-status-bar.error { background: rgba(239,68,68,0.08); color: #dc2626; }
     .light-theme .ctx-status-bar.success { background: rgba(34,197,94,0.1); color: #16a34a; }
+
+    /* ─── Virtual scrolling ─── */
+    .ctx-virtual-spacer-top, .ctx-virtual-spacer-bottom {
+      flex-shrink: 0; width: 100%; pointer-events: none;
+    }
   `;
 
   const BADGE_CSS = `
@@ -2991,10 +3008,12 @@ if (window.__contextExtensionLoaded) {
     hideKnownBtn.addEventListener('click', () => {
       hideKnownBtn.classList.toggle('active');
       cardContainer.classList.toggle('filter-hide-known');
+      if (virtualActive) { virtualRenderedRange = { start: -1, end: -1 }; virtualScrollRender(cardContainer); }
     });
     starredOnlyBtn.addEventListener('click', () => {
       starredOnlyBtn.classList.toggle('active');
       cardContainer.classList.toggle('filter-starred-only');
+      if (virtualActive) { virtualRenderedRange = { start: -1, end: -1 }; virtualScrollRender(cardContainer); }
     });
     const collapseAllBtn = document.createElement('button');
     collapseAllBtn.className = 'ctx-filter-btn';
@@ -3409,53 +3428,50 @@ if (window.__contextExtensionLoaded) {
         cards.style.display = 'block';
         hasCards = true;
 
+        // Build virtualCards array from history
+        resetVirtualScroll();
         history.forEach(item => {
           try {
-            if (item.type === 'video-divider') {
-              const displayTitle = escapeHtml(
-                (item.term || 'Previous video')
-                  .replace(/\s*-\s*YouTube$/i, '')
-                  .replace(/^\(\d+\)\s*/, '')
-                  .trim()
-              ) || 'Previous video';
-              const prevUrl = item.url || '';
-              const link = prevUrl
-                ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${displayTitle}</a>`
-                : `<span class="ctx-divider-link">${displayTitle}</span>`;
-              const divider = document.createElement('div');
-              divider.className = 'ctx-video-divider';
-              divider.innerHTML = `
-                <div class="ctx-divider-prev">
-                  <span class="ctx-divider-label">PREVIOUS</span>
-                  ${link}
-                </div>
-                <div class="ctx-divider-line-full"></div>
-              `;
-              cards.appendChild(divider);
-            } else if (item.type === 'insight' && item.category) {
-              // Reconstruct insight object for createInsightCard
-              const card = createInsightCard({ insight: item.term, category: item.category, detail: item.description });
-              card.dataset.createdAt = (item.timestamp || Date.now()).toString();
-              cards.appendChild(card);
-            } else if (item.type === 'stock') {
-              const card = createStockCard(item);
-              card.dataset.createdAt = (item.timestamp || Date.now()).toString();
-              cards.appendChild(card);
-            } else {
-              const card = createGenericCard(item);
-              card.dataset.createdAt = (item.timestamp || Date.now()).toString();
-              cards.appendChild(card);
-            }
+            let vcType = 'entity';
+            if (item.type === 'video-divider') vcType = 'divider';
+            else if (item.type === 'insight' && item.category) vcType = 'insight';
+            else if (item.type === 'stock') vcType = 'stock';
+
+            const vcData = vcType === 'insight'
+              ? { insight: item.term, category: item.category, detail: item.description, timestamp: item.timestamp }
+              : item;
+
+            virtualCards.push({
+              data: vcData,
+              height: vcType === 'insight' ? HEIGHT_INSIGHT : (vcType === 'divider' ? HEIGHT_DIVIDER : HEIGHT_COLLAPSED),
+              measuredHeight: 0,
+              type: vcType,
+              el: null,
+              dismissed: false,
+              highlighted: false
+            });
           } catch (e) {
             console.log('[CONTENT] Failed to recover card:', item.term, e.message);
           }
         });
 
+        // Render: use virtual scrolling if > threshold, otherwise render all
+        if (virtualCards.length > VIRTUAL_THRESHOLD) {
+          activateVirtualScroll(cards);
+        } else {
+          virtualCards.forEach(vc => {
+            const el = createVirtualCardElement(vc);
+            vc.el = el;
+            cards.appendChild(el);
+          });
+        }
+        termCount = virtualCards.filter(vc => vc.type !== 'divider').length;
+
         // Update badge count
         const badge = shadowRoot.querySelector('.ctx-badge-count') || (badgeShadow && badgeShadow.querySelector('.ctx-badge-count'));
-        if (badge) badge.textContent = String(cards.children.length);
+        if (badge) badge.textContent = String(termCount);
 
-        console.log('[CONTENT] Recovered', cards.children.length, 'cards');
+        console.log('[CONTENT] Recovered', virtualCards.length, 'cards' + (virtualActive ? ' (virtual scroll)' : ''));
       }
 
       // Sync button state if currently capturing
@@ -3550,6 +3566,7 @@ if (window.__contextExtensionLoaded) {
     termCount = 0;
     seenTerms.clear();
     lastRenderedTerm = '';
+    resetVirtualScroll();
     if (askIdleTimer) { clearTimeout(askIdleTimer); askIdleTimer = null; }
     if (listeningTimer) { clearTimeout(listeningTimer); listeningTimer = null; }
 
@@ -3603,6 +3620,237 @@ if (window.__contextExtensionLoaded) {
       input.dataset.hasSuggestion = 'true';
       askSuggestionCount++;
     }, 20000);
+  }
+
+  // ─── Virtual scrolling engine ───
+
+  function estimateCardHeight(vcard) {
+    if (vcard.measuredHeight) return vcard.measuredHeight;
+    if (vcard.type === 'divider') return HEIGHT_DIVIDER;
+    if (vcard.type === 'insight') return HEIGHT_INSIGHT;
+    return HEIGHT_COLLAPSED;
+  }
+
+  function isCardFiltered(vcard, cardsEl) {
+    if (!cardsEl) return false;
+    // Sync filter state from DOM element if it exists
+    if (vcard.el) {
+      vcard.dismissed = vcard.el.classList.contains('card-dismissed');
+      vcard.highlighted = vcard.el.classList.contains('card-highlighted');
+    }
+    if (cardsEl.classList.contains('filter-hide-known') && vcard.dismissed) return true;
+    if (cardsEl.classList.contains('filter-starred-only') && !vcard.highlighted) return true;
+    if (cardsEl.classList.contains('hide-insights') && vcard.type === 'insight') return true;
+    return false;
+  }
+
+  function getVisibleVirtualCards(cardsEl) {
+    return virtualCards.filter(vc => !isCardFiltered(vc, cardsEl));
+  }
+
+  function getTotalVirtualHeight(cardsEl) {
+    let h = 0;
+    for (const vc of virtualCards) {
+      if (!isCardFiltered(vc, cardsEl)) h += estimateCardHeight(vc);
+    }
+    return h;
+  }
+
+  function virtualScrollRender(cardsEl) {
+    if (!virtualActive || !cardsEl) return;
+    const visible = getVisibleVirtualCards(cardsEl);
+    const totalHeight = getTotalVirtualHeight(cardsEl);
+
+    let topSpacer = cardsEl.querySelector('.ctx-virtual-spacer-top');
+    let bottomSpacer = cardsEl.querySelector('.ctx-virtual-spacer-bottom');
+    if (!topSpacer) {
+      topSpacer = document.createElement('div');
+      topSpacer.className = 'ctx-virtual-spacer-top';
+      cardsEl.prepend(topSpacer);
+    }
+    if (!bottomSpacer) {
+      bottomSpacer = document.createElement('div');
+      bottomSpacer.className = 'ctx-virtual-spacer-bottom';
+      cardsEl.appendChild(bottomSpacer);
+    }
+
+    const scrollTop = cardsEl.scrollTop;
+    const viewHeight = cardsEl.clientHeight;
+
+    // Find which visible cards are in the viewport
+    let accum = 0;
+    let startIdx = -1, endIdx = -1;
+    for (let i = 0; i < visible.length; i++) {
+      const h = estimateCardHeight(visible[i]);
+      if (startIdx === -1 && accum + h > scrollTop) {
+        startIdx = i;
+      }
+      if (accum > scrollTop + viewHeight) {
+        endIdx = i;
+        break;
+      }
+      accum += h;
+    }
+    if (startIdx === -1) startIdx = 0;
+    if (endIdx === -1) endIdx = visible.length;
+
+    // Add buffer
+    startIdx = Math.max(0, startIdx - VIRTUAL_BUFFER);
+    endIdx = Math.min(visible.length, endIdx + VIRTUAL_BUFFER);
+
+    // Check if range changed
+    if (startIdx === virtualRenderedRange.start && endIdx === virtualRenderedRange.end) return;
+    virtualRenderedRange = { start: startIdx, end: endIdx };
+
+    // Calculate spacer heights
+    let topH = 0;
+    for (let i = 0; i < startIdx; i++) topH += estimateCardHeight(visible[i]);
+    let bottomH = 0;
+    for (let i = endIdx; i < visible.length; i++) bottomH += estimateCardHeight(visible[i]);
+
+    // Remove all card elements (keep spacers)
+    const existingCards = cardsEl.querySelectorAll('.context-card, .ctx-video-divider');
+    existingCards.forEach(el => el.remove());
+
+    topSpacer.style.height = topH + 'px';
+    bottomSpacer.style.height = bottomH + 'px';
+
+    // Render visible range
+    const frag = document.createDocumentFragment();
+    for (let i = startIdx; i < endIdx; i++) {
+      const vc = visible[i];
+      let el = vc.el;
+      if (!el) {
+        el = createVirtualCardElement(vc);
+        vc.el = el;
+      }
+      frag.appendChild(el);
+      // Measure after first render
+      if (!vc.measuredHeight && el.offsetHeight > 0) {
+        vc.measuredHeight = el.offsetHeight;
+      }
+    }
+    // Insert after top spacer
+    topSpacer.after(frag);
+
+    // Measure any newly rendered cards
+    requestAnimationFrame(() => {
+      for (let i = startIdx; i < endIdx; i++) {
+        const vc = visible[i];
+        if (vc.el && vc.el.offsetHeight > 0) {
+          vc.measuredHeight = vc.el.offsetHeight;
+        }
+      }
+    });
+  }
+
+  function createVirtualCardElement(vc) {
+    if (vc.type === 'divider') {
+      const divider = document.createElement('div');
+      divider.className = 'ctx-video-divider';
+      const displayTitle = escapeHtml(
+        (vc.data.term || 'Previous video')
+          .replace(/\s*-\s*YouTube$/i, '')
+          .replace(/^\(\d+\)\s*/, '')
+          .trim()
+      ) || 'Previous video';
+      const prevUrl = vc.data.url || '';
+      const link = prevUrl
+        ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${displayTitle}</a>`
+        : `<span class="ctx-divider-link">${displayTitle}</span>`;
+      divider.innerHTML = `<div class="ctx-divider-prev"><span class="ctx-divider-label">PREVIOUS</span>${link}</div><div class="ctx-divider-line-full"></div>`;
+      return divider;
+    }
+    if (vc.type === 'insight') {
+      const card = createInsightCard(vc.data);
+      card.dataset.createdAt = (vc.data.timestamp || Date.now()).toString();
+      return card;
+    }
+    if (vc.type === 'stock') {
+      const card = createStockCard(vc.data);
+      card.dataset.createdAt = (vc.data.timestamp || Date.now()).toString();
+      return card;
+    }
+    const card = createGenericCard(vc.data);
+    card.dataset.createdAt = (vc.data.timestamp || Date.now()).toString();
+    return card;
+  }
+
+  function scheduleVirtualRender(cardsEl) {
+    if (virtualScrollRAF) return;
+    virtualScrollRAF = requestAnimationFrame(() => {
+      virtualScrollRAF = null;
+      virtualScrollRender(cardsEl);
+    });
+  }
+
+  function activateVirtualScroll(cardsEl) {
+    if (virtualActive) return;
+    virtualActive = true;
+    console.log('[CONTENT] Virtual scrolling activated,', virtualCards.length, 'cards');
+
+    // Convert existing DOM cards to virtual entries (if not already populated)
+    if (virtualCards.length === 0) {
+      const existing = cardsEl.querySelectorAll('.context-card, .ctx-video-divider');
+      existing.forEach(el => {
+        const vc = domCardToVirtual(el);
+        if (vc) virtualCards.push(vc);
+      });
+    }
+
+    // Attach scroll listener
+    cardsEl.addEventListener('scroll', () => scheduleVirtualRender(cardsEl), { passive: true });
+
+    // Clear DOM and do initial render
+    virtualRenderedRange = { start: -1, end: -1 };
+    cardsEl.innerHTML = '';
+    virtualScrollRender(cardsEl);
+  }
+
+  function domCardToVirtual(el) {
+    const h = el.offsetHeight || HEIGHT_COLLAPSED;
+    if (el.classList.contains('ctx-video-divider')) {
+      return { data: { term: el.textContent, type: 'video-divider' }, height: h, measuredHeight: h, type: 'divider', el: null, dismissed: false, highlighted: false };
+    }
+    const isInsight = el.classList.contains('insight-card');
+    const isStock = el.classList.contains('stock-card');
+    const term = el.querySelector('.card-term')?.textContent || '';
+    const type = isInsight ? 'insight' : (isStock ? 'stock' : 'entity');
+    return {
+      data: { term, type: el.querySelector('.card-type')?.textContent?.toLowerCase() || 'concept' },
+      height: h,
+      measuredHeight: h,
+      type,
+      el: el, // preserve the already-rendered DOM element
+      dismissed: el.classList.contains('card-dismissed'),
+      highlighted: el.classList.contains('card-highlighted')
+    };
+  }
+
+  function addVirtualCard(vc, cardsEl, prepend) {
+    virtualCards[prepend ? 'unshift' : 'push'](vc);
+
+    if (!virtualActive && virtualCards.length > VIRTUAL_THRESHOLD) {
+      activateVirtualScroll(cardsEl);
+      return;
+    }
+
+    if (virtualActive) {
+      // Check if user is near bottom (for prepend, "bottom" is top since newest = first)
+      const atTop = cardsEl.scrollTop < 100;
+      virtualRenderedRange = { start: -1, end: -1 };
+      virtualScrollRender(cardsEl);
+      if (prepend && atTop) {
+        cardsEl.scrollTop = 0;
+      }
+    }
+  }
+
+  function resetVirtualScroll() {
+    virtualCards = [];
+    virtualActive = false;
+    virtualRenderedRange = { start: -1, end: -1 };
+    if (virtualScrollRAF) { cancelAnimationFrame(virtualScrollRAF); virtualScrollRAF = null; }
   }
 
   function renderCards(entities) {
@@ -3686,12 +3934,25 @@ if (window.__contextExtensionLoaded) {
     const sidebarClosed = !hostEl || hostEl.dataset.open !== 'true';
 
     limited.forEach(entity => {
-      const card = entity.type === 'stock'
-        ? createStockCard(entity)
-        : createGenericCard(entity);
+      const vcType = entity.type === 'stock' ? 'stock' : 'entity';
+      const vc = { data: entity, height: HEIGHT_COLLAPSED, measuredHeight: 0, type: vcType, el: null, dismissed: false, highlighted: false };
 
-      card.dataset.createdAt = Date.now().toString();
-      cards.prepend(card);
+      if (virtualActive) {
+        addVirtualCard(vc, cards, true);
+      } else {
+        const card = entity.type === 'stock'
+          ? createStockCard(entity)
+          : createGenericCard(entity);
+        card.dataset.createdAt = Date.now().toString();
+        cards.prepend(card);
+        vc.el = card;
+        virtualCards.unshift(vc);
+
+        // Check if we should activate virtual scrolling
+        if (virtualCards.length > VIRTUAL_THRESHOLD) {
+          activateVirtualScroll(cards);
+        }
+      }
       termCount++;
       console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
     });
@@ -3955,10 +4216,20 @@ if (window.__contextExtensionLoaded) {
                     console.log('[CONTENT] Skipping duplicate insight card:', key);
                     return;
                   }
-                  const card = createInsightCard(insight);
-                  card.dataset.createdAt = Date.now().toString();
-                  cards.prepend(card);
-                  addToNotes(card);
+                  const vc = { data: insight, height: HEIGHT_INSIGHT, measuredHeight: 0, type: 'insight', el: null, dismissed: false, highlighted: false };
+                  if (virtualActive) {
+                    addVirtualCard(vc, cards, true);
+                  } else {
+                    const card = createInsightCard(insight);
+                    card.dataset.createdAt = Date.now().toString();
+                    cards.prepend(card);
+                    vc.el = card;
+                    virtualCards.unshift(vc);
+                    addToNotes(card);
+                    if (virtualCards.length > VIRTUAL_THRESHOLD) {
+                      activateVirtualScroll(cards);
+                    }
+                  }
                 });
               }
             }

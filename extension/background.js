@@ -246,6 +246,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.scripting.executeScript({ target: { tabId: capturingTabId }, files: ['content.js'] });
       });
     }
+  } else if (message.type === 'DG_ERROR' || message.type === 'DG_RECONNECTING') {
+    if (capturingTabId) {
+      chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_ERROR', service: 'transcription', retrying: true }).catch(() => {});
+    }
+  } else if (message.type === 'DG_CONNECTED') {
+    // Only send restored if we previously sent an error (first connect is not a restore)
+    if (capturingTabId) {
+      chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_RESTORED', service: 'transcription' }).catch(() => {});
+    }
   } else if (message.type === 'CONTEXT_FETCH') {
     incrementUsage('contextFetches');
   } else if (message.type === 'STREAM_DIED') {
@@ -256,6 +265,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     restartAttempted = true;
     const tabToRestart = capturingTabId;
     console.log('[BACKGROUND] STREAM_DIED received, attempting restart for tab:', tabToRestart);
+    if (tabToRestart) {
+      chrome.tabs.sendMessage(tabToRestart, { type: 'CONNECTION_ERROR', service: 'audio', retrying: true }).catch(() => {});
+    }
     (async () => {
       await stopCapture();
       setTimeout(() => {
@@ -279,6 +291,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
           console.log('[BACKGROUND] Tab still on video, restarting capture');
           startCapture();
+          chrome.tabs.sendMessage(tabToRestart, { type: 'CONNECTION_RESTORED', service: 'audio' }).catch(() => {});
           restartAttempted = false;
         });
       }, 2000);
@@ -680,6 +693,7 @@ async function processNextTranscript() {
       } catch (fetchErr) {
         clearTimeout(timeout);
         console.log(`[BACKGROUND] Analyze network error on attempt ${attempt + 1}/3:`, fetchErr.message);
+        if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_ERROR', service: 'analysis', retrying: attempt < 2 }).catch(() => {});
         if (attempt === 2) {
           console.log('[BACKGROUND] Analyze failed after 3 attempts (network) — skipping');
           scheduleNext();
@@ -689,8 +703,15 @@ async function processNextTranscript() {
       }
       clearTimeout(timeout);
       if (analyzeRes.ok) {
-        if (attempt > 0) console.log(`[BACKGROUND] Analyze retry succeeded on attempt ${attempt + 1}`);
+        if (attempt > 0) {
+          console.log(`[BACKGROUND] Analyze retry succeeded on attempt ${attempt + 1}`);
+          if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_RESTORED', service: 'analysis' }).catch(() => {});
+        }
         break;
+      }
+      // Notify on HTTP errors (503, 529, etc.)
+      if (!analyzeRes.ok && capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_ERROR', service: 'analysis', retrying: attempt < 2 }).catch(() => {});
       }
       if (attempt === 2) {
         console.log('[BACKGROUND] Analyze failed after 3 attempts, status:', analyzeRes.status, '— skipping');

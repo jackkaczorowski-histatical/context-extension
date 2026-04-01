@@ -63,6 +63,8 @@ if (window.__contextExtensionLoaded) {
   let mySessionId = null;
   let currentlyExpandedCard = null;
   let transcriptAutoScroll = true;
+  let consecutiveErrors = 0;
+  let statusHideTimer = null;
   const isYouTubeSite = window.location.hostname.includes('youtube.com');
 
   const TYPE_COLORS = {
@@ -1261,6 +1263,36 @@ if (window.__contextExtensionLoaded) {
     .ctx-transcript-copy:hover { background: rgba(255,255,255,0.1); color: #e0e0f0; }
     .light-theme .ctx-transcript-copy { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); color: #64748b; }
     .light-theme .ctx-transcript-copy:hover { background: rgba(0,0,0,0.08); color: #1a1a2e; }
+
+    /* ─── Error status bar ─── */
+    .ctx-status-bar {
+      display: none; align-items: center; gap: 6px;
+      padding: 6px 16px; font-size: 11px; flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.3s, color 0.3s;
+    }
+    .ctx-status-bar.visible { display: flex; }
+    .ctx-status-bar.warning {
+      background: rgba(245,158,11,0.08); color: #fbbf24;
+      animation: ctx-status-pulse 2s ease-in-out infinite;
+    }
+    .ctx-status-bar.error {
+      background: rgba(239,68,68,0.1); color: #f87171;
+      animation: none;
+    }
+    .ctx-status-bar.success {
+      background: rgba(34,197,94,0.08); color: #4ade80;
+      animation: none;
+    }
+    @keyframes ctx-status-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .ctx-status-icon { flex-shrink: 0; }
+    .ctx-status-text { flex: 1; }
+    .light-theme .ctx-status-bar.warning { background: rgba(245,158,11,0.1); color: #d97706; }
+    .light-theme .ctx-status-bar.error { background: rgba(239,68,68,0.08); color: #dc2626; }
+    .light-theme .ctx-status-bar.success { background: rgba(34,197,94,0.1); color: #16a34a; }
   `;
 
   const BADGE_CSS = `
@@ -2776,6 +2808,12 @@ if (window.__contextExtensionLoaded) {
     listeningIndicator.id = 'listening-indicator';
     listeningIndicator.innerHTML = '<span class="li-dot"></span><span class="li-text">Listening for new terms...</span>';
 
+    // Error status bar
+    const statusBar = document.createElement('div');
+    statusBar.className = 'ctx-status-bar';
+    statusBar.id = 'ctx-status-bar';
+    statusBar.innerHTML = '<span class="ctx-status-icon"></span><span class="ctx-status-text"></span>';
+
     // Cards container
     const cardContainer = document.createElement('div');
     cardContainer.id = 'cards';
@@ -2930,6 +2968,7 @@ if (window.__contextExtensionLoaded) {
     const cardsWrap = document.createElement('div');
     cardsWrap.className = 'ctx-cards-wrap';
     cardsWrap.appendChild(listeningIndicator);
+    cardsWrap.appendChild(statusBar);
     cardsWrap.appendChild(emptyState);
 
     // Pinned "Now Watching" bar
@@ -4163,6 +4202,40 @@ if (window.__contextExtensionLoaded) {
           btn.classList.remove('listening');
         }
       }
+    } else if (msg.type === 'CONNECTION_ERROR') {
+      if (!shadowRoot) return;
+      const bar = shadowRoot.getElementById('ctx-status-bar');
+      if (!bar) return;
+      if (statusHideTimer) { clearTimeout(statusHideTimer); statusHideTimer = null; }
+      consecutiveErrors++;
+      const icon = bar.querySelector('.ctx-status-icon');
+      const text = bar.querySelector('.ctx-status-text');
+      const serviceNames = { transcription: 'Transcription', analysis: 'Analysis', audio: 'Audio' };
+      const name = serviceNames[msg.service] || msg.service;
+      if (consecutiveErrors >= 3) {
+        bar.className = 'ctx-status-bar visible error';
+        icon.textContent = '\u2716';
+        text.textContent = 'Connection failed. Try stopping and restarting capture.';
+      } else {
+        bar.className = 'ctx-status-bar visible warning';
+        icon.textContent = '\u26A0';
+        text.textContent = name + ' connection lost, retrying...';
+      }
+    } else if (msg.type === 'CONNECTION_RESTORED') {
+      if (!shadowRoot) return;
+      const bar = shadowRoot.getElementById('ctx-status-bar');
+      if (!bar) return;
+      if (statusHideTimer) { clearTimeout(statusHideTimer); statusHideTimer = null; }
+      consecutiveErrors = 0;
+      const icon = bar.querySelector('.ctx-status-icon');
+      const text = bar.querySelector('.ctx-status-text');
+      bar.className = 'ctx-status-bar visible success';
+      icon.textContent = '\u2714';
+      text.textContent = 'Reconnected';
+      statusHideTimer = setTimeout(() => {
+        bar.className = 'ctx-status-bar';
+        statusHideTimer = null;
+      }, 3000);
     } else if (msg.type === 'TRANSCRIPT_TEXT') {
       if (!shadowRoot) return;
       const scroll = shadowRoot.querySelector('.ctx-transcript-scroll');

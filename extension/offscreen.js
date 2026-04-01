@@ -129,6 +129,7 @@ async function connectAndStream(stream) {
 
   dgSocket.onopen = () => {
     console.log('[OFFSCREEN] Deepgram WebSocket connected');
+    try { chrome.runtime.sendMessage({ type: 'DG_CONNECTED' }); } catch (e) {}
 
     // Start MediaRecorder streaming audio to WebSocket
     startMediaRecorder(stream);
@@ -167,6 +168,7 @@ async function connectAndStream(stream) {
 
   dgSocket.onerror = () => {
     console.error('[OFFSCREEN] Deepgram WebSocket error, readyState:', dgSocket?.readyState);
+    try { chrome.runtime.sendMessage({ type: 'DG_ERROR' }); } catch (e) {}
   };
 
   dgSocket.onclose = (event) => {
@@ -178,6 +180,7 @@ async function connectAndStream(stream) {
       const live = currentStream.getTracks().some(t => t.readyState === 'live');
       if (live) {
         console.log('[OFFSCREEN] Unexpected close, reconnecting in 2s...');
+        try { chrome.runtime.sendMessage({ type: 'DG_RECONNECTING' }); } catch (e) {}
         setTimeout(() => {
           if (currentStream) connectAndStream(currentStream);
         }, 2000);

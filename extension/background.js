@@ -65,6 +65,7 @@ let sessionId = null;
 let sessionTotal = 0;
 let isStoppingCapture = false;
 let isStartingCapture = false;
+let lastAnalyzeFailed = false;
 
 function getUsageKey() {
   const d = new Date();
@@ -650,6 +651,7 @@ async function processNextTranscript() {
         if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_ERROR', service: 'analysis', retrying: attempt < 2 }).catch(() => {});
         if (attempt === 2) {
           console.log('[BACKGROUND] Analyze failed after 3 attempts (network) — skipping');
+          lastAnalyzeFailed = true;
           scheduleNext();
           return;
         }
@@ -657,10 +659,11 @@ async function processNextTranscript() {
       }
       clearTimeout(timeout);
       if (analyzeRes.ok) {
-        if (attempt > 0) {
-          console.log(`[BACKGROUND] Analyze retry succeeded on attempt ${attempt + 1}`);
+        if (attempt > 0 || lastAnalyzeFailed) {
+          console.log(`[BACKGROUND] Analyze succeeded on attempt ${attempt + 1}${lastAnalyzeFailed ? ' (recovering from previous failure)' : ''}`);
           if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_RESTORED', service: 'analysis' }).catch(() => {});
         }
+        lastAnalyzeFailed = false;
         break;
       }
       // Notify on HTTP errors (503, 529, etc.)
@@ -669,6 +672,7 @@ async function processNextTranscript() {
       }
       if (attempt === 2) {
         console.log('[BACKGROUND] Analyze failed after 3 attempts, status:', analyzeRes.status, '— skipping');
+        lastAnalyzeFailed = true;
         scheduleNext();
         return;
       }

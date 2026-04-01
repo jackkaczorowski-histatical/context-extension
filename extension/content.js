@@ -980,6 +980,99 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-onboarding-btn { color: #fff; }
     .light-theme .ctx-onboarding-dot { background: #cbd5e1; }
     .light-theme .ctx-onboarding-dot.active { background: #14b8a6; }
+
+    /* ─── Settings panel ─── */
+    .ctx-settings-btn {
+      background: none; border: none; color: #64748b; font-size: 14px;
+      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .ctx-settings-btn:hover { color: #f8fafc; }
+    .ctx-settings-btn.active { color: #14b8a6; }
+    .light-theme .ctx-settings-btn { color: #9a9ab0; }
+    .light-theme .ctx-settings-btn:hover { color: #333; }
+    .light-theme .ctx-settings-btn.active { color: #14b8a6; }
+    .ctx-settings-panel {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: #12121c; z-index: 90;
+      display: flex; flex-direction: column;
+      overflow-y: auto; overflow-x: hidden;
+      padding: 16px;
+      transform: translateX(100%);
+      transition: transform 0.2s ease-out;
+    }
+    .ctx-settings-panel.open { transform: translateX(0); }
+    .light-theme .ctx-settings-panel { background: #f5f5f8; }
+    .ctx-settings-heading {
+      font-size: 15px; font-weight: 700; color: #e0e0f0; margin-bottom: 16px;
+    }
+    .light-theme .ctx-settings-heading { color: #1a1a2e; }
+    .ctx-settings-section {
+      margin-bottom: 20px;
+    }
+    .ctx-settings-label {
+      font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 8px;
+    }
+    .light-theme .ctx-settings-label { color: #64748b; }
+    .ctx-settings-radios {
+      display: flex; gap: 6px;
+    }
+    .ctx-settings-radio {
+      flex: 1; padding: 6px 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+      background: none; color: #94a3b8; font-size: 11px; font-weight: 500;
+      cursor: pointer; text-align: center; transition: all 0.15s; font-family: inherit;
+    }
+    .ctx-settings-radio:hover { border-color: rgba(255,255,255,0.2); color: #e0e0f0; }
+    .ctx-settings-radio.active { border-color: #14b8a6; color: #14b8a6; background: rgba(20,184,166,0.08); }
+    .light-theme .ctx-settings-radio { border-color: rgba(0,0,0,0.12); color: #64748b; }
+    .light-theme .ctx-settings-radio:hover { border-color: rgba(0,0,0,0.25); color: #1a1a2e; }
+    .light-theme .ctx-settings-radio.active { border-color: #14b8a6; color: #0d9488; background: rgba(20,184,166,0.08); }
+    .ctx-settings-chips {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .ctx-settings-chip {
+      padding: 5px 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1);
+      background: none; color: #64748b; font-size: 11px; cursor: pointer;
+      transition: all 0.15s; font-family: inherit; white-space: nowrap;
+    }
+    .ctx-settings-chip:hover { border-color: rgba(255,255,255,0.2); color: #94a3b8; }
+    .ctx-settings-chip.active { border-color: #14b8a6; color: #14b8a6; background: rgba(20,184,166,0.08); }
+    .light-theme .ctx-settings-chip { border-color: rgba(0,0,0,0.12); color: #94a3b8; }
+    .light-theme .ctx-settings-chip:hover { border-color: rgba(0,0,0,0.25); color: #64748b; }
+    .light-theme .ctx-settings-chip.active { border-color: #14b8a6; color: #0d9488; background: rgba(20,184,166,0.08); }
+    .ctx-settings-toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0;
+    }
+    .ctx-settings-toggle-label {
+      font-size: 12px; color: #e0e0f0;
+    }
+    .light-theme .ctx-settings-toggle-label { color: #1a1a2e; }
+    .ctx-settings-toggle {
+      position: relative; width: 36px; height: 20px; border-radius: 10px;
+      background: #3a3a5a; cursor: pointer; transition: background 0.2s;
+      border: none; padding: 0; flex-shrink: 0;
+    }
+    .ctx-settings-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #94a3b8; transition: all 0.2s;
+    }
+    .ctx-settings-toggle.on { background: #14b8a6; }
+    .ctx-settings-toggle.on::after { left: 18px; background: #fff; }
+    .light-theme .ctx-settings-toggle { background: #cbd5e1; }
+    .light-theme .ctx-settings-toggle::after { background: #fff; }
+    .light-theme .ctx-settings-toggle.on { background: #14b8a6; }
+    .ctx-settings-done {
+      margin-top: auto; padding: 10px 0; border-radius: 8px;
+      background: #14b8a6; color: #0a0a14; border: none; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: background 0.15s;
+      font-family: inherit; width: 100%;
+    }
+    .ctx-settings-done:hover { background: #0d9488; }
+    .light-theme .ctx-settings-done { color: #fff; }
+    #cards.hide-insights .context-card.insight-card { display: none; }
   `;
 
   const BADGE_CSS = `
@@ -2274,6 +2367,7 @@ if (window.__contextExtensionLoaded) {
         <button id="ctx-listen-btn" title="Start Listening">&#x25CF; Start</button>
         <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
         <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
+        <button class="ctx-settings-btn" title="Settings">&#x2699;</button>
         <button class="ctx-close-btn" title="Close sidebar">&times;</button>
       </div>
     `;
@@ -2659,6 +2753,149 @@ if (window.__contextExtensionLoaded) {
     sidebar.appendChild(askResponse);
     sidebar.appendChild(suggestionsBar);
     sidebar.appendChild(askBar);
+
+    // ─── Settings panel ───
+    const ALL_INTERESTS = ['Finance & Economics', 'History & Culture', 'Politics & Law', 'Science & Technology', 'Business & Markets', 'Arts & Society', 'Sports', 'Cooking & Food'];
+    const settingsPanel = document.createElement('div');
+    settingsPanel.className = 'ctx-settings-panel';
+    let userSettings = { knowledgeLevel: 'intermediate', interests: [...ALL_INTERESTS], autoOpen: true, showInsights: true };
+
+    function buildSettingsPanel() {
+      settingsPanel.innerHTML = '';
+
+      const heading = document.createElement('div');
+      heading.className = 'ctx-settings-heading';
+      heading.textContent = 'Settings';
+      settingsPanel.appendChild(heading);
+
+      // Section 1: Knowledge Level
+      const s1 = document.createElement('div');
+      s1.className = 'ctx-settings-section';
+      const s1Label = document.createElement('div');
+      s1Label.className = 'ctx-settings-label';
+      s1Label.textContent = 'Your knowledge level';
+      s1.appendChild(s1Label);
+      const radios = document.createElement('div');
+      radios.className = 'ctx-settings-radios';
+      ['beginner', 'intermediate', 'expert'].forEach(level => {
+        const btn = document.createElement('button');
+        btn.className = 'ctx-settings-radio' + (userSettings.knowledgeLevel === level ? ' active' : '');
+        btn.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+        btn.addEventListener('click', () => {
+          userSettings.knowledgeLevel = level;
+          radios.querySelectorAll('.ctx-settings-radio').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          saveUserSettings();
+        });
+        radios.appendChild(btn);
+      });
+      s1.appendChild(radios);
+      settingsPanel.appendChild(s1);
+
+      // Section 2: Interests
+      const s2 = document.createElement('div');
+      s2.className = 'ctx-settings-section';
+      const s2Label = document.createElement('div');
+      s2Label.className = 'ctx-settings-label';
+      s2Label.textContent = 'Topics you care about';
+      s2.appendChild(s2Label);
+      const chips = document.createElement('div');
+      chips.className = 'ctx-settings-chips';
+      ALL_INTERESTS.forEach(topic => {
+        const chip = document.createElement('button');
+        chip.className = 'ctx-settings-chip' + (userSettings.interests.includes(topic) ? ' active' : '');
+        chip.textContent = topic;
+        chip.addEventListener('click', () => {
+          if (userSettings.interests.includes(topic)) {
+            userSettings.interests = userSettings.interests.filter(t => t !== topic);
+            chip.classList.remove('active');
+          } else {
+            userSettings.interests.push(topic);
+            chip.classList.add('active');
+          }
+          saveUserSettings();
+        });
+        chips.appendChild(chip);
+      });
+      s2.appendChild(chips);
+      settingsPanel.appendChild(s2);
+
+      // Section 3: Display
+      const s3 = document.createElement('div');
+      s3.className = 'ctx-settings-section';
+      const s3Label = document.createElement('div');
+      s3Label.className = 'ctx-settings-label';
+      s3Label.textContent = 'Display';
+      s3.appendChild(s3Label);
+
+      function addToggle(label, key) {
+        const row = document.createElement('div');
+        row.className = 'ctx-settings-toggle-row';
+        const lbl = document.createElement('span');
+        lbl.className = 'ctx-settings-toggle-label';
+        lbl.textContent = label;
+        const toggle = document.createElement('button');
+        toggle.className = 'ctx-settings-toggle' + (userSettings[key] ? ' on' : '');
+        toggle.addEventListener('click', () => {
+          userSettings[key] = !userSettings[key];
+          toggle.classList.toggle('on', userSettings[key]);
+          saveUserSettings();
+          if (key === 'showInsights') {
+            cardContainer.classList.toggle('hide-insights', !userSettings.showInsights);
+          }
+        });
+        row.appendChild(lbl);
+        row.appendChild(toggle);
+        s3.appendChild(row);
+      }
+      addToggle('Auto-open sidebar on capture start', 'autoOpen');
+      addToggle('Show insights', 'showInsights');
+      settingsPanel.appendChild(s3);
+
+      // Done button
+      const done = document.createElement('button');
+      done.className = 'ctx-settings-done';
+      done.textContent = 'Done';
+      done.addEventListener('click', () => {
+        settingsPanel.classList.remove('open');
+        settingsBtn.classList.remove('active');
+      });
+      settingsPanel.appendChild(done);
+    }
+
+    function saveUserSettings() {
+      chrome.storage.local.set({ userSettings });
+    }
+
+    // Load saved settings
+    chrome.storage.local.get('userSettings', (data) => {
+      if (data.userSettings) {
+        userSettings = { ...userSettings, ...data.userSettings };
+      }
+      // Apply showInsights immediately
+      if (!userSettings.showInsights) {
+        cardContainer.classList.add('hide-insights');
+      }
+      buildSettingsPanel();
+    });
+
+    sidebar.appendChild(settingsPanel);
+
+    // Wire up gear button
+    const settingsBtn = header.querySelector('.ctx-settings-btn');
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = settingsPanel.classList.contains('open');
+      if (isOpen) {
+        settingsPanel.classList.remove('open');
+        settingsBtn.classList.remove('active');
+      } else {
+        buildSettingsPanel();
+        settingsPanel.classList.add('open');
+        settingsBtn.classList.add('active');
+      }
+    });
+
     shadowRoot.appendChild(sidebar);
     document.body.appendChild(hostEl);
 
@@ -3089,6 +3326,15 @@ if (window.__contextExtensionLoaded) {
         ensureBadge();
         setBadgeCapturing(true, false);
         if (btn) { btn.textContent = '\u25A0 Stop'; btn.classList.add('listening'); }
+        // Auto-open sidebar on capture start if enabled
+        chrome.storage.local.get('userSettings', (data) => {
+          const us = data.userSettings || {};
+          if (us.autoOpen !== false) {
+            isActiveTab((active) => {
+              if (active) { ensureSidebar(); openSidebar(); }
+            });
+          }
+        });
         // Show Now Watching bar — read document.title directly
         {
           const bar = shadowRoot?.getElementById('ctx-now-watching');

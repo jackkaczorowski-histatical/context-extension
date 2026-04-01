@@ -592,8 +592,13 @@ async function processNextTranscript() {
 
   try {
     // Fetch user profile and engagement history for analyze request
-    const storageData = await chrome.storage.local.get(['userProfile', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase', 'cardReactions', 'typeCalibration', 'difficultyProfile']);
-    const userProfile = storageData.userProfile || null;
+    const storageData = await chrome.storage.local.get(['userProfile', 'userSettings', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase', 'cardReactions', 'typeCalibration', 'difficultyProfile']);
+    const savedSettings = storageData.userSettings || {};
+    const userProfile = {
+      ...(storageData.userProfile || {}),
+      knowledgeLevel: savedSettings.knowledgeLevel || (storageData.userProfile && storageData.userProfile.knowledgeLevel) || 'intermediate',
+      interests: savedSettings.interests || (storageData.userProfile && storageData.userProfile.interests) || undefined,
+    };
 
     // Build taste profile from engagement history
     const likedCounts = {};

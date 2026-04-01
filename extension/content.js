@@ -350,21 +350,22 @@ if (window.__contextExtensionLoaded) {
     }
     .ctx-header-row1 {
       display: flex; align-items: center; justify-content: space-between;
-      height: 36px; padding: 0 8px;
+      height: 40px; padding: 0 10px 0 12px;
     }
     .ctx-header-row1-left { display: flex; align-items: center; gap: 8px; }
     .ctx-header-row1-right { display: flex; align-items: center; gap: 6px; }
     .ctx-header-row2 {
       display: flex; align-items: center; justify-content: flex-end;
-      height: 28px; padding: 0 8px; gap: 4px;
+      height: 28px; padding: 0 6px; gap: 2px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       position: relative;
     }
     .ctx-toolbar-btn {
-      background: none; border: none; color: #64748b; font-size: 16px;
-      cursor: pointer; padding: 0; width: 20px; height: 20px;
-      display: inline-flex; align-items: center; justify-content: center;
-      line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
+      background: none; border: none; color: #4a4a6a; font-size: 10px;
+      font-family: inherit; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; cursor: pointer; padding: 4px 6px;
+      line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 3px;
+      white-space: nowrap;
     }
     .ctx-toolbar-btn:hover { color: #e0e0f0; }
     .ctx-toolbar-btn.active { color: #14b8a6; }
@@ -375,20 +376,7 @@ if (window.__contextExtensionLoaded) {
       animation: ctx-pulse 2s ease-in-out infinite;
     }
     .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
-    .ctx-export-btn {
-      background: none; border: none; color: #64748b; font-size: 16px;
-      cursor: pointer; padding: 0; width: 20px; height: 20px;
-      display: inline-flex; align-items: center; justify-content: center;
-      line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
-      position: relative;
-    }
-    .ctx-export-btn:hover { color: #e0e0f0; }
-    .ctx-clear-btn {
-      background: none; border: none; color: #64748b; font-size: 16px;
-      cursor: pointer; padding: 0; width: 20px; height: 20px;
-      display: inline-flex; align-items: center; justify-content: center;
-      line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
-    }
+    .ctx-export-btn { position: relative; }
     .ctx-clear-btn:hover { color: #ef4444; }
     .ctx-close-btn {
       background: none; border: none; color: #64748b; font-size: 18px;
@@ -712,14 +700,15 @@ if (window.__contextExtensionLoaded) {
 
     /* ─── Listen button ─── */
     #ctx-listen-btn {
-      background: #00e676; color: #0a0a14; border: none; border-radius: 50%;
-      width: 28px; height: 28px; font-size: 12px; font-weight: 600; cursor: pointer;
+      background: #00e676; color: white; border: none; border-radius: 50%;
+      width: 32px; height: 32px; font-size: 14px; font-weight: 600; cursor: pointer;
       transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
       flex-shrink: 0; padding: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
     #ctx-listen-btn:hover { background: #00c853; }
-    #ctx-listen-btn.listening { background: #ff5252; color: white; }
-    #ctx-listen-btn.listening:hover { background: #ff1744; }
+    #ctx-listen-btn.listening { background: #ef4444; }
+    #ctx-listen-btn.listening:hover { background: #dc2626; }
 
     /* ─── Preview card ─── */
     .ctx-preview-card {
@@ -797,11 +786,8 @@ if (window.__contextExtensionLoaded) {
     .light-theme #header { background: #f5f5f8; }
     .light-theme .ctx-header-row2 { border-bottom-color: rgba(0,0,0,0.08); }
     .light-theme .ctx-wordmark { color: #1a1a2e; }
-    .light-theme .ctx-toolbar-btn { color: #9a9ab0; }
+    .light-theme .ctx-toolbar-btn { color: #8a8aa0; }
     .light-theme .ctx-toolbar-btn:hover { color: #333; }
-    .light-theme .ctx-export-btn { color: #9a9ab0; }
-    .light-theme .ctx-export-btn:hover { color: #5a5a70; }
-    .light-theme .ctx-clear-btn { color: #9a9ab0; }
     .light-theme .ctx-clear-btn:hover { color: #ff5252; }
     .light-theme .ctx-close-btn { color: #9a9ab0; }
     .light-theme .ctx-close-btn:hover { color: #333; }
@@ -860,7 +846,7 @@ if (window.__contextExtensionLoaded) {
     .light-theme .insight-text { color: #1a1a2e; }
     .light-theme .insight-detail { color: #5a5a7a; }
     .light-theme .feedback-msg { color: #9a9ab0; }
-    .light-theme #ctx-listen-btn { background: #059669; color: white; }
+    .light-theme #ctx-listen-btn { background: #059669; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     .light-theme #ctx-listen-btn:hover { background: #047857; }
     .light-theme #ctx-listen-btn.listening { background: #dc2626; }
     .light-theme .kb-matches-toggle { color: #8a8aa0; }
@@ -2611,15 +2597,15 @@ if (window.__contextExtensionLoaded) {
           </div>
         </div>
         <div class="ctx-header-row1-right">
-          <button id="ctx-listen-btn" title="Start Listening">&#x25CF;</button>
+          <button id="ctx-listen-btn" title="Start Listening">&#x25B6;</button>
           <button class="ctx-close-btn" title="Close sidebar">&times;</button>
         </div>
       </div>
       <div class="ctx-header-row2">
-        <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">&#x1F5D1;</button>
-        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
-        <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">&#x1F550;</button>
-        <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">&#x2699;</button>
+        <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">CLEAR</button>
+        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">EXPORT<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
+        <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">HISTORY</button>
+        <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">SETTINGS</button>
       </div>
     `;
 
@@ -2639,7 +2625,7 @@ if (window.__contextExtensionLoaded) {
     // Sync listen button state on sidebar open
     chrome.storage.local.get('capturing', (data) => {
       if (data.capturing) {
-        listenBtn.textContent = '\u25A0';
+        listenBtn.textContent = '\u25A0'; listenBtn.title = 'Stop Recording';
         listenBtn.classList.add('listening');
       }
     });
@@ -3503,7 +3489,7 @@ if (window.__contextExtensionLoaded) {
       if (data.capturing) {
         const btn = shadowRoot.getElementById('ctx-listen-btn');
         if (btn) {
-          btn.textContent = '\u25A0';
+          btn.textContent = '\u25A0'; btn.title = 'Stop Recording';
           btn.classList.add('listening');
         }
       }
@@ -4106,7 +4092,7 @@ if (window.__contextExtensionLoaded) {
       if (changes.capturing.newValue === true) {
         ensureBadge();
         setBadgeCapturing(true, false);
-        if (btn) { btn.textContent = '\u25A0'; btn.classList.add('listening'); }
+        if (btn) { btn.textContent = '\u25A0'; btn.title = 'Stop Recording'; btn.classList.add('listening'); }
         // Auto-open sidebar on capture start if enabled
         chrome.storage.local.get('userSettings', (data) => {
           const us = data.userSettings || {};
@@ -4129,7 +4115,7 @@ if (window.__contextExtensionLoaded) {
         }
       } else if (changes.capturing.newValue === false) {
         setBadgeCapturing(false, false);
-        if (btn) { btn.textContent = '\u25CF'; btn.classList.remove('listening'); }
+        if (btn) { btn.textContent = '\u25B6'; btn.title = 'Start Listening'; btn.classList.remove('listening'); }
         // Hide Now Watching bar
         const nwBar = shadowRoot?.getElementById('ctx-now-watching');
         if (nwBar) nwBar.style.display = 'none';
@@ -4491,10 +4477,10 @@ if (window.__contextExtensionLoaded) {
       const btn = shadowRoot?.getElementById('ctx-listen-btn');
       if (btn) {
         if (msg.capturing) {
-          btn.textContent = '\u25A0';
+          btn.textContent = '\u25A0'; btn.title = 'Stop Recording';
           btn.classList.add('listening');
         } else {
-          btn.textContent = '\u25CF';
+          btn.textContent = '\u25B6'; btn.title = 'Start Listening';
           btn.classList.remove('listening');
         }
       }

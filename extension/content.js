@@ -933,6 +933,53 @@ if (window.__contextExtensionLoaded) {
       white-space: nowrap;
       flex: 1;
     }
+
+    /* ─── Onboarding overlay ─── */
+    .ctx-onboarding {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: #12121c; z-index: 100;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 24px; text-align: center;
+    }
+    .ctx-onboarding-title {
+      font-size: 18px; font-weight: 700; color: #e0e0f0;
+      margin-bottom: 16px; line-height: 1.3;
+    }
+    .ctx-onboarding-body {
+      font-size: 13px; color: #94a3b8; line-height: 1.6;
+      margin-bottom: 24px; max-width: 220px;
+    }
+    .ctx-onboarding-body ol {
+      text-align: left; padding-left: 18px; margin: 0;
+    }
+    .ctx-onboarding-body ol li {
+      margin-bottom: 6px;
+    }
+    .ctx-onboarding-link {
+      display: inline-block; font-size: 11px; color: #14b8a6;
+      text-decoration: underline; margin-bottom: 20px; cursor: pointer;
+    }
+    .ctx-onboarding-link:hover { color: #2dd4bf; }
+    .ctx-onboarding-btn {
+      background: #14b8a6; color: #0a0a14; border: none; border-radius: 8px;
+      padding: 10px 24px; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background 0.15s; font-family: inherit;
+    }
+    .ctx-onboarding-btn:hover { background: #0d9488; }
+    .ctx-onboarding-dots {
+      display: flex; gap: 8px; margin-top: 28px;
+    }
+    .ctx-onboarding-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #3a3a5a; transition: background 0.2s;
+    }
+    .ctx-onboarding-dot.active { background: #14b8a6; }
+    .light-theme .ctx-onboarding { background: #f5f5f8; }
+    .light-theme .ctx-onboarding-title { color: #1a1a2e; }
+    .light-theme .ctx-onboarding-body { color: #64748b; }
+    .light-theme .ctx-onboarding-btn { color: #fff; }
+    .light-theme .ctx-onboarding-dot { background: #cbd5e1; }
+    .light-theme .ctx-onboarding-dot.active { background: #14b8a6; }
   `;
 
   const BADGE_CSS = `
@@ -1177,6 +1224,82 @@ if (window.__contextExtensionLoaded) {
     }
   }
 
+  function showOnboarding(sidebar) {
+    const steps = [
+      {
+        title: 'Context Listener',
+        body: 'Real-time contextual intelligence for any audio on the web. Entities, insights, and stock data \u2014 extracted live as you watch or listen.',
+        btn: 'Get Started \u2192'
+      },
+      {
+        title: 'How it works',
+        body: '<ol><li>Open any video, podcast, or live stream</li><li>Click Start to begin capturing audio</li><li>Watch as entities and insights appear in real-time</li></ol>',
+        btn: 'Next \u2192'
+      },
+      {
+        title: 'Your privacy',
+        body: 'Audio is processed by Deepgram for transcription and Anthropic for entity extraction. No audio or transcripts are stored on any server. All data stays in your browser\u2019s local storage. You can clear everything anytime.',
+        btn: 'I understand, let\u2019s go \u2192',
+        link: { text: 'Read full privacy policy', href: 'https://context-extension-zv8d.vercel.app/privacy' }
+      }
+    ];
+
+    let current = 0;
+    const overlay = document.createElement('div');
+    overlay.className = 'ctx-onboarding';
+
+    function render() {
+      const step = steps[current];
+      overlay.innerHTML = '';
+
+      const title = document.createElement('div');
+      title.className = 'ctx-onboarding-title';
+      title.textContent = step.title;
+      overlay.appendChild(title);
+
+      const body = document.createElement('div');
+      body.className = 'ctx-onboarding-body';
+      body.innerHTML = step.body;
+      overlay.appendChild(body);
+
+      if (step.link) {
+        const link = document.createElement('a');
+        link.className = 'ctx-onboarding-link';
+        link.textContent = step.link.text;
+        link.href = step.link.href;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        overlay.appendChild(link);
+      }
+
+      const btn = document.createElement('button');
+      btn.className = 'ctx-onboarding-btn';
+      btn.textContent = step.btn;
+      btn.addEventListener('click', () => {
+        if (current < steps.length - 1) {
+          current++;
+          render();
+        } else {
+          chrome.storage.local.set({ onboardingComplete: true });
+          overlay.remove();
+        }
+      });
+      overlay.appendChild(btn);
+
+      const dots = document.createElement('div');
+      dots.className = 'ctx-onboarding-dots';
+      for (let i = 0; i < steps.length; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'ctx-onboarding-dot' + (i === current ? ' active' : '');
+        dots.appendChild(dot);
+      }
+      overlay.appendChild(dots);
+    }
+
+    render();
+    sidebar.appendChild(overlay);
+  }
+
   function openSidebar() {
     if (!hostEl) return;
     hostEl.dataset.open = 'true';
@@ -1189,6 +1312,15 @@ if (window.__contextExtensionLoaded) {
       sidebar.dataset.pos = settings.sidebarPosition || 'right';
       sidebar.offsetHeight; // force reflow
       sidebar.classList.add('open');
+
+      // Show onboarding on first run
+      if (!sidebar.querySelector('.ctx-onboarding')) {
+        chrome.storage.local.get('onboardingComplete', (data) => {
+          if (!data.onboardingComplete) {
+            showOnboarding(sidebar);
+          }
+        });
+      }
     }
     chrome.storage.local.set({ sidebarOpen: true });
   }

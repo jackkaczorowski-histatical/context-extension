@@ -8,17 +8,23 @@
     "activeTab",
     "scripting",
     "storage",
-    "offscreen"
+    "offscreen",
+    "identity"
   ],
   "host_permissions": [
     "https://context-extension-zv8d.vercel.app/*",
     "wss://api.deepgram.com/*",
+    "https://www.googleapis.com/*",
     "*://*.youtube.com/*",
     "*://*.spotify.com/*",
     "*://*.udemy.com/*",
     "*://*.soundcloud.com/*",
     "*://*.podcasts.google.com/*"
   ],
+  "oauth2": {
+    "client_id": "PLACEHOLDER_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": ["openid", "email", "profile"]
+  },
   "background": {
     "service_worker": "background.js"
   },

@@ -393,6 +393,62 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: true });
       }
     });
+  } else if (message.type === 'GOOGLE_SIGN_IN') {
+    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+      if (chrome.runtime.lastError) {
+        console.error('[BACKGROUND] Google sign-in failed:', chrome.runtime.lastError.message);
+        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_ERROR', error: chrome.runtime.lastError.message }).catch(() => {});
+        return;
+      }
+      fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + token }
+      })
+      .then(r => r.json())
+      .then(async (userInfo) => {
+        const user = {
+          id: userInfo.sub,
+          email: userInfo.email,
+          name: userInfo.name,
+          picture: userInfo.picture,
+          token: token,
+          signedInAt: Date.now(),
+          plan: 'free'
+        };
+        chrome.storage.local.set({ user });
+        console.log('[BACKGROUND] Google sign-in success:', user.email);
+        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_SUCCESS', user }).catch(() => {});
+        // Sync with backend
+        try {
+          const installData = await chrome.storage.local.get('installId');
+          await fetch(`${API_BASE}/auth-sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              googleId: userInfo.sub,
+              email: userInfo.email,
+              name: userInfo.name,
+              picture: userInfo.picture,
+              installId: installData.installId || null
+            })
+          });
+        } catch (e) {
+          console.error('[BACKGROUND] Auth sync failed:', e.message);
+        }
+      })
+      .catch(err => {
+        console.error('[BACKGROUND] Google userinfo fetch failed:', err.message);
+        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_ERROR', error: err.message }).catch(() => {});
+      });
+    });
+  } else if (message.type === 'GOOGLE_SIGN_OUT') {
+    chrome.storage.local.get('user', (data) => {
+      if (data.user?.token) {
+        chrome.identity.removeCachedAuthToken({ token: data.user.token }, () => {});
+      }
+      chrome.storage.local.remove('user');
+      console.log('[BACKGROUND] User signed out');
+      if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_OUT_SUCCESS' }).catch(() => {});
+    });
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);

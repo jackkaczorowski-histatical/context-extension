@@ -345,13 +345,30 @@ if (window.__contextExtensionLoaded) {
     #sidebar[data-pos="left"] { transform: translateX(-100%); }
     #sidebar.open { transform: translateX(0) !important; }
     #header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 12px 12px 16px; background: #12121c;
-      border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
+      display: flex; flex-direction: column; background: #12121c; flex-shrink: 0;
       overflow: visible;
     }
-    .ctx-wordmark { font-size: 13px; font-weight: 600; color: #e0e0f0; letter-spacing: -0.01em; margin-right: 10px; }
-    .ctx-header-right { display: flex; align-items: center; gap: 4px; position: relative; }
+    .ctx-header-row1 {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 36px; padding: 0 8px;
+    }
+    .ctx-header-row1-left { display: flex; align-items: center; gap: 8px; }
+    .ctx-header-row1-right { display: flex; align-items: center; gap: 6px; }
+    .ctx-header-row2 {
+      display: flex; align-items: center; justify-content: flex-end;
+      height: 28px; padding: 0 8px; gap: 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .ctx-toolbar-btn {
+      background: none; border: none; color: #64748b; font-size: 16px;
+      cursor: pointer; padding: 0; width: 20px; height: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+      line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
+    }
+    .ctx-toolbar-btn:hover { color: #e0e0f0; }
+    .ctx-toolbar-btn.active { color: #14b8a6; }
+    .ctx-wordmark { font-size: 14px; font-weight: 700; color: #e0e0f0; letter-spacing: -0.01em; }
     .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
@@ -359,22 +376,23 @@ if (window.__contextExtensionLoaded) {
     }
     .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
     .ctx-export-btn {
-      background: none; border: none; color: #3a3a5a; font-size: 16px;
-      cursor: pointer; padding: 2px 6px; border-radius: 4px;
-      line-height: 1; transition: color 0.15s, background 0.15s;
+      background: none; border: none; color: #64748b; font-size: 16px;
+      cursor: pointer; padding: 0; width: 20px; height: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+      line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
       position: relative;
     }
-    .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
-    .ctx-export-btn { font-size: 13px; }
+    .ctx-export-btn:hover { color: #e0e0f0; }
     .ctx-clear-btn {
-      background: none; border: none; color: #64748b; font-size: 14px;
-      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s, background 0.15s;
-      flex-shrink: 0;
+      background: none; border: none; color: #64748b; font-size: 16px;
+      cursor: pointer; padding: 0; width: 20px; height: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+      line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
     }
-    .ctx-clear-btn:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
+    .ctx-clear-btn:hover { color: #ef4444; }
     .ctx-close-btn {
       background: none; border: none; color: #64748b; font-size: 18px;
-      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
+      cursor: pointer; padding: 0 2px; line-height: 1; transition: color 0.15s;
       flex-shrink: 0;
     }
     .ctx-close-btn:hover { color: #f8fafc; }
@@ -695,7 +713,7 @@ if (window.__contextExtensionLoaded) {
     /* ─── Listen button ─── */
     #ctx-listen-btn {
       background: #00e676; color: #0a0a14; border: none; border-radius: 50%;
-      width: 22px; height: 22px; font-size: 10px; font-weight: 600; cursor: pointer;
+      width: 28px; height: 28px; font-size: 12px; font-weight: 600; cursor: pointer;
       transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
       flex-shrink: 0; padding: 0;
     }
@@ -776,12 +794,15 @@ if (window.__contextExtensionLoaded) {
 
     /* ─── Light theme overrides ─── */
     #sidebar.light-theme { background: #f5f5f8; color: #1a1a2e; }
-    .light-theme #header { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.1); }
+    .light-theme #header { background: #f5f5f8; }
+    .light-theme .ctx-header-row2 { border-bottom-color: rgba(0,0,0,0.08); }
     .light-theme .ctx-wordmark { color: #1a1a2e; }
+    .light-theme .ctx-toolbar-btn { color: #9a9ab0; }
+    .light-theme .ctx-toolbar-btn:hover { color: #333; }
     .light-theme .ctx-export-btn { color: #9a9ab0; }
-    .light-theme .ctx-export-btn:hover { color: #5a5a70; background: rgba(0,0,0,0.05); }
+    .light-theme .ctx-export-btn:hover { color: #5a5a70; }
     .light-theme .ctx-clear-btn { color: #9a9ab0; }
-    .light-theme .ctx-clear-btn:hover { color: #ff5252; background: rgba(255,82,82,0.06); }
+    .light-theme .ctx-clear-btn:hover { color: #ff5252; }
     .light-theme .ctx-close-btn { color: #9a9ab0; }
     .light-theme .ctx-close-btn:hover { color: #333; }
     .light-theme .ctx-clear-confirm { background: #f5f5f8; }
@@ -1003,15 +1024,7 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-onboarding-dot.active { background: #14b8a6; }
 
     /* ─── Settings panel ─── */
-    .ctx-settings-btn {
-      background: none; border: none; color: #64748b; font-size: 14px;
-      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
-      flex-shrink: 0;
-    }
-    .ctx-settings-btn:hover { color: #f8fafc; }
     .ctx-settings-btn.active { color: #14b8a6; }
-    .light-theme .ctx-settings-btn { color: #9a9ab0; }
-    .light-theme .ctx-settings-btn:hover { color: #333; }
     .light-theme .ctx-settings-btn.active { color: #14b8a6; }
     .ctx-settings-panel {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -1096,15 +1109,7 @@ if (window.__contextExtensionLoaded) {
     #cards.hide-insights .context-card.insight-card { display: none; }
 
     /* ─── History panel ─── */
-    .ctx-history-btn {
-      background: none; border: none; color: #64748b; font-size: 14px;
-      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
-      flex-shrink: 0;
-    }
-    .ctx-history-btn:hover { color: #f8fafc; }
     .ctx-history-btn.active { color: #14b8a6; }
-    .light-theme .ctx-history-btn { color: #9a9ab0; }
-    .light-theme .ctx-history-btn:hover { color: #333; }
     .light-theme .ctx-history-btn.active { color: #14b8a6; }
     .ctx-history-panel {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -2597,18 +2602,24 @@ if (window.__contextExtensionLoaded) {
     const header = document.createElement('div');
     header.id = 'header';
     header.innerHTML = `
-      <span class="ctx-wordmark">context</span>
-      <div class="ctx-header-right">
-        <div class="ctx-live">
-          <span class="ctx-live-dot"></span>
-          <span class="ctx-live-text">Live</span>
+      <div class="ctx-header-row1">
+        <div class="ctx-header-row1-left">
+          <span class="ctx-wordmark">context</span>
+          <div class="ctx-live">
+            <span class="ctx-live-dot"></span>
+            <span class="ctx-live-text">Live</span>
+          </div>
         </div>
-        <button id="ctx-listen-btn" title="Start Listening">&#x25CF;</button>
-        <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1;</button>
-        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
-        <button class="ctx-history-btn" title="Session history">&#x1F550;</button>
-        <button class="ctx-settings-btn" title="Settings">&#x2699;</button>
-        <button class="ctx-close-btn" title="Close sidebar">&times;</button>
+        <div class="ctx-header-row1-right">
+          <button id="ctx-listen-btn" title="Start Listening">&#x25CF;</button>
+          <button class="ctx-close-btn" title="Close sidebar">&times;</button>
+        </div>
+      </div>
+      <div class="ctx-header-row2">
+        <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">&#x1F5D1;</button>
+        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
+        <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">&#x1F550;</button>
+        <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">&#x2699;</button>
       </div>
     `;
 
@@ -2635,7 +2646,7 @@ if (window.__contextExtensionLoaded) {
 
     // Wire up clear button with inline confirmation
     const clearBtn = header.querySelector('.ctx-clear-btn');
-    const headerRight = header.querySelector('.ctx-header-right');
+    const headerRow2 = header.querySelector('.ctx-header-row2');
     let clearTimer = null;
     clearBtn.addEventListener('click', () => {
       if (clearBtn.dataset.confirming === 'true') return;
@@ -2651,7 +2662,7 @@ if (window.__contextExtensionLoaded) {
       noBtn.textContent = 'No';
       confirm.appendChild(yesBtn);
       confirm.appendChild(noBtn);
-      headerRight.appendChild(confirm);
+      headerRow2.appendChild(confirm);
       function revert() {
         if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
         confirm.remove();

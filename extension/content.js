@@ -355,7 +355,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-header-row1-left { display: flex; align-items: center; gap: 8px; }
     .ctx-header-row1-right { display: flex; align-items: center; gap: 6px; }
     .ctx-header-row2 {
-      display: flex; align-items: center; justify-content: flex-end;
+      display: flex; align-items: center; justify-content: center;
       height: 28px; padding: 0 6px; gap: 2px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       position: relative;

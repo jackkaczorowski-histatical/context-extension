@@ -62,6 +62,7 @@ if (window.__contextExtensionLoaded) {
   let lastRenderedTerm = '';
   let mySessionId = null;
   let currentlyExpandedCard = null;
+  let transcriptAutoScroll = true;
   const isYouTubeSite = window.location.hostname.includes('youtube.com');
 
   const TYPE_COLORS = {
@@ -1185,6 +1186,77 @@ if (window.__contextExtensionLoaded) {
       cursor: pointer; font-family: inherit; opacity: 0.7; transition: opacity 0.15s;
     }
     .ctx-history-clear-link:hover { opacity: 1; }
+
+    /* ─── View tabs (Cards / Transcript) ─── */
+    .ctx-view-tabs {
+      display: flex; flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: #12121c;
+    }
+    .light-theme .ctx-view-tabs { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.08); }
+    .ctx-view-tab {
+      flex: 1; padding: 8px 0; background: none; border: none;
+      border-bottom: 2px solid transparent;
+      color: #64748b; font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      text-align: center;
+    }
+    .ctx-view-tab:hover { color: #94a3b8; }
+    .ctx-view-tab.active { color: #14b8a6; border-bottom-color: #14b8a6; }
+    .light-theme .ctx-view-tab { color: #94a3b8; }
+    .light-theme .ctx-view-tab:hover { color: #64748b; }
+    .light-theme .ctx-view-tab.active { color: #0d9488; border-bottom-color: #0d9488; }
+
+    /* ─── Transcript view ─── */
+    .ctx-transcript-view {
+      display: none; flex-direction: column; flex: 1; overflow: hidden;
+    }
+    .ctx-transcript-view.active { display: flex; }
+    .ctx-cards-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .ctx-cards-wrap.hidden { display: none; }
+    .ctx-transcript-scroll {
+      flex: 1; overflow-y: auto; padding: 12px 16px;
+      font-size: 12px; line-height: 1.6; color: #e0e0f0;
+    }
+    .ctx-transcript-scroll::-webkit-scrollbar { width: 4px; }
+    .ctx-transcript-scroll::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 2px; }
+    .light-theme .ctx-transcript-scroll { color: #1a1a2e; }
+    .light-theme .ctx-transcript-scroll::-webkit-scrollbar-thumb { background: #d0d0e0; }
+    .ctx-transcript-chunk {
+      margin-bottom: 8px;
+    }
+    .ctx-transcript-time {
+      font-size: 10px; color: #4a4a6a; font-weight: 500; margin-right: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .light-theme .ctx-transcript-time { color: #94a3b8; }
+    .ctx-transcript-text {
+      color: #c8c8e0;
+    }
+    .light-theme .ctx-transcript-text { color: #374151; }
+    .ctx-transcript-highlight {
+      border-radius: 2px; padding: 0 1px;
+      font-weight: 600;
+    }
+    .ctx-transcript-empty {
+      text-align: center; color: #4a4a6a; padding: 40px 16px; font-size: 12px;
+    }
+    .light-theme .ctx-transcript-empty { color: #94a3b8; }
+    .ctx-transcript-footer {
+      flex-shrink: 0; padding: 8px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: #12121c;
+    }
+    .light-theme .ctx-transcript-footer { background: #f5f5f8; border-top-color: rgba(0,0,0,0.06); }
+    .ctx-transcript-copy {
+      width: 100%; padding: 7px 0; border-radius: 6px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+      color: #94a3b8; font-size: 11px; font-weight: 500;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .ctx-transcript-copy:hover { background: rgba(255,255,255,0.1); color: #e0e0f0; }
+    .light-theme .ctx-transcript-copy { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); color: #64748b; }
+    .light-theme .ctx-transcript-copy:hover { background: rgba(0,0,0,0.08); color: #1a1a2e; }
   `;
 
   const BADGE_CSS = `
@@ -2670,9 +2742,28 @@ if (window.__contextExtensionLoaded) {
       }
     });
 
-    // Tab bar (hidden — single Live view)
-    const tabBar = document.createElement('div');
-    tabBar.className = 'ctx-tab-bar';
+    // View tabs (Cards / Transcript)
+    const viewTabs = document.createElement('div');
+    viewTabs.className = 'ctx-view-tabs';
+    const cardsTab = document.createElement('button');
+    cardsTab.className = 'ctx-view-tab active';
+    cardsTab.textContent = 'Cards';
+    const transcriptTab = document.createElement('button');
+    transcriptTab.className = 'ctx-view-tab';
+    transcriptTab.textContent = 'Transcript';
+    viewTabs.appendChild(cardsTab);
+    viewTabs.appendChild(transcriptTab);
+
+    let activeView = 'cards';
+    function switchView(view) {
+      activeView = view;
+      cardsTab.classList.toggle('active', view === 'cards');
+      transcriptTab.classList.toggle('active', view === 'transcript');
+      cardsWrap.classList.toggle('hidden', view !== 'cards');
+      transcriptView.classList.toggle('active', view === 'transcript');
+    }
+    cardsTab.addEventListener('click', () => switchView('cards'));
+    transcriptTab.addEventListener('click', () => switchView('transcript'));
 
     function addToNotes() { /* no-op — Notes tab removed */ }
 
@@ -2829,9 +2920,13 @@ if (window.__contextExtensionLoaded) {
 
     sidebar.appendChild(header);
     sidebar.appendChild(transcriptStrip);
-    sidebar.appendChild(tabBar);
-    sidebar.appendChild(listeningIndicator);
-    sidebar.appendChild(emptyState);
+    sidebar.appendChild(viewTabs);
+
+    // Cards wrap — contains all cards-view elements
+    const cardsWrap = document.createElement('div');
+    cardsWrap.className = 'ctx-cards-wrap';
+    cardsWrap.appendChild(listeningIndicator);
+    cardsWrap.appendChild(emptyState);
 
     // Pinned "Now Watching" bar
     const nowWatchingBar = document.createElement('div');
@@ -2839,7 +2934,7 @@ if (window.__contextExtensionLoaded) {
     nowWatchingBar.className = 'ctx-now-watching';
     nowWatchingBar.style.display = 'none';
     nowWatchingBar.innerHTML = `<span class="ctx-now-watching-label">NOW WATCHING</span><span class="ctx-now-watching-title"></span>`;
-    sidebar.appendChild(nowWatchingBar);
+    cardsWrap.appendChild(nowWatchingBar);
 
     // Filter bar
     const filterBar = document.createElement('div');
@@ -2860,12 +2955,42 @@ if (window.__contextExtensionLoaded) {
     });
     filterBar.appendChild(hideKnownBtn);
     filterBar.appendChild(starredOnlyBtn);
-    sidebar.appendChild(filterBar);
+    cardsWrap.appendChild(filterBar);
 
-    sidebar.appendChild(cardContainer);
-    sidebar.appendChild(askResponse);
-    sidebar.appendChild(suggestionsBar);
-    sidebar.appendChild(askBar);
+    cardsWrap.appendChild(cardContainer);
+    cardsWrap.appendChild(askResponse);
+    cardsWrap.appendChild(suggestionsBar);
+    cardsWrap.appendChild(askBar);
+    sidebar.appendChild(cardsWrap);
+
+    // ─── Transcript view ───
+    const transcriptView = document.createElement('div');
+    transcriptView.className = 'ctx-transcript-view';
+    const transcriptScroll = document.createElement('div');
+    transcriptScroll.className = 'ctx-transcript-scroll';
+    transcriptScroll.innerHTML = '<div class="ctx-transcript-empty">Transcript will appear here when audio is captured.</div>';
+    transcriptAutoScroll = true;
+    transcriptScroll.addEventListener('scroll', () => {
+      const atBottom = transcriptScroll.scrollHeight - transcriptScroll.scrollTop - transcriptScroll.clientHeight < 40;
+      transcriptAutoScroll = atBottom;
+    });
+    const transcriptFooter = document.createElement('div');
+    transcriptFooter.className = 'ctx-transcript-footer';
+    const transcriptCopyBtn = document.createElement('button');
+    transcriptCopyBtn.className = 'ctx-transcript-copy';
+    transcriptCopyBtn.textContent = 'Copy transcript';
+    transcriptCopyBtn.addEventListener('click', () => {
+      const chunks = transcriptScroll.querySelectorAll('.ctx-transcript-text');
+      const plain = Array.from(chunks).map(el => el.textContent).join(' ');
+      copyToClipboard(plain).then(() => {
+        transcriptCopyBtn.textContent = 'Copied!';
+        setTimeout(() => { transcriptCopyBtn.textContent = 'Copy transcript'; }, 1500);
+      });
+    });
+    transcriptFooter.appendChild(transcriptCopyBtn);
+    transcriptView.appendChild(transcriptScroll);
+    transcriptView.appendChild(transcriptFooter);
+    sidebar.appendChild(transcriptView);
 
     // ─── Settings panel ───
     const ALL_INTERESTS = ['Finance & Economics', 'History & Culture', 'Politics & Law', 'Science & Technology', 'Business & Markets', 'Arts & Society', 'Sports', 'Cooking & Food'];
@@ -4006,6 +4131,52 @@ if (window.__contextExtensionLoaded) {
           btn.classList.remove('listening');
         }
       }
+    } else if (msg.type === 'TRANSCRIPT_TEXT') {
+      if (!shadowRoot) return;
+      const scroll = shadowRoot.querySelector('.ctx-transcript-scroll');
+      if (!scroll) return;
+      // Clear empty state on first chunk
+      const empty = scroll.querySelector('.ctx-transcript-empty');
+      if (empty) empty.remove();
+      const chunk = document.createElement('div');
+      chunk.className = 'ctx-transcript-chunk';
+      const d = new Date(msg.timestamp);
+      const timeStr = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'ctx-transcript-time';
+      timeSpan.textContent = timeStr;
+      const textSpan = document.createElement('span');
+      textSpan.className = 'ctx-transcript-text';
+      textSpan.textContent = msg.text;
+      chunk.appendChild(timeSpan);
+      chunk.appendChild(textSpan);
+      scroll.appendChild(chunk);
+      if (transcriptAutoScroll) {
+        scroll.scrollTop = scroll.scrollHeight;
+      }
+    } else if (msg.type === 'TRANSCRIPT_HIGHLIGHT') {
+      if (!shadowRoot) return;
+      const scroll = shadowRoot.querySelector('.ctx-transcript-scroll');
+      if (!scroll) return;
+      const terms = msg.terms || [];
+      // Highlight in the last few transcript chunks (most recent text)
+      const chunks = scroll.querySelectorAll('.ctx-transcript-chunk');
+      const recent = Array.from(chunks).slice(-5);
+      terms.forEach(({ term, type }) => {
+        if (!term) return;
+        const color = getTypeColor(type);
+        recent.forEach(chunk => {
+          const textSpan = chunk.querySelector('.ctx-transcript-text');
+          if (!textSpan) return;
+          const html = textSpan.innerHTML;
+          const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp('\\b(' + escaped + ')\\b', 'gi');
+          const newHtml = html.replace(regex, '<span class="ctx-transcript-highlight" style="color:' + color + ';background:' + color + '15;">$1</span>');
+          if (newHtml !== html) {
+            textSpan.innerHTML = newHtml;
+          }
+        });
+      });
     }
   });
 

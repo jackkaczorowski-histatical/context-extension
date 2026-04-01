@@ -396,6 +396,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!transcriptBuffer) bufferStartTime = Date.now();
     transcriptBuffer += (transcriptBuffer ? ' ' : '') + message.transcript;
     sessionTranscript += (sessionTranscript ? ' ' : '') + message.transcript;
+    // Forward raw transcript text to content script for live transcript view
+    if (capturingTabId) {
+      chrome.tabs.sendMessage(capturingTabId, { type: 'TRANSCRIPT_TEXT', text: message.transcript, timestamp: Date.now() }).catch(() => {});
+    }
     const now = Date.now();
     if (now - lastTranscriptSave > 5000) {
       lastTranscriptSave = now;
@@ -945,6 +949,11 @@ async function processNextTranscript() {
       history = history.slice(history.length - MAX_SESSION_HISTORY);
     }
     await chrome.storage.local.set({ pendingEntities: enrichedEntities, pendingInsights: dedupedInsights, pendingTimestamp: Date.now(), pendingSessionId: sessionId, sessionHistory: history });
+    // Send extracted entity terms to content script for transcript highlighting
+    if (capturingTabId && enrichedEntities.length > 0) {
+      const highlightTerms = enrichedEntities.map(e => ({ term: e.term || e.name || '', type: e.type || 'concept' })).filter(e => e.term);
+      chrome.tabs.sendMessage(capturingTabId, { type: 'TRANSCRIPT_HIGHLIGHT', terms: highlightTerms }).catch(() => {});
+    }
     incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
     sessionTotal += enrichedEntities.length + dedupedInsights.length;
     console.log('[BACKGROUND] Saved to storage, session total:', sessionTotal);

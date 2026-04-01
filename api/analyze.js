@@ -59,14 +59,6 @@ function correctEntities(parsed) {
       if (TYPE_OVERRIDES[typeKey]) {
         entity.type = TYPE_OVERRIDES[typeKey];
       }
-      // Place detection fallback — catch locations by description keywords
-      if (entity.type !== 'place' && entity.type !== 'person' && entity.type !== 'stock' && entity.description) {
-        const descLower = entity.description.toLowerCase();
-        const placeWords = ['palace', 'fortress', 'city', 'island', 'country', 'building', 'landmark', 'waterway', 'strait', 'gulf', 'river', 'mountain', 'castle', 'cathedral', 'temple', 'church', 'port', 'harbor', 'bridge', 'monument', 'tower', 'capital', 'province', 'region', 'territory', 'peninsula', 'continent', 'ocean', 'sea', 'lake', 'canal', 'plaza', 'square', 'district', 'neighborhood', 'colony', 'empire'];
-        if (placeWords.some(w => descLower.includes(w))) {
-          entity.type = 'place';
-        }
-      }
     });
   }
   if (Array.isArray(parsed.insights)) {

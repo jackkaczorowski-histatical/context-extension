@@ -4,6 +4,8 @@ const cors = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+const { rateLimit } = require('./_rateLimit');
+
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.writeHead(204, cors);
@@ -12,6 +14,12 @@ module.exports = async function handler(req, res) {
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const clientId = req.body?.installId || req.headers['x-forwarded-for'] || 'unknown';
+  if (!rateLimit(clientId, 10, 60000)) {
+    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(429).json({ error: 'Rate limited', retry: true });
   }
 
   const { question, sessionTranscript, videoTitle, sessionEntities, sessionInsights } = req.body || {};

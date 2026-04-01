@@ -41,11 +41,18 @@ async function fetchChart1D(ticker) {
   return meta;
 }
 
+const { rateLimit } = require('./_rateLimit');
+
 module.exports = async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
 
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const clientId = req.body?.installId || req.headers['x-forwarded-for'] || 'unknown';
+  if (!rateLimit(clientId, 30, 60000)) {
+    return res.status(429).json({ error: 'Rate limited', retry: true });
+  }
 
   const { ticker } = req.body || {};
   if (!ticker) return res.status(400).json({ error: "Missing ticker" });

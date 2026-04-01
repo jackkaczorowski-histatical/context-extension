@@ -175,6 +175,8 @@ The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? `
 Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|place|stock|organization|ingredient", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "max 100 chars" }], "insights": [{ "insight": "short summary", "detail": "one sentence explanation, max 120 chars", "category": "technique|tip|why|tradeoff" }] }. Max 5 entities and 3 insights per chunk. Return { "entities": [], "insights": [] } when nothing qualifies. It is completely fine to return empty arrays.${buildCalibrationInstructions(typeCalibration)}${buildDifficultyInstructions(difficultyProfile)}`;
 }
 
+const { rateLimit } = require('./_rateLimit');
+
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.writeHead(204, cors);
@@ -183,6 +185,12 @@ module.exports = async function handler(req, res) {
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const clientId = req.body?.installId || req.headers['x-forwarded-for'] || 'unknown';
+  if (!rateLimit(clientId, 60, 60000)) {
+    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(429).json({ error: 'Rate limited', retry: true });
   }
 
   const { transcript, pageTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities, sessionContext, knownTerms, typeCalibration, difficultyProfile } = req.body || {};

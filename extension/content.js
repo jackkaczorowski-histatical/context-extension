@@ -593,6 +593,10 @@ if (window.__contextExtensionLoaded) {
     .ctx-filter-btn.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.3); }
     .filter-hide-known .context-card.card-dismissed { display: none; }
     .filter-starred-only .context-card:not(.card-highlighted) { display: none; }
+    .collapse-all .context-card:not(.insight-card) { }
+    .collapse-all .context-card:not(.insight-card) .card-expand-area { display: none; }
+    .collapse-all .context-card:not(.insight-card) .card-chevron { transform: rotate(0deg); }
+    .collapse-all .context-card:not(.insight-card).expanded .card-preview-text { display: inline; }
     .reaction-label {
       font-size: 9px; color: #4a4a6a; margin-top: 2px; text-align: center;
     }
@@ -2953,8 +2957,19 @@ if (window.__contextExtensionLoaded) {
       starredOnlyBtn.classList.toggle('active');
       cardContainer.classList.toggle('filter-starred-only');
     });
+    const collapseAllBtn = document.createElement('button');
+    collapseAllBtn.className = 'ctx-filter-btn';
+    collapseAllBtn.textContent = '\u25B2 Collapse';
+    let allCollapsed = false;
+    collapseAllBtn.addEventListener('click', () => {
+      allCollapsed = !allCollapsed;
+      collapseAllBtn.classList.toggle('active', allCollapsed);
+      collapseAllBtn.textContent = allCollapsed ? '\u25BC Expand' : '\u25B2 Collapse';
+      cardContainer.classList.toggle('collapse-all', allCollapsed);
+    });
     filterBar.appendChild(hideKnownBtn);
     filterBar.appendChild(starredOnlyBtn);
+    filterBar.appendChild(collapseAllBtn);
     cardsWrap.appendChild(filterBar);
 
     cardsWrap.appendChild(cardContainer);
@@ -4079,11 +4094,28 @@ if (window.__contextExtensionLoaded) {
     }
   }
 
-  // --- Keyboard shortcut: Ctrl+Shift+X to toggle sidebar ---
+  // --- Keyboard shortcuts ---
   document.addEventListener('keydown', (e) => {
+    // Ctrl+Shift+X — toggle sidebar (legacy)
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'X') {
       e.preventDefault();
       toggleSidebar();
+      return;
+    }
+    // Alt+Shift shortcuts
+    if (e.altKey && e.shiftKey) {
+      if (e.key === 'X' || e.code === 'KeyX') {
+        e.preventDefault();
+        toggleSidebar();
+      } else if (e.key === 'S' || e.code === 'KeyS') {
+        e.preventDefault();
+        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+      } else if (e.key === 'C' || e.code === 'KeyC') {
+        e.preventDefault();
+        if (!shadowRoot) return;
+        const clipboardBtn = shadowRoot.querySelector('[data-action="clipboard"]');
+        if (clipboardBtn) clipboardBtn.click();
+      }
     }
   });
 

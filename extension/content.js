@@ -3233,6 +3233,32 @@ if (window.__contextExtensionLoaded) {
       addToggle('Show insights', 'showInsights');
       settingsPanel.appendChild(s3);
 
+      // Section 4: Keyboard Shortcuts
+      const s4 = document.createElement('div');
+      s4.className = 'ctx-settings-section';
+      const s4Label = document.createElement('div');
+      s4Label.className = 'ctx-settings-label';
+      s4Label.textContent = 'Keyboard shortcuts';
+      s4.appendChild(s4Label);
+      [
+        ['Alt+Shift+X', 'Toggle sidebar'],
+        ['Alt+Shift+S', 'Start / stop capture'],
+        ['Alt+Shift+C', 'Copy study guide']
+      ].forEach(([combo, desc]) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;';
+        const kbd = document.createElement('span');
+        kbd.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:4px;padding:2px 6px;font-size:11px;color:#e0e0f0;font-family:monospace;';
+        kbd.textContent = combo;
+        const label = document.createElement('span');
+        label.style.cssText = 'font-size:11px;color:#64748b;';
+        label.textContent = desc;
+        row.appendChild(kbd);
+        row.appendChild(label);
+        s4.appendChild(row);
+      });
+      settingsPanel.appendChild(s4);
+
       // Done button
       const done = document.createElement('button');
       done.className = 'ctx-settings-done';

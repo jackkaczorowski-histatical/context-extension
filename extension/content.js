@@ -70,6 +70,7 @@ if (window.__contextExtensionLoaded) {
     people: '#22c55e',
     organization: '#a78bfa',
     event: '#38bdf8',
+    place: '#14b8a6',
     technique: '#ec4899',
     why: '#eab308',
     tradeoff: '#f97316',
@@ -556,6 +557,8 @@ if (window.__contextExtensionLoaded) {
     .stock-volume-inline { display: flex; align-items: baseline; gap: 4px; }
     .stock-volume-inline .stock-stat-label { font-size: 10px; color: #6a6a8a; }
     .stock-volume-inline .stock-stat-value { font-size: 12px; color: #c0c0d0; font-weight: 500; }
+    .stock-collapsed-price { font-size: 12px; font-weight: 600; color: #c0c0d0; margin-left: 4px; }
+    .card-term .stock-change { font-size: 11px; margin-left: 2px; }
     .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
     .stock-yahoo-link:hover { color: #818cf8; }
     .reaction-row {
@@ -739,11 +742,11 @@ if (window.__contextExtensionLoaded) {
     .ctx-ask-response::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 2px; }
     .ctx-ask-clear {
       position: absolute; top: 6px; right: 8px;
-      background: none; border: none; color: #3a3a5a; font-size: 10px;
+      background: none; border: none; color: #999; font-size: 12px;
       cursor: pointer; padding: 2px 4px; line-height: 1;
-      transition: color 0.15s;
+      transition: color 0.15s; z-index: 1;
     }
-    .ctx-ask-clear:hover { color: #8a8aaa; }
+    .ctx-ask-clear:hover { color: #ccc; }
     .ctx-ask-loading::after {
       content: ''; display: inline-block; width: 4px; height: 4px;
       background: #6a6a8a; border-radius: 50%;
@@ -774,6 +777,7 @@ if (window.__contextExtensionLoaded) {
     .light-theme .context-card:hover { background: #f0f0f5; }
     .light-theme .context-card.stock-card { background: #f0f7ff; }
     .light-theme .context-card.stock-card:hover { background: #e8f1fb; }
+    .light-theme .stock-collapsed-price { color: #3a3a5a; }
     .light-theme .card-term { color: #1a1a2e; }
     .light-theme .card-time { color: #9a9ab0; }
     .light-theme .card-seen { color: #9a9ab0; }
@@ -828,8 +832,8 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-ask-input:focus { border-color: rgba(90,90,255,0.4); }
     .light-theme .ctx-ask-response { background: rgba(0,0,0,0.03); border-top-color: rgba(0,0,0,0.08); color: #1a1a2e; }
     .light-theme .ctx-ask-response::-webkit-scrollbar-thumb { background: #d0d0e0; }
-    .light-theme .ctx-ask-clear { color: #b0b0c0; }
-    .light-theme .ctx-ask-clear:hover { color: #5a5a70; }
+    .light-theme .ctx-ask-clear { color: #999; }
+    .light-theme .ctx-ask-clear:hover { color: #555; }
     .ctx-session-summary {
       background: #161630; border: 1px solid rgba(90,90,255,0.15);
       border-radius: 10px; padding: 16px; margin: 12px;
@@ -1033,6 +1037,7 @@ if (window.__contextExtensionLoaded) {
 
   function ensureBadge() {
     if (badgeShadow) return;
+    if (!document.body) return;
 
     badgeEl = document.createElement('div');
     badgeEl.id = 'context-badge-host';
@@ -1099,6 +1104,7 @@ if (window.__contextExtensionLoaded) {
 
   function ensureToastHost() {
     if (toastShadow) return;
+    if (!document.body) return;
     toastHost = document.createElement('div');
     toastHost.id = 'context-toast-host';
     toastHost.style.cssText = 'position:fixed;bottom:65px;right:20px;z-index:2147483647;';
@@ -1530,10 +1536,20 @@ if (window.__contextExtensionLoaded) {
       `;
     }
 
+    let collapsedPriceHTML = '';
+    if (entity.price != null && entity.price !== '') {
+      const cp = parseFloat(entity.price);
+      const cpDisplay = '$' + cp.toFixed(2);
+      const cpPct = parseFloat(entity.changePercent) || 0;
+      const cpClass = cpPct >= 0 ? 'positive' : 'negative';
+      const cpSign = cpPct >= 0 ? '+' : '';
+      collapsedPriceHTML = ` <span class="stock-collapsed-price">${cpDisplay}</span> <span class="stock-change ${cpClass}">${cpSign}${cpPct.toFixed(2)}%</span>`;
+    }
+
     card.innerHTML = `
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
-        <span class="card-term">${ticker || companyName}</span>
+        <span class="card-term">${ticker || companyName}${collapsedPriceHTML}</span>
         <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
         <span class="card-chevron">&#x203A;</span>
       </div>
@@ -1861,6 +1877,7 @@ if (window.__contextExtensionLoaded) {
       const input = shadowRoot.querySelector('.ctx-ask-input');
       if (input) {
         const termName = entity.term || entity.name || '';
+        askEntityLabel = termName;
         input.value = 'Explain ' + termName + ' in more detail and why it matters in this video';
         input.focus();
         input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -1899,7 +1916,7 @@ if (window.__contextExtensionLoaded) {
     return '';
   }
 
-  function generateStudyGuide(title, history, kb, videoUrl, cardReactions) {
+  function generateStudyGuide(title, history, kb, videoUrl, cardReactions, sessionQA) {
     kb = kb || {};
     cardReactions = cardReactions || {};
     history.forEach(entry => {
@@ -1945,7 +1962,7 @@ if (window.__contextExtensionLoaded) {
       guide += '\n';
     }
 
-    const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities', ingredient: 'Ingredients' };
+    const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', place: 'Places', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities', ingredient: 'Ingredients' };
     const grouped = {};
     unstarred.forEach(entry => {
       const t = (entry.type || 'other').toLowerCase();
@@ -1954,7 +1971,7 @@ if (window.__contextExtensionLoaded) {
       grouped[label].push(entry);
     });
 
-    const sectionOrder = ['People', 'Events', 'Concepts', 'Organizations', 'Stocks', 'Commodities', 'Ingredients'];
+    const sectionOrder = ['People', 'Events', 'Concepts', 'Places', 'Organizations', 'Stocks', 'Commodities', 'Ingredients'];
     const sortedKeys = Object.keys(grouped).sort((a, b) => {
       const ia = sectionOrder.indexOf(a), ib = sectionOrder.indexOf(b);
       return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
@@ -1974,11 +1991,18 @@ if (window.__contextExtensionLoaded) {
       guide += '\n';
     }
 
+    if (sessionQA && sessionQA.length > 0) {
+      guide += `## \u{1F4DD} Questions & Answers\n\n`;
+      sessionQA.forEach(qa => {
+        guide += `Q: What is ${qa.term}?\nA: ${qa.answer}\n\n`;
+      });
+    }
+
     guide += `---\nGenerated by Context Listener`;
     return guide;
   }
 
-  function generateStudyGuideHTML(title, history, kb, videoUrl, cardReactions) {
+  function generateStudyGuideHTML(title, history, kb, videoUrl, cardReactions, sessionQA) {
     kb = kb || {};
     cardReactions = cardReactions || {};
     history.forEach(entry => {
@@ -2029,7 +2053,7 @@ if (window.__contextExtensionLoaded) {
       html += '</ul>';
     }
 
-    const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities', ingredient: 'Ingredients' };
+    const TYPE_ORDER = { person: 'People', people: 'People', event: 'Events', concept: 'Concepts', place: 'Places', organization: 'Organizations', stock: 'Stocks', commodity: 'Commodities', ingredient: 'Ingredients' };
     const grouped = {};
     unstarred.forEach(entry => {
       const t = (entry.type || 'other').toLowerCase();
@@ -2038,7 +2062,7 @@ if (window.__contextExtensionLoaded) {
       grouped[label].push(entry);
     });
 
-    const sectionOrder = ['People', 'Events', 'Concepts', 'Organizations', 'Stocks', 'Commodities', 'Ingredients'];
+    const sectionOrder = ['People', 'Events', 'Concepts', 'Places', 'Organizations', 'Stocks', 'Commodities', 'Ingredients'];
     const sortedKeys = Object.keys(grouped).sort((a, b) => {
       const ia = sectionOrder.indexOf(a), ib = sectionOrder.indexOf(b);
       return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
@@ -2059,12 +2083,34 @@ if (window.__contextExtensionLoaded) {
       html += '</ul>';
     }
 
+    if (sessionQA && sessionQA.length > 0) {
+      html += `<h2 style="font-size:15px;margin:16px 0 6px 0;">\u{1F4DD} Questions &amp; Answers</h2>`;
+      sessionQA.forEach(qa => {
+        html += `<div style="margin-bottom:10px;"><p style="margin:0 0 2px 0;"><strong>Q: What is ${escapeHtml(qa.term)}?</strong></p><p style="margin:0;">A: ${escapeHtml(qa.answer)}</p></div>`;
+      });
+    }
+
     html += `<hr style="border:none;border-top:1px solid #ccc;margin:16px 0 8px 0;"><p style="margin:0;font-size:12px;color:#888;">Generated by Context Listener</p>`;
     return html;
   }
 
   function ensureSidebar() {
     if (shadowRoot) return shadowRoot.getElementById('cards');
+
+    if (!document.body) {
+      let retries = 0;
+      const waitForBody = setInterval(() => {
+        retries++;
+        if (document.body) {
+          clearInterval(waitForBody);
+          ensureSidebar();
+        } else if (retries > 30) {
+          clearInterval(waitForBody);
+          console.warn('[CONTENT] document.body not available after 3s, sidebar creation aborted');
+        }
+      }, 100);
+      return null;
+    }
 
     // Host element — inline styles so YouTube can't override positioning
     hostEl = document.createElement('div');
@@ -2177,14 +2223,15 @@ if (window.__contextExtensionLoaded) {
     });
 
     function getStudyGuideData(callback) {
-      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase', 'activeTabUrl', 'cardReactions'], (data) => {
+      chrome.storage.local.get(['sessionHistory', 'capturingTabTitle', 'knowledgeBase', 'activeTabUrl', 'cardReactions', 'sessionQA'], (data) => {
         const history = data.sessionHistory || [];
         const title = data.capturingTabTitle || document.title || 'Untitled';
         const url = data.activeTabUrl || window.location.href;
         const kb = data.knowledgeBase || {};
         const reactions = data.cardReactions || {};
-        const guide = generateStudyGuide(title, history, kb, url, reactions);
-        const guideHtml = generateStudyGuideHTML(title, history, kb, url, reactions);
+        const qa = data.sessionQA || [];
+        const guide = generateStudyGuide(title, history, kb, url, reactions, qa);
+        const guideHtml = generateStudyGuideHTML(title, history, kb, url, reactions, qa);
         callback({ guide, guideHtml, title });
       });
     }
@@ -2303,6 +2350,8 @@ if (window.__contextExtensionLoaded) {
     const askResponse = document.createElement('div');
     askResponse.className = 'ctx-ask-response';
 
+    let askEntityLabel = '';
+
     const askClear = document.createElement('button');
     askClear.className = 'ctx-ask-clear';
     askClear.textContent = '\u2715';
@@ -2379,6 +2428,8 @@ if (window.__contextExtensionLoaded) {
         const typed = askInput.value.trim();
         const question = typed || (askInput.dataset.hasSuggestion === 'true' ? askInput.placeholder : '');
         if (!question || question === 'Ask about this video...') return;
+        const headerText = askEntityLabel || question;
+        askEntityLabel = '';
         askInput.value = '';
         askInput.placeholder = 'Ask about this video...';
         askInput.dataset.hasSuggestion = 'false';
@@ -2402,12 +2453,31 @@ if (window.__contextExtensionLoaded) {
           .then(res => res.ok ? res.json() : Promise.reject(res))
           .then(result => {
             askResponse.classList.remove('ctx-ask-loading');
-            askResponse.textContent = result.answer || 'No answer available';
+            askResponse.textContent = '';
+            const headerDiv = document.createElement('div');
+            headerDiv.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:6px;color:#e0e0e0;';
+            headerDiv.textContent = 'About: ' + headerText;
+            askResponse.appendChild(headerDiv);
+            const answerStr = result.answer || 'No answer available';
+            const answerText = document.createTextNode(answerStr);
+            askResponse.appendChild(answerText);
             askResponse.appendChild(askClear);
+            // Save Q&A to persistent storage
+            chrome.storage.local.get('sessionQA', (qaData) => {
+              const qa = qaData.sessionQA || [];
+              qa.push({ term: headerText, question, answer: answerStr, timestamp: Date.now(), videoTitle: data.capturingTabTitle || document.title || '' });
+              chrome.storage.local.set({ sessionQA: qa });
+            });
           })
           .catch(() => {
             askResponse.classList.remove('ctx-ask-loading');
-            askResponse.textContent = 'Could not get an answer';
+            askResponse.textContent = '';
+            const headerDiv = document.createElement('div');
+            headerDiv.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:6px;color:#e0e0e0;';
+            headerDiv.textContent = 'About: ' + headerText;
+            askResponse.appendChild(headerDiv);
+            const answerText = document.createTextNode('Could not get an answer');
+            askResponse.appendChild(answerText);
             askResponse.appendChild(askClear);
           });
         });
@@ -2909,11 +2979,12 @@ if (window.__contextExtensionLoaded) {
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
       isActiveTab((active) => {
         if (!active) return;
-        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions'], (data) => {
+        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions', 'sessionQA'], (data) => {
           const history = data.sessionHistory || [];
           const kb = data.knowledgeBase || {};
           const title = data.capturingTabTitle || document.title || 'Untitled Video';
           const summaryReactions = data.cardReactions || {};
+          const summaryQA = data.sessionQA || [];
           const totalTerms = history.length;
           const expanded = history.filter(h => h.description).length;
           const knownCount = history.filter(h => {
@@ -2956,7 +3027,7 @@ if (window.__contextExtensionLoaded) {
 
           summaryEl.querySelector('.ctx-session-summary-export').addEventListener('click', (e) => {
             e.stopPropagation();
-            const guide = generateStudyGuide(title, history, kb, window.location.href, summaryReactions);
+            const guide = generateStudyGuide(title, history, kb, window.location.href, summaryReactions, summaryQA);
             copyToClipboard(guide).then(() => {
               const btn = summaryEl.querySelector('.ctx-session-summary-export');
               btn.textContent = 'Copied!';

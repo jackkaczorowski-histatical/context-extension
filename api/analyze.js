@@ -19,6 +19,19 @@ const CORRECTIONS = {
   'aztec gnats': 'Assignats',
   'sean ryan': 'Shawn Ryan',
   'signets': 'Assignats',
+  's and p 500': 'S&P 500',
+  's and p': 'S&P',
+  'the dow': 'Dow Jones Industrial Average',
+};
+
+const TYPE_OVERRIDES = {
+  'versailles': 'place',
+  'paris': 'place',
+  'bastille': 'place',
+  'strait of hormuz': 'place',
+  'persian gulf': 'place',
+  'karg island': 'place',
+  'manhattan': 'place',
 };
 
 function correctTranscript(text) {
@@ -40,6 +53,18 @@ function correctEntities(parsed) {
       if (entity.description) {
         for (const [wrong, right] of Object.entries(CORRECTIONS)) {
           entity.description = entity.description.replace(new RegExp(wrong, 'gi'), right);
+        }
+      }
+      const typeKey = (entity.term || '').toLowerCase();
+      if (TYPE_OVERRIDES[typeKey]) {
+        entity.type = TYPE_OVERRIDES[typeKey];
+      }
+      // Place detection fallback — catch locations by description keywords
+      if (entity.type !== 'place' && entity.type !== 'person' && entity.type !== 'stock' && entity.description) {
+        const descLower = entity.description.toLowerCase();
+        const placeWords = ['palace', 'fortress', 'city', 'island', 'country', 'building', 'landmark', 'waterway', 'strait', 'gulf', 'river', 'mountain', 'castle', 'cathedral', 'temple', 'church', 'port', 'harbor', 'bridge', 'monument', 'tower', 'capital', 'province', 'region', 'territory', 'peninsula', 'continent', 'ocean', 'sea', 'lake', 'canal', 'plaza', 'square', 'district', 'neighborhood', 'colony', 'empire'];
+        if (placeWords.some(w => descLower.includes(w))) {
+          entity.type = 'place';
         }
       }
     });
@@ -132,9 +157,10 @@ Ask: would a viewer pause and think "what is that?" If yes, extract it. If any a
 
 ENTITY TYPE RULES:
 - "stock" = ONLY tradeable securities with a real ticker symbol the user could buy — individual stocks and ETFs. Examples: Alphabet (GOOGL), Tesla (TSLA), CIBR, AIQ, MSFT. Cars, historical vehicles, and car models (Maserati Biturbo, Nissan 300ZX, Toyota Supra) are NEVER stock. Historical currencies like Assignats, livres, mandates are NEVER stock.
-- "organization" = companies, stock exchanges, institutions, banks, military units. Examples: Nasdaq, NYSE, Goldman Sachs, the Fed, 82nd Airborne, Dow Jones. CRITICAL: Stock EXCHANGES (Nasdaq, NYSE, Dow Jones, S&P) are "organization", NOT "stock" and NOT "concept". Only things you can buy with a ticker are "stock".
-- "concept" = ideas, strategies, economic principles, geographic features. Examples: Strait of Hormuz, inflation, dollar-cost averaging, divine right, laissez-faire.
-- "event" = specific historical or current events with dates. Examples: 2022 market crash, World War II, Seven Years War.
+- "organization" = companies, stock exchanges, institutions, banks, military units. Examples: Nasdaq, NYSE, Goldman Sachs, the Fed, 82nd Airborne, Dow Jones. CRITICAL: Stock EXCHANGES and INDICES (Nasdaq, NYSE, Dow Jones Industrial Average, S&P 500) are "organization", NOT "stock" and NOT "concept". Only things you can buy with a ticker are "stock".
+- "place" = buildings, cities, countries, geographic features, landmarks. Examples: Versailles, Bastille, Strait of Hormuz, Paris, Karg Island, Manhattan, Persian Gulf. Do NOT use concept for physical locations.
+- "concept" = ideas, strategies, economic principles. Examples: inflation, dollar-cost averaging, divine right, laissez-faire. Do NOT use concept for physical places or locations — use "place" instead.
+- "event" = specific historical or current events that HAPPENED. Only things that occurred at a point in time are events. Examples: 2022 market crash, World War II, Seven Years War, storming of the Bastille. The storming of the Bastille is an event, but the Bastille itself is a place.
 - "person" = named individuals. Examples: Elon Musk, Robespierre, Louis XVI.
 - "ingredient" = specific named ingredients with quantity or preparation context.
 
@@ -154,7 +180,7 @@ SECOND CATEGORY — INSIGHTS: Beyond named terms, also extract practical knowled
 
 The user is watching: "${title}". Their knowledge level: ${level}.${prevList ? ` Already shown this session: ${prevList}.` : ""}${sessionContext ? ` Session transcript so far: ${sessionContext}` : ""}${knownTerms && knownTerms.length > 0 ? ` Known from previous sessions: ${knownTerms.join(", ")}.` : ""}${tasteProfile ? ` Engagement: liked types: ${formatCounts(tasteProfile.liked)}, dismissed: ${formatCounts(tasteProfile.ignored)}.` : ""}${reactionProfile ? ` Reactions: ${reactionProfile.known || 0} "knew this", ${reactionProfile.new || 0} "new to me", ${reactionProfile.advanced || 0} "too advanced".` : ""}
 
-Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|stock|organization|ingredient", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "max 100 chars" }], "insights": [{ "insight": "short summary", "detail": "one sentence explanation, max 120 chars", "category": "technique|tip|why|tradeoff" }] }. Max 5 entities and 3 insights per chunk. Return { "entities": [], "insights": [] } when nothing qualifies. It is completely fine to return empty arrays.${buildCalibrationInstructions(typeCalibration)}${buildDifficultyInstructions(difficultyProfile)}`;
+Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...", "type": "event|concept|person|place|stock|organization|ingredient", "relevance": 1-3, "ticker": null, "salience": "highlight|background", "description": "max 100 chars" }], "insights": [{ "insight": "short summary", "detail": "one sentence explanation, max 120 chars", "category": "technique|tip|why|tradeoff" }] }. Max 5 entities and 3 insights per chunk. Return { "entities": [], "insights": [] } when nothing qualifies. It is completely fine to return empty arrays.${buildCalibrationInstructions(typeCalibration)}${buildDifficultyInstructions(difficultyProfile)}`;
 }
 
 module.exports = async function handler(req, res) {

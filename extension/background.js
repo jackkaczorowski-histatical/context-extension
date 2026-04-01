@@ -802,7 +802,7 @@ async function processNextTranscript() {
     // Step 2: Enrich entities — stocks get price data, others pass through as-is
     const enrichedEntities = await Promise.all(
       filteredEntities.map(async (entity) => {
-        if (entity.type === 'stock') {
+        if (entity.type === 'stock' && entity.ticker) {
           try {
             const stockController = new AbortController();
             const stockTimeout = setTimeout(() => stockController.abort(), 10000);
@@ -849,15 +849,27 @@ async function processNextTranscript() {
                   console.error('[BACKGROUND] Stock retry error for', entity.ticker, ':', retryErr.message || retryErr);
                 }
               }
-              // If still no price after retry, fall back to organization card
+              // If still no price after retry, check cache before falling back
               if (stockData.price == null) {
-                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, 'after retry — rendering as organization card');
+                const cacheGet = await chrome.storage.local.get('stockCache');
+                const cached = (cacheGet.stockCache || {})[entity.ticker];
+                if (cached && (Date.now() - cached.cachedAt) < 24 * 60 * 60 * 1000) {
+                  console.log('[BACKGROUND] Using cached stock data for', entity.ticker);
+                  const { cachedAt, ...cachedStockData } = cached;
+                  return { ...entity, ...cachedStockData };
+                }
+                console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, 'after retry, no valid cache — rendering as organization card');
                 const fallback = { ...entity, description: entity.description || stockData.description || '' };
                 delete fallback.ticker;
                 delete fallback.stockData;
                 fallback.type = 'organization';
                 return fallback;
               }
+              // Cache successful stock lookup
+              const cacheGet = await chrome.storage.local.get('stockCache');
+              const stockCache = cacheGet.stockCache || {};
+              stockCache[entity.ticker] = { ...stockData, cachedAt: Date.now() };
+              chrome.storage.local.set({ stockCache: stockCache });
               return { ...entity, ...stockData };
             } else {
               console.error('[BACKGROUND] Stock API HTTP error for', entity.ticker, ':', stockRes.status);

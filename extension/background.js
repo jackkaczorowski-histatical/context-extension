@@ -86,7 +86,27 @@ async function incrementUsage(field, amount = 1) {
 function startUsageTimer() {
   if (usageTimer) return;
   usageTimer = setInterval(() => {
-    if (!isPaused) incrementUsage('minutes');
+    if (isPaused) return;
+    incrementUsage('minutes');
+    // Daily cap check
+    chrome.storage.local.get('usageToday', (data) => {
+      const today = new Date().toISOString().split('T')[0];
+      let usage = data.usageToday || { date: today, minutes: 0 };
+      if (usage.date !== today) usage = { date: today, minutes: 0 };
+      usage.minutes += 1;
+      chrome.storage.local.set({ usageToday: usage });
+      // Notify content script of usage update
+      if (capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_UPDATE', minutes: usage.minutes, limit: 30 }).catch(() => {});
+      }
+      if (usage.minutes >= 30) {
+        console.log('[BACKGROUND] Daily usage limit reached:', usage.minutes, 'minutes');
+        stopCapture();
+        if (capturingTabId) {
+          chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_LIMIT_REACHED', minutes: usage.minutes }).catch(() => {});
+        }
+      }
+    });
   }, 60000);
 }
 
@@ -171,6 +191,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({ capturing: false });
+  // Generate anonymous install ID if not present
+  chrome.storage.local.get('installId', (data) => {
+    if (!data.installId) {
+      const installId = 'ctx_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+      chrome.storage.local.set({ installId });
+      console.log('[BACKGROUND] Generated installId:', installId);
+    }
+  });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
   });
@@ -349,11 +377,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ tabId: sender.tab?.id });
     return true;
   } else if (message.type === 'TOGGLE_CAPTURE') {
-    chrome.storage.local.get('capturing', async (data) => {
+    chrome.storage.local.get(['capturing', 'usageToday'], async (data) => {
       if (data.capturing) {
         await stopCapture();
         if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: false });
       } else {
+        // Check daily cap before starting
+        const today = new Date().toISOString().split('T')[0];
+        const usage = data.usageToday || { date: today, minutes: 0 };
+        if (usage.date === today && usage.minutes >= 30) {
+          if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'USAGE_LIMIT_REACHED', minutes: usage.minutes });
+          return;
+        }
         await startCapture();
         if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: true });
       }
@@ -583,7 +618,7 @@ async function processNextTranscript() {
 
   try {
     // Fetch user profile and engagement history for analyze request
-    const storageData = await chrome.storage.local.get(['userProfile', 'userSettings', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase', 'cardReactions', 'typeCalibration', 'difficultyProfile']);
+    const storageData = await chrome.storage.local.get(['userProfile', 'userSettings', 'likedEntities', 'ignoreList', 'extensionSettings', 'knowledgeBase', 'cardReactions', 'typeCalibration', 'difficultyProfile', 'installId']);
     const savedSettings = storageData.userSettings || {};
     const userProfile = {
       ...(storageData.userProfile || {}),
@@ -627,7 +662,8 @@ async function processNextTranscript() {
     }
 
     // Step 1: Analyze (up to 3 attempts, handles both HTTP errors and network failures)
-    const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms, typeCalibration, difficultyProfile });
+    const installId = storageData.installId || null;
+    const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms, typeCalibration, difficultyProfile, installId });
     const retryDelays = [0, 2000, 4000];
     let analyzeRes;
     for (let attempt = 0; attempt < 3; attempt++) {

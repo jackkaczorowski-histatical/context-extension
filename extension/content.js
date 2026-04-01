@@ -1009,6 +1009,50 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-onboarding-dot { background: #cbd5e1; }
     .light-theme .ctx-onboarding-dot.active { background: #14b8a6; }
 
+    /* ─── Usage limit overlay ─── */
+    .ctx-usage-limit {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: #12121c; z-index: 100;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 24px; text-align: center;
+    }
+    .ctx-usage-limit-title {
+      font-size: 18px; font-weight: 700; color: #e0e0f0;
+      margin-bottom: 12px;
+    }
+    .ctx-usage-limit-body {
+      font-size: 13px; color: #94a3b8; line-height: 1.6;
+      margin-bottom: 20px; max-width: 240px;
+    }
+    .ctx-usage-limit-meter {
+      font-size: 12px; color: #ef4444; font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .ctx-usage-limit-link {
+      display: inline-block; font-size: 12px; color: #14b8a6;
+      text-decoration: underline; cursor: pointer; margin-bottom: 16px;
+    }
+    .ctx-usage-limit-link:hover { color: #2dd4bf; }
+    .ctx-usage-limit-dismiss {
+      background: none; border: 1px solid rgba(255,255,255,0.1); color: #64748b;
+      border-radius: 6px; padding: 8px 20px; font-size: 12px; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .ctx-usage-limit-dismiss:hover { color: #e0e0f0; border-color: rgba(255,255,255,0.2); }
+    .light-theme .ctx-usage-limit { background: #f5f5f8; }
+    .light-theme .ctx-usage-limit-title { color: #1a1a2e; }
+    .light-theme .ctx-usage-limit-body { color: #64748b; }
+    .light-theme .ctx-usage-limit-dismiss { border-color: rgba(0,0,0,0.1); color: #9a9ab0; }
+    .light-theme .ctx-usage-limit-dismiss:hover { color: #333; border-color: rgba(0,0,0,0.2); }
+
+    /* ─── Usage footer indicator ─── */
+    .ctx-usage-footer {
+      padding: 4px 12px; text-align: center;
+      font-size: 10px; color: #4a4a6a; flex-shrink: 0;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .light-theme .ctx-usage-footer { color: #9a9ab0; border-top-color: rgba(0,0,0,0.04); }
+
     /* ─── Settings panel ─── */
     .ctx-settings-btn.active { color: #14b8a6; }
     .light-theme .ctx-settings-btn.active { color: #14b8a6; }
@@ -3481,6 +3525,22 @@ if (window.__contextExtensionLoaded) {
 
     sidebar.appendChild(historyPanel);
 
+    // Usage footer
+    const usageFooter = document.createElement('div');
+    usageFooter.className = 'ctx-usage-footer';
+    usageFooter.id = 'ctx-usage-footer';
+    usageFooter.style.display = 'none';
+    sidebar.appendChild(usageFooter);
+    // Load initial usage
+    chrome.storage.local.get('usageToday', (data) => {
+      const today = new Date().toISOString().split('T')[0];
+      const usage = data.usageToday || { date: today, minutes: 0 };
+      if (usage.date === today && usage.minutes > 0) {
+        usageFooter.textContent = usage.minutes + '/30 min';
+        usageFooter.style.display = '';
+      }
+    });
+
     // Wire up history button
     const historyBtn = header.querySelector('.ctx-history-btn');
     historyBtn.addEventListener('click', (e) => {
@@ -4642,6 +4702,32 @@ if (window.__contextExtensionLoaded) {
           }
         });
       });
+    } else if (msg.type === 'USAGE_UPDATE') {
+      if (!shadowRoot) return;
+      const footer = shadowRoot.getElementById('ctx-usage-footer');
+      if (footer) {
+        footer.textContent = (msg.minutes || 0) + '/30 min';
+        footer.style.display = '';
+      }
+    } else if (msg.type === 'USAGE_LIMIT_REACHED') {
+      if (!shadowRoot) return;
+      // Update listen button to idle state
+      const btn = shadowRoot.getElementById('ctx-listen-btn');
+      if (btn) { btn.textContent = '\u25B6'; btn.title = 'Start Listening'; btn.classList.remove('listening'); }
+      // Remove existing overlay if any
+      const existing = shadowRoot.querySelector('.ctx-usage-limit');
+      if (existing) existing.remove();
+      // Show usage limit overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'ctx-usage-limit';
+      overlay.innerHTML = '<div class="ctx-usage-limit-title">Daily limit reached</div>' +
+        '<div class="ctx-usage-limit-meter">' + (msg.minutes || 30) + '/30 minutes used today</div>' +
+        '<div class="ctx-usage-limit-body">You\'ve used your 30 free minutes for today. Your limit resets at midnight.</div>' +
+        '<a class="ctx-usage-limit-link" href="https://context-listener.com" target="_blank">Upgrade for unlimited</a>' +
+        '<button class="ctx-usage-limit-dismiss">Dismiss</button>';
+      overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => overlay.remove());
+      const sidebar = shadowRoot.getElementById('sidebar');
+      if (sidebar) sidebar.appendChild(overlay);
     }
   });
 

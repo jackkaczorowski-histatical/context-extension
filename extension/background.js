@@ -285,6 +285,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
   } else if (message.type === 'CLEAR_SESSION') {
     console.log('[BACKGROUND] Session cleared by user');
+    // Save session snapshot to pastSessions before clearing
+    chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'pastSessions', 'capturingTabTitle', 'activeTabUrl'], (data) => {
+      const sessionHist = data.sessionHistory || [];
+      if (sessionHist.length > 0) {
+        const pastSessions = data.pastSessions || [];
+        pastSessions.unshift({
+          id: Date.now(),
+          title: data.capturingTabTitle || capturingTabTitle || 'Untitled',
+          url: data.activeTabUrl || '',
+          date: new Date().toISOString(),
+          entityCount: sessionHist.length,
+          entities: sessionHist.filter(i => i.term).slice(0, 50),
+          insights: sessionHist.filter(i => i.type === 'insight').slice(0, 30)
+        });
+        if (pastSessions.length > 20) pastSessions.length = 20;
+        chrome.storage.local.set({ pastSessions });
+        console.log('[BACKGROUND] Session snapshot saved, total past sessions:', pastSessions.length);
+      }
+    });
     // Save session entities to KB BEFORE clearing sessionHistory
     chrome.storage.local.get(['sessionHistory', 'knowledgeBase'], (data) => {
       const sessionHist = data.sessionHistory || [];

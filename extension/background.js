@@ -298,29 +298,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
   } else if (message.type === 'CLEAR_SESSION') {
     console.log('[BACKGROUND] Session cleared by user');
-    // Save session snapshot to pastSessions before clearing
-    chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'pastSessions', 'capturingTabTitle', 'activeTabUrl'], (data) => {
-      const sessionHist = data.sessionHistory || [];
-      if (sessionHist.length > 0) {
-        const pastSessions = data.pastSessions || [];
-        pastSessions.unshift({
-          id: Date.now(),
-          title: data.capturingTabTitle || capturingTabTitle || 'Untitled',
-          url: data.activeTabUrl || '',
-          date: new Date().toISOString(),
-          entityCount: sessionHist.length,
-          entities: sessionHist.filter(i => i.term).slice(0, 50),
-          insights: sessionHist.filter(i => i.type === 'insight').slice(0, 30)
-        });
-        if (pastSessions.length > 20) pastSessions.length = 20;
-        chrome.storage.local.set({ pastSessions });
-        console.log('[BACKGROUND] Session snapshot saved, total past sessions:', pastSessions.length);
-      }
-    });
-    // Save session entities to KB BEFORE clearing sessionHistory
-    chrome.storage.local.get(['sessionHistory', 'knowledgeBase'], (data) => {
+    // Single get to avoid race condition — save snapshot + KB, then clear
+    chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'pastSessions', 'capturingTabTitle', 'activeTabUrl', 'lastDigestDate'], (data) => {
       const sessionHist = data.sessionHistory || [];
       const kb = data.knowledgeBase || {};
+      const pastSessions = data.pastSessions || [];
+      const updates = {};
+
+      // 1. Save session entities to KB
       sessionHist.forEach(entry => {
         const key = (entry.term || entry.name || '').toLowerCase();
         if (!key) return;
@@ -331,59 +316,75 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           kb[key] = { term: entry.term || entry.name, timesSeen: 1, firstSeen: Date.now(), lastSeen: Date.now() };
         }
       });
-      chrome.storage.local.set({ knowledgeBase: kb });
+      updates.knowledgeBase = kb;
       console.log('[BACKGROUND] KB saved before clear, total terms:', Object.keys(kb).length);
 
-      // Check if weekly digest is due (7+ days since last)
-      chrome.storage.local.get(['lastDigestDate'], (digestData) => {
-        const lastDigest = digestData.lastDigestDate || 0;
-        const now = Date.now();
-        const sevenDays = 7 * 24 * 60 * 60 * 1000;
-        if (now - lastDigest >= sevenDays && Object.keys(kb).length > 0) {
-          const entries = Object.values(kb);
-          const weekAgo = now - sevenDays;
+      // 2. Save session snapshot to pastSessions
+      if (sessionHist.length > 0) {
+        pastSessions.unshift({
+          id: Date.now(),
+          title: data.capturingTabTitle || capturingTabTitle || 'Untitled',
+          url: data.activeTabUrl || '',
+          date: new Date().toISOString(),
+          entityCount: sessionHist.length,
+          entities: sessionHist.filter(i => i.term).slice(0, 50),
+          insights: sessionHist.filter(i => i.type === 'insight').slice(0, 30)
+        });
+        if (pastSessions.length > 20) pastSessions.length = 20;
+        updates.pastSessions = pastSessions;
+        console.log('[BACKGROUND] Session snapshot saved, total past sessions:', pastSessions.length);
+      }
 
-          const newThisWeek = entries.filter(e => e.firstSeen >= weekAgo);
-          const expanded = entries.filter(e => e.expanded).sort((a, b) => b.timesSeen - a.timesSeen).slice(0, 5);
+      // 3. Check if weekly digest is due (7+ days since last)
+      const lastDigest = data.lastDigestDate || 0;
+      const now = Date.now();
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      if (now - lastDigest >= sevenDays && Object.keys(kb).length > 0) {
+        const entries = Object.values(kb);
+        const weekAgo = now - sevenDays;
 
-          const videoCounts = {};
-          entries.forEach(e => {
-            if (e.source) videoCounts[e.source] = (videoCounts[e.source] || 0) + 1;
-          });
-          const topVideos = Object.entries(videoCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-          const videoCount = Object.keys(videoCounts).length;
+        const newThisWeek = entries.filter(e => e.firstSeen >= weekAgo);
+        const expanded = entries.filter(e => e.expanded).sort((a, b) => b.timesSeen - a.timesSeen).slice(0, 5);
 
-          const typeCounts = {};
-          entries.forEach(e => {
-            const t = (e.type || 'other').toLowerCase();
-            typeCounts[t] = (typeCounts[t] || 0) + 1;
-          });
-          const topTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t);
+        const videoCounts = {};
+        entries.forEach(e => {
+          if (e.source) videoCounts[e.source] = (videoCounts[e.source] || 0) + 1;
+        });
+        const topVideos = Object.entries(videoCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const videoCount = Object.keys(videoCounts).length;
 
-          const typeLabels = {
-            concept: 'concepts', event: 'history', person: 'people',
-            people: 'people', stock: 'finance', organization: 'organizations',
-            commodity: 'commodities', other: 'general'
-          };
-          const topicSummary = topTypes.map(t => typeLabels[t] || t).join(' & ');
+        const typeCounts = {};
+        entries.forEach(e => {
+          const t = (e.type || 'other').toLowerCase();
+          typeCounts[t] = (typeCounts[t] || 0) + 1;
+        });
+        const topTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t);
 
-          const weeklyDigest = {
-            date: now,
-            newTerms: newThisWeek.length,
-            videoCount,
-            topicSummary,
-            topExpanded: expanded.map(e => e.term),
-            topVideos: topVideos.map(([title, count]) => ({ title, count })),
-            dismissed: false
-          };
+        const typeLabels = {
+          concept: 'concepts', event: 'history', person: 'people',
+          people: 'people', stock: 'finance', organization: 'organizations',
+          commodity: 'commodities', other: 'general'
+        };
+        const topicSummary = topTypes.map(t => typeLabels[t] || t).join(' & ');
 
-          chrome.storage.local.set({ weeklyDigest, lastDigestDate: now });
-          console.log('[BACKGROUND] Weekly digest generated:', newThisWeek.length, 'new terms from', videoCount, 'videos');
-        }
-      });
+        const weeklyDigest = {
+          date: now,
+          newTerms: newThisWeek.length,
+          videoCount,
+          topicSummary,
+          topExpanded: expanded.map(e => e.term),
+          topVideos: topVideos.map(([title, count]) => ({ title, count })),
+          dismissed: false
+        };
 
-      // Now clear sessionHistory
-      chrome.storage.local.set({ sessionHistory: [] });
+        updates.weeklyDigest = weeklyDigest;
+        updates.lastDigestDate = now;
+        console.log('[BACKGROUND] Weekly digest generated:', newThisWeek.length, 'new terms from', videoCount, 'videos');
+      }
+
+      // 4. Clear sessionHistory AFTER saving everything
+      updates.sessionHistory = [];
+      chrome.storage.local.set(updates);
     });
     sessionEntities = [];
     sessionInsights = [];

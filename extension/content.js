@@ -62,6 +62,7 @@ if (window.__contextExtensionLoaded) {
   let lastRenderedTerm = '';
   let mySessionId = null;
   let currentlyExpandedCard = null;
+  let allowMultipleExpand = false;
   let transcriptAutoScroll = true;
   let consecutiveErrors = 0;
   let statusHideTimer = null;
@@ -99,7 +100,7 @@ if (window.__contextExtensionLoaded) {
       card.classList.remove('expanded');
       if (currentlyExpandedCard === card) currentlyExpandedCard = null;
     } else {
-      if (currentlyExpandedCard && currentlyExpandedCard !== card) {
+      if (!allowMultipleExpand && currentlyExpandedCard && currentlyExpandedCard !== card) {
         currentlyExpandedCard.classList.remove('expanded');
       }
       card.classList.add('expanded');
@@ -366,9 +367,9 @@ if (window.__contextExtensionLoaded) {
     .ctx-export-btn:hover { color: #8a8aaa; background: rgba(255,255,255,0.05); }
     .ctx-export-btn { font-size: 13px; }
     .ctx-clear-btn {
-      background: none; border: 1px solid rgba(255,255,255,0.08); color: #64748b; font-size: 11px;
-      cursor: pointer; padding: 3px 8px; border-radius: 4px;
-      line-height: 1; transition: color 0.15s, background 0.15s; font-family: inherit;
+      background: none; border: none; color: #64748b; font-size: 14px;
+      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
     }
     .ctx-clear-btn:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
     .ctx-close-btn {
@@ -693,9 +694,10 @@ if (window.__contextExtensionLoaded) {
 
     /* ─── Listen button ─── */
     #ctx-listen-btn {
-      background: #00e676; color: #0a0a14; border: none; border-radius: 12px;
-      padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; white-space: nowrap;
+      background: #00e676; color: #0a0a14; border: none; border-radius: 50%;
+      width: 22px; height: 22px; font-size: 10px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0; padding: 0;
     }
     #ctx-listen-btn:hover { background: #00c853; }
     #ctx-listen-btn.listening { background: #ff5252; color: white; }
@@ -2601,8 +2603,8 @@ if (window.__contextExtensionLoaded) {
           <span class="ctx-live-dot"></span>
           <span class="ctx-live-text">Live</span>
         </div>
-        <button id="ctx-listen-btn" title="Start Listening">&#x25CF; Start</button>
-        <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1; Clear</button>
+        <button id="ctx-listen-btn" title="Start Listening">&#x25CF;</button>
+        <button class="ctx-clear-btn" title="Clear all history">&#x1F5D1;</button>
         <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn" title="Export study guide">&#x1F4CB;<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
         <button class="ctx-history-btn" title="Session history">&#x1F550;</button>
         <button class="ctx-settings-btn" title="Settings">&#x2699;</button>
@@ -2626,7 +2628,7 @@ if (window.__contextExtensionLoaded) {
     // Sync listen button state on sidebar open
     chrome.storage.local.get('capturing', (data) => {
       if (data.capturing) {
-        listenBtn.textContent = '\u25A0 Stop';
+        listenBtn.textContent = '\u25A0';
         listenBtn.classList.add('listening');
       }
     });
@@ -3023,7 +3025,19 @@ if (window.__contextExtensionLoaded) {
       allCollapsed = !allCollapsed;
       collapseAllBtn.classList.toggle('active', allCollapsed);
       collapseAllBtn.textContent = allCollapsed ? '\u25BC Expand' : '\u25B2 Collapse';
-      cardContainer.classList.toggle('collapse-all', allCollapsed);
+      const entityCards = cardContainer.querySelectorAll('.context-card:not(.insight-card)');
+      if (allCollapsed) {
+        // Collapse all: remove expanded from all entity cards, use CSS collapse
+        allowMultipleExpand = false;
+        entityCards.forEach(c => c.classList.remove('expanded'));
+        currentlyExpandedCard = null;
+        cardContainer.classList.add('collapse-all');
+      } else {
+        // Expand all: add expanded to all entity cards, allow multiple
+        allowMultipleExpand = true;
+        cardContainer.classList.remove('collapse-all');
+        entityCards.forEach(c => c.classList.add('expanded'));
+      }
     });
     filterBar.appendChild(hideKnownBtn);
     filterBar.appendChild(starredOnlyBtn);
@@ -3478,7 +3492,7 @@ if (window.__contextExtensionLoaded) {
       if (data.capturing) {
         const btn = shadowRoot.getElementById('ctx-listen-btn');
         if (btn) {
-          btn.textContent = '\u25A0 Stop';
+          btn.textContent = '\u25A0';
           btn.classList.add('listening');
         }
       }
@@ -4081,7 +4095,7 @@ if (window.__contextExtensionLoaded) {
       if (changes.capturing.newValue === true) {
         ensureBadge();
         setBadgeCapturing(true, false);
-        if (btn) { btn.textContent = '\u25A0 Stop'; btn.classList.add('listening'); }
+        if (btn) { btn.textContent = '\u25A0'; btn.classList.add('listening'); }
         // Auto-open sidebar on capture start if enabled
         chrome.storage.local.get('userSettings', (data) => {
           const us = data.userSettings || {};
@@ -4104,7 +4118,7 @@ if (window.__contextExtensionLoaded) {
         }
       } else if (changes.capturing.newValue === false) {
         setBadgeCapturing(false, false);
-        if (btn) { btn.textContent = '\u25CF Start'; btn.classList.remove('listening'); }
+        if (btn) { btn.textContent = '\u25CF'; btn.classList.remove('listening'); }
         // Hide Now Watching bar
         const nwBar = shadowRoot?.getElementById('ctx-now-watching');
         if (nwBar) nwBar.style.display = 'none';
@@ -4466,10 +4480,10 @@ if (window.__contextExtensionLoaded) {
       const btn = shadowRoot?.getElementById('ctx-listen-btn');
       if (btn) {
         if (msg.capturing) {
-          btn.textContent = '\u25A0 Stop';
+          btn.textContent = '\u25A0';
           btn.classList.add('listening');
         } else {
-          btn.textContent = '\u25CF Start';
+          btn.textContent = '\u25CF';
           btn.classList.remove('listening');
         }
       }

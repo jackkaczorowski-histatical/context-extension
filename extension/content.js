@@ -358,7 +358,7 @@ if (window.__contextExtensionLoaded) {
       display: flex; align-items: center; justify-content: center;
       height: 28px; padding: 0 6px; gap: 2px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
-      position: relative;
+      position: relative; overflow: visible;
     }
     .ctx-toolbar-btn {
       background: none; border: none; color: #4a4a6a; font-size: 10px;
@@ -407,7 +407,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-export-menu {
       display: none; position: absolute; top: 100%; right: 0;
       background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px; padding: 4px 0; z-index: 50;
+      border-radius: 8px; padding: 4px 0; z-index: 100;
       min-width: 170px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
     .ctx-export-menu.visible { display: block; }
@@ -2657,7 +2657,6 @@ if (window.__contextExtensionLoaded) {
       yesBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         resetSidebar();
-        chrome.storage.local.remove(['sessionHistory', 'sessionTranscript', 'pendingEntities', 'pendingInsights']);
         try { chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' }); } catch (e) {}
         revert();
       });

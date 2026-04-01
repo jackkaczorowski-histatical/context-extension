@@ -405,9 +405,9 @@ if (window.__contextExtensionLoaded) {
     }
     .ctx-export-tooltip.visible { opacity: 1; }
     .ctx-export-menu {
-      display: none; position: absolute; top: 100%; right: 0;
+      display: none; position: absolute; top: 100%; right: 8px;
       background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px; padding: 4px 0; z-index: 100;
+      border-radius: 8px; padding: 4px 0; z-index: 200;
       min-width: 170px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
     .ctx-export-menu.visible { display: block; }
@@ -2603,7 +2603,8 @@ if (window.__contextExtensionLoaded) {
       </div>
       <div class="ctx-header-row2">
         <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">CLEAR</button>
-        <div class="ctx-export-wrap" style="position:relative;"><button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">EXPORT<span class="ctx-export-tooltip">Copied!</span></button><div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div></div>
+        <button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">EXPORT<span class="ctx-export-tooltip">Copied!</span></button>
+        <div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div>
         <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">HISTORY</button>
         <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">SETTINGS</button>
       </div>
@@ -2679,7 +2680,7 @@ if (window.__contextExtensionLoaded) {
 
     // Close menu when clicking outside
     sidebar.addEventListener('click', (e) => {
-      if (!e.target.closest('.ctx-export-btn')) {
+      if (!e.target.closest('.ctx-export-btn') && !e.target.closest('.ctx-export-menu')) {
         exportMenu.classList.remove('visible');
       }
     });

@@ -614,6 +614,20 @@ if (window.__contextExtensionLoaded) {
     .context-card.collapsed { animation: none; cursor: default; }
     .context-card.card-dismissed { opacity: 0.5 !important; transition: opacity 0.2s; animation: none; }
     .context-card.card-dismissed:hover { opacity: 0.7; }
+    .card-quick-dismiss {
+      position: absolute; top: 8px; right: 8px; width: 20px; height: 20px;
+      border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: none;
+      color: var(--text-tertiary); font-size: 12px; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      transition: background 150ms ease, color 150ms ease; padding: 0; z-index: 5;
+    }
+    .context-card:hover .card-quick-dismiss { display: flex; }
+    .card-quick-dismiss:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    @keyframes cardRipple {
+      0% { box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.5); }
+      100% { box-shadow: inset 0 0 0 1px transparent; }
+    }
+    .context-card.remention { animation: cardRipple 800ms ease-out; }
     .card-dismiss-inline {
       width: 18px; height: 18px; border-radius: 50%;
       border: 1px solid rgba(255,255,255,0.15); background: none;
@@ -626,7 +640,6 @@ if (window.__contextExtensionLoaded) {
     .context-card.card-dismissed .card-dismiss-inline { border-color: rgba(0,230,118,0.6); color: #fff; background: #00c853; }
     .card-dismiss-inline.dismiss-starred { background: #eab308; border-color: #eab308; color: #fff; }
     .card-dismiss-inline.dismiss-starred:hover { background: #ca9a06; border-color: #ca9a06; }
-    .card-quick-dismiss { display: none; }
     .card-row {
       display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
     }
@@ -1016,7 +1029,8 @@ if (window.__contextExtensionLoaded) {
     .light-theme .card-copy-btn { background: rgba(99,102,241,0.08); color: #6366f1; }
     .light-theme .card-copy-btn:hover { background: rgba(99,102,241,0.15); }
     .light-theme .card-copy-btn.copied { color: #059669; background: rgba(5,150,105,0.08); }
-    .light-theme .card-quick-dismiss { display: none; }
+    .light-theme .card-quick-dismiss { background: rgba(0, 0, 0, 0.04); color: rgba(0,0,0,0.35); }
+    .light-theme .card-quick-dismiss:hover { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
     .light-theme .card-dismiss-inline { border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.3); }
     .light-theme .card-dismiss-inline:hover { border-color: rgba(5,150,105,0.5); color: #059669; background: rgba(5,150,105,0.1); }
     .light-theme .context-card.card-dismissed .card-dismiss-inline { border-color: rgba(5,150,105,0.6); color: #fff; background: #059669; }
@@ -2392,6 +2406,7 @@ if (window.__contextExtensionLoaded) {
     }
 
     card.innerHTML = `
+      <button class="card-quick-dismiss" title="Remove">\u00D7</button>
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
         <span class="card-term">${ticker || companyName}${collapsedPriceHTML}</span>
@@ -2430,6 +2445,32 @@ if (window.__contextExtensionLoaded) {
     }
 
     const key = (entity.ticker || entity.term || entity.name || '').toLowerCase();
+
+    // Quick dismiss (× button) — animate out and remove
+    const stockQuickDismiss = card.querySelector('.card-quick-dismiss');
+    if (stockQuickDismiss) {
+      stockQuickDismiss.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        card.style.transition = 'opacity 200ms ease, transform 200ms ease, max-height 200ms ease';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(20px)';
+        card.style.maxHeight = card.offsetHeight + 'px';
+        requestAnimationFrame(() => { card.style.maxHeight = '0'; card.style.margin = '0'; card.style.padding = '0'; card.style.borderWidth = '0'; });
+        setTimeout(() => {
+          card.remove();
+          if (virtualActive) {
+            const idx = virtualCards.findIndex(vc => vc.el === card);
+            if (idx !== -1) virtualCards.splice(idx, 1);
+          }
+        }, 200);
+        try {
+          chrome.runtime.sendMessage({ type: 'CARD_DISMISS', term: key });
+        } catch (err) {}
+      });
+    }
+
     // Place reaction buttons inside footer if it exists, otherwise append normally
     const footerBtns = card.querySelector('.stock-footer-buttons');
     if (footerBtns) {
@@ -2475,6 +2516,7 @@ if (window.__contextExtensionLoaded) {
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
 
     card.innerHTML = `
+      <button class="card-quick-dismiss" title="Remove">\u00D7</button>
       <div class="card-row">
         ${typeBadge}
         <span class="card-term">${termText}</span>
@@ -2520,6 +2562,33 @@ if (window.__contextExtensionLoaded) {
           }
           chrome.storage.local.set({ dismissedEntities: dismissed });
         });
+      });
+    }
+
+    // Quick dismiss (× button) — animate out and remove
+    const quickDismissEl = card.querySelector('.card-quick-dismiss');
+    if (quickDismissEl) {
+      quickDismissEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        card.style.transition = 'opacity 200ms ease, transform 200ms ease, max-height 200ms ease';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(20px)';
+        card.style.maxHeight = card.offsetHeight + 'px';
+        requestAnimationFrame(() => { card.style.maxHeight = '0'; card.style.margin = '0'; card.style.padding = '0'; card.style.borderWidth = '0'; });
+        setTimeout(() => {
+          card.remove();
+          // Remove from virtual cards if active
+          if (virtualActive) {
+            const idx = virtualCards.findIndex(vc => vc.el === card);
+            if (idx !== -1) virtualCards.splice(idx, 1);
+          }
+        }, 200);
+        // Tell background to suppress re-extraction this session
+        try {
+          chrome.runtime.sendMessage({ type: 'CARD_DISMISS', term: genericDismissKey });
+        } catch (err) {}
       });
     }
 
@@ -5483,6 +5552,21 @@ if (window.__contextExtensionLoaded) {
       const authEl = shadowRoot.querySelector('.ctx-auth-section');
       if (authEl) {
         authEl.dispatchEvent(new CustomEvent('auth-changed', { detail: null }));
+      }
+    } else if (msg.type === 'ENTITY_REMENTION') {
+      if (!shadowRoot) return;
+      const term = (msg.term || '').toLowerCase();
+      if (!term) return;
+      const cards = shadowRoot.querySelectorAll('.context-card');
+      for (const card of cards) {
+        const cardTerm = (card.dataset.term || '').toLowerCase();
+        if (cardTerm === term) {
+          card.classList.remove('remention');
+          void card.offsetWidth; // force reflow to restart animation
+          card.classList.add('remention');
+          setTimeout(() => card.classList.remove('remention'), 800);
+          break;
+        }
       }
     }
   });

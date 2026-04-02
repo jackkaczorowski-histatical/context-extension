@@ -79,6 +79,7 @@ let eventFlushTimer = null;
 let knowledgeState = {};
 let topicAffinities = {};
 let entityPackCache = {}; // { normalizedTerm: entityObject } — loaded from pack
+let dismissedTerms = new Set(); // terms dismissed by user this session
 
 function trackEvent(eventName, properties = {}) {
   chrome.storage.local.get(['installId', 'user'], (data) => {
@@ -620,6 +621,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sessionInsights = [];
     sessionTranscript = '';
     transcriptBuffer = '';
+    dismissedTerms.clear();
     firstFlush = true;
   } else if (message.type === 'GET_TAB_ID') {
     sendResponse({ tabId: sender.tab?.id });
@@ -779,6 +781,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.storage.local.set({ newBadgeCleared: true });
       }
     });
+  } else if (message.type === 'CARD_DISMISS') {
+    // Add term to dismissed set so it won't be re-extracted this session
+    const term = (message.term || '').toLowerCase().replace(/s$/, '');
+    if (term) dismissedTerms.add(term);
   }
 });
 
@@ -1023,6 +1029,7 @@ async function stopCapture() {
   sessionEntities = [];
   sessionInsights = [];
   entityPackCache = {};
+  dismissedTerms.clear();
   sessionTranscript = '';
   isPaused = false;
   firstFlush = true;
@@ -1106,13 +1113,26 @@ async function processNextTranscript() {
     // Check entity pack cache for instant matches
     const packMatches = [];
     const transcriptLower = transcript.toLowerCase();
+    const packRementions = [];
     for (const [key, entity] of Object.entries(entityPackCache)) {
-      if (transcriptLower.includes(key) && !sessionEntities.includes(key.replace(/s$/, ''))) {
-        packMatches.push({ ...entity, fromPack: true });
-        // Register in sessionEntities for dedup
-        const normalized = key.replace(/s$/, '');
-        sessionEntities.push(normalized);
+      const normalized = key.replace(/s$/, '');
+      if (transcriptLower.includes(key)) {
+        if (dismissedTerms.has(normalized)) continue;
+        if (!sessionEntities.includes(normalized)) {
+          packMatches.push({ ...entity, fromPack: true });
+          // Register in sessionEntities for dedup
+          sessionEntities.push(normalized);
+        } else {
+          // Already seen — track as re-mention
+          packRementions.push(entity.term || key);
+        }
       }
+    }
+    // Notify content script of re-mentions from pack cache
+    if (packRementions.length > 0 && capturingTabId) {
+      packRementions.forEach(term => {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'ENTITY_REMENTION', term: term.toLowerCase() }).catch(() => {});
+      });
     }
 
     if (packMatches.length > 0) {
@@ -1266,6 +1286,10 @@ async function processNextTranscript() {
       });
       if (isDup) {
         console.log('[BACKGROUND] Dedup filtered:', entity.term, '(already seen similar in session)');
+        // Notify content script of re-mention
+        if (capturingTabId) {
+          chrome.tabs.sendMessage(capturingTabId, { type: 'ENTITY_REMENTION', term: (entity.term || '').toLowerCase() }).catch(() => {});
+        }
       }
       return !isDup;
     });
@@ -1278,9 +1302,14 @@ async function processNextTranscript() {
     // Persist to survive service worker restarts
     chrome.storage.local.set({ sessionEntities });
 
-    // Filter out generic/common single-word terms
+    // Filter out generic/common single-word terms and dismissed terms
     const filteredEntities = dedupedEntities.filter(entity => {
       const term = (entity.term || entity.name || '').trim();
+      const termLower = term.toLowerCase().replace(/s$/, '');
+      if (dismissedTerms.has(termLower)) {
+        console.log('[BACKGROUND] Dismissed term filtered:', term);
+        return false;
+      }
       const words = term.split(/\s+/);
       if (words.length === 1 && GENERIC_TERMS.has(term.toLowerCase())) {
         console.log('[BACKGROUND] Generic term filtered:', term);

@@ -428,9 +428,10 @@ if (window.__contextExtensionLoaded) {
     .ctx-header-row1 {
       display: flex; align-items: center; justify-content: space-between;
       padding: 6px 12px;
+      border-bottom: 1px solid var(--border-subtle);
     }
     .ctx-header-row1-left { display: flex; align-items: center; gap: 8px; }
-    .ctx-header-row1-right { display: flex; align-items: center; gap: 6px; }
+    .ctx-header-row1-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .ctx-header-row2 {
       display: flex; align-items: center; justify-content: center;
       padding: 2px 12px; gap: 12px;
@@ -1170,20 +1171,22 @@ if (window.__contextExtensionLoaded) {
     .ctx-now-watching {
       display: none;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       padding: 4px 12px;
       background: rgba(255, 255, 255, 0.03);
       border-bottom: 1px solid var(--border-subtle);
       flex-shrink: 0;
+      min-width: 0;
     }
     .ctx-now-watching.visible { display: flex; }
     .ctx-now-watching-label {
       font-size: 8px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.3);
+      color: var(--text-tertiary);
       text-transform: uppercase;
       letter-spacing: 0.08em;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     .ctx-now-watching-title {
       font-size: 11px;

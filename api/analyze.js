@@ -236,9 +236,24 @@ module.exports = async function handler(req, res) {
     }
 
     const message = await response.json();
-    let text = message.content[0].text;
+    let text = (message.content[0].text || '').trim();
+    // Strip markdown fences
     text = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?\s*```$/, "");
-    const parsed = correctEntities(JSON.parse(text));
+    // Extract JSON object even if surrounded by other text
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[ANALYZE] No JSON found in response:', text.slice(0, 200));
+      Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+      return res.status(200).json({ entities: [], insights: [] });
+    }
+    let parsed;
+    try {
+      parsed = correctEntities(JSON.parse(jsonMatch[0]));
+    } catch (parseErr) {
+      console.error('[ANALYZE] JSON parse failed:', parseErr.message, 'text:', jsonMatch[0].slice(0, 200));
+      Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+      return res.status(200).json({ entities: [], insights: [] });
+    }
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json(parsed);

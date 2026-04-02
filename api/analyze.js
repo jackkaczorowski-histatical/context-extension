@@ -152,7 +152,7 @@ ENTITY TYPE RULES:
 - "organization" = companies, stock exchanges, institutions, banks, military units. Examples: Nasdaq, NYSE, Goldman Sachs, the Fed, 82nd Airborne, Dow Jones. CRITICAL: Stock EXCHANGES and INDICES (Nasdaq, NYSE, Dow Jones Industrial Average, S&P 500) are "organization", NOT "stock" and NOT "concept". Only things you can buy with a ticker are "stock".
 - "place" = buildings, cities, countries, geographic features, landmarks. Examples: Versailles, Bastille, Strait of Hormuz, Paris, Karg Island, Manhattan, Persian Gulf. Do NOT use concept for physical locations.
 - "concept" = ideas, strategies, economic principles. Examples: inflation, dollar-cost averaging, divine right, laissez-faire. Do NOT use concept for physical places or locations — use "place" instead.
-- "event" = specific historical or current events that HAPPENED. Only things that occurred at a point in time are events. Examples: 2022 market crash, World War II, Seven Years War, storming of the Bastille. The storming of the Bastille is an event, but the Bastille itself is a place.
+- "event" = specific historical or current events that HAPPENED. Only things that occurred at a point in time are events. Examples: 2022 market crash, World War II, Seven Years War, storming of the Bastille. The storming of the Bastille is an event, but the Bastille itself is a place. Historical periods and eras (e.g. Paleolithic era, Bronze Age, Renaissance, Enlightenment, Middle Ages) should be typed as event.
 - "person" = named individuals. Examples: Elon Musk, Robespierre, Louis XVI.
 - "ingredient" = specific named ingredients with quantity or preparation context.
 

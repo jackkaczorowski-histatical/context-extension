@@ -2075,6 +2075,7 @@ if (window.__contextExtensionLoaded) {
       }
     }
     chrome.storage.local.set({ sidebarOpen: true });
+    chrome.runtime.sendMessage({ type: 'SIDEBAR_OPENED' }).catch(() => {});
     updateFloatingWidget();
   }
 
@@ -2099,6 +2100,7 @@ if (window.__contextExtensionLoaded) {
       }
     }, 250);
     chrome.storage.local.set({ sidebarOpen: false });
+    chrome.runtime.sendMessage({ type: 'SIDEBAR_CLOSED' }).catch(() => {});
     updateFloatingWidget();
   }
 
@@ -4112,6 +4114,8 @@ if (window.__contextExtensionLoaded) {
 
     ensureBadge();
     applyTheme();
+    // Clear NEW badge on first sidebar creation
+    chrome.runtime.sendMessage({ type: 'SIDEBAR_FIRST_OPEN' }).catch(() => {});
     console.log('[CONTENT] Shadow DOM sidebar created');
 
     // Recover cards and sidebar state from storage (e.g. page refresh)

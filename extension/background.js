@@ -69,6 +69,7 @@ let firstFlush = true;
 let restartAttempted = false;
 let sessionId = null;
 let sessionTotal = 0;
+let sidebarOpen = false;
 let isStoppingCapture = false;
 let isStartingCapture = false;
 let lastAnalyzeFailed = false;
@@ -387,8 +388,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.storage.local.set({ capturing: false });
+  // Show NEW badge on first install
+  if (details.reason === 'install') {
+    chrome.action.setBadgeText({ text: 'NEW' });
+    chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
+  }
   // Generate anonymous install ID if not present
   chrome.storage.local.get('installId', (data) => {
     if (!data.installId) {
@@ -607,6 +613,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.set({ knowledgeBase: kb, pastSessions }, () => {
         chrome.storage.local.remove(['sessionHistory', 'pendingEntities', 'pendingInsights', 'sessionTranscript', 'sessionEntities']);
         sessionTotal = 0;
+        chrome.action.setBadgeText({ text: '' });
       });
     });
     sessionEntities = [];
@@ -748,6 +755,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         flushTranscriptBuffer();
       }, firstFlush ? 3000 : 5000);
     }
+  } else if (message.type === 'SIDEBAR_OPENED') {
+    sidebarOpen = true;
+    // When sidebar opens during capture, show recording dot instead of count
+    if (capturingTabId) {
+      chrome.action.setBadgeText({ text: '●' });
+      chrome.action.setBadgeBackgroundColor({ color: '#ef4444' });
+    } else {
+      chrome.action.setBadgeText({ text: '' });
+    }
+  } else if (message.type === 'SIDEBAR_CLOSED') {
+    sidebarOpen = false;
+    // When sidebar closes during capture, show card count if any
+    if (capturingTabId && sessionTotal > 0) {
+      chrome.action.setBadgeText({ text: String(sessionTotal) });
+      chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
+    }
+  } else if (message.type === 'SIDEBAR_FIRST_OPEN') {
+    // Clear the NEW badge on first sidebar open
+    chrome.storage.local.get('newBadgeCleared', (data) => {
+      if (!data.newBadgeCleared) {
+        chrome.action.setBadgeText({ text: '' });
+        chrome.storage.local.set({ newBadgeCleared: true });
+      }
+    });
   }
 });
 
@@ -847,6 +878,10 @@ async function startCapture() {
       storageUpdate.sessionStart = Date.now();
     }
     chrome.storage.local.set(storageUpdate);
+
+    // Show recording badge
+    chrome.action.setBadgeText({ text: '●' });
+    chrome.action.setBadgeBackgroundColor({ color: '#ef4444' });
 
     // Check for pre-computed entity pack (non-blocking)
     if (!isResume) {
@@ -995,6 +1030,7 @@ async function stopCapture() {
   flushEvents();
   chrome.storage.local.remove(['activeTabId', 'sessionEntities']);
   chrome.storage.local.set({ capturing: false, sessionStats });
+  chrome.action.setBadgeText({ text: '' });
   console.log('[BACKGROUND] Capture stopped');
   isStoppingCapture = false;
 }
@@ -1115,6 +1151,12 @@ async function processNextTranscript() {
           pendingEntities: enrichedPackMatches,
           pendingTimestamp: Date.now()
         });
+        // Show card count badge for pack entities when sidebar closed
+        sessionTotal += enrichedPackMatches.length;
+        if (!sidebarOpen) {
+          chrome.action.setBadgeText({ text: String(sessionTotal) });
+          chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
+        }
       });
       chrome.storage.local.set({ sessionEntities });
     }
@@ -1450,6 +1492,11 @@ async function processNextTranscript() {
     }
     incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
     sessionTotal += enrichedEntities.length + dedupedInsights.length;
+    // Show card count badge when sidebar is closed
+    if (!sidebarOpen) {
+      chrome.action.setBadgeText({ text: String(sessionTotal) });
+      chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
+    }
     console.log('[BACKGROUND] Saved to storage, session total:', sessionTotal);
   } catch (err) {
     console.error('[BACKGROUND] Processing error:', err.message || err);

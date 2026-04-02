@@ -426,27 +426,24 @@ if (window.__contextExtensionLoaded) {
       overflow: visible;
     }
     .ctx-header-row1 {
-      display: flex; align-items: center; justify-content: space-between;
-      height: 40px; padding: 0 12px;
-    }
-    .ctx-header-row1-left { display: flex; align-items: center; gap: 8px; }
-    .ctx-header-row1-right { display: flex; align-items: center; gap: 8px; }
-    .ctx-header-row2 {
-      display: flex; align-items: center; justify-content: center;
-      height: 28px; padding: 0 8px; gap: 4px;
+      display: flex; align-items: center;
+      height: 32px; padding: 0 8px; gap: 4px;
       border-bottom: 1px solid var(--border-subtle);
       position: relative; overflow: visible;
     }
+    .ctx-header-row1-left { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+    .ctx-header-row1-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .ctx-header-row2 { display: none; }
     .ctx-toolbar-btn {
-      background: none; border: none; color: var(--text-tertiary); font-size: 10px;
+      background: none; border: none; color: var(--text-tertiary); font-size: 9px;
       font-family: inherit; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.05em; cursor: pointer; padding: 4px 8px;
+      letter-spacing: 0.05em; cursor: pointer; padding: 2px 4px;
       line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
       white-space: nowrap;
     }
     .ctx-toolbar-btn:hover { color: var(--text-primary); }
     .ctx-toolbar-btn.active { color: var(--accent); }
-    .ctx-wordmark { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+    .ctx-wordmark { font-size: 13px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
     .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
@@ -464,8 +461,8 @@ if (window.__contextExtensionLoaded) {
     .ctx-export-btn { position: relative; }
     .ctx-clear-btn:hover { color: #ef4444; }
     .ctx-close-btn {
-      background: none; border: none; color: var(--text-secondary); font-size: 18px;
-      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
+      background: none; border: none; color: var(--text-secondary); font-size: 16px;
+      cursor: pointer; padding: 0 2px; line-height: 1; transition: color 0.15s;
       flex-shrink: 0;
     }
     .ctx-close-btn:hover { color: #f8fafc; }
@@ -525,9 +522,9 @@ if (window.__contextExtensionLoaded) {
     }
     .ctx-empty-text { font-size: 11px; color: #6a6a8a; }
     .transcript-ticker {
-      padding: 8px 12px; font-size: 11px; color: var(--text-tertiary);
+      padding: 4px 12px; font-size: 10px; color: var(--text-tertiary);
       font-style: italic; overflow: hidden; white-space: nowrap;
-      text-overflow: ellipsis; max-height: 24px;
+      text-overflow: ellipsis; max-height: 20px;
       transition: opacity 200ms ease;
     }
     .transcript-ticker.hidden { opacity: 0; max-height: 0; padding: 0 12px; overflow: hidden; }
@@ -722,11 +719,17 @@ if (window.__contextExtensionLoaded) {
     .card-term .stock-change { font-size: 11px; margin-left: 2px; }
     .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
     .stock-yahoo-link:hover { color: #818cf8; }
+    .card-actions-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;
+    }
+    .card-actions-row .card-wiki-link,
+    .card-actions-row .card-tellmore,
+    .card-actions-row .card-copy-btn { margin-top: 0; }
     .reaction-row {
-      display: flex; gap: 8px; margin-top: 6px; justify-content: flex-start;
+      display: flex; gap: 6px; margin-left: auto; align-items: center;
     }
     .reaction-btn {
-      width: 20px; height: 20px; border-radius: 50%; background: none;
+      width: 16px; height: 16px; border-radius: 50%; background: none;
       display: flex; align-items: center; justify-content: center;
       font-size: 10px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;
       padding: 0; line-height: 1; flex-shrink: 0;
@@ -751,11 +754,12 @@ if (window.__contextExtensionLoaded) {
     .context-card.reacted { opacity: 0.65; transition: opacity 0.2s; }
     .context-card.reacted:hover { opacity: 0.85; }
     .ctx-filter-bar {
-      display: flex; gap: 8px; padding: 8px 16px;
+      display: flex; gap: 4px; padding: 4px 8px;
       background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+      align-items: center;
     }
     .ctx-filter-btn {
-      font-size: 10px; padding: 4px 12px; border-radius: 4px;
+      font-size: 9px; padding: 2px 6px; border-radius: 4px;
       border: 1px solid rgba(255,255,255,0.1); background: none;
       color: var(--text-secondary); cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
@@ -768,7 +772,7 @@ if (window.__contextExtensionLoaded) {
     .reaction-label {
       display: none;
     }
-    .reaction-group { display: flex; flex-direction: column; align-items: center; }
+    .reaction-group { display: flex; align-items: center; }
     .card-wiki-link {
       font-size: 10px; color: var(--text-tertiary); text-decoration: none;
       transition: color 0.15s; display: inline-block; margin-top: 2px; padding: 2px 8px;
@@ -787,11 +791,11 @@ if (window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
-    .card-followups { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .card-followups { display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
     .followup-chip {
-      font-size: 10px; color: #a5b4fc; background: rgba(99,102,241,0.08);
+      font-size: 9px; color: #a5b4fc; background: rgba(99,102,241,0.08);
       border: 1px solid rgba(99,102,241,0.2); border-radius: 4px;
-      padding: 4px 8px; cursor: pointer; font-family: inherit;
+      padding: 3px 6px; cursor: pointer; font-family: inherit;
       text-align: left; line-height: 1.3; transition: background 0.15s, border-color 0.15s;
     }
     .followup-chip:hover { background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.4); }
@@ -803,8 +807,8 @@ if (window.__contextExtensionLoaded) {
     }
     .card-copy-btn:hover { background: rgba(99,102,241,0.2); }
     .card-copy-btn.copied { color: #00e676; background: rgba(0,230,118,0.1); }
-    .card-preview-text { font-size: 11px; color: var(--text-secondary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: none; }
-    .context-card.expanded .card-preview-text { display: block; }
+    .card-preview-text { font-size: 11px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .context-card.expanded .card-preview-text { display: none; }
     .ctx-card-tooltip {
       position: absolute; background: var(--bg-surface); border: 1px solid var(--border-subtle);
       border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--text-primary);
@@ -1161,15 +1165,15 @@ if (window.__contextExtensionLoaded) {
     }
 
     .ctx-now-watching {
-      display: flex;
+      display: none;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.03);
-      border-bottom: 1px solid var(--border-subtle);
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
     }
+    .ctx-now-watching.visible { display: flex; }
     .ctx-now-watching-label {
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 600;
       color: rgba(255, 255, 255, 0.3);
       text-transform: uppercase;
@@ -1177,12 +1181,13 @@ if (window.__contextExtensionLoaded) {
       white-space: nowrap;
     }
     .ctx-now-watching-title {
-      font-size: 11px;
+      font-size: 10px;
       color: rgba(255, 255, 255, 0.6);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       flex: 1;
+      min-width: 0;
     }
 
     /* ─── Onboarding overlay ─── */
@@ -2241,7 +2246,13 @@ if (window.__contextExtensionLoaded) {
       row.appendChild(group);
     });
 
-    expandArea.appendChild(row);
+    // Append reactions to the actions row if present, otherwise to expand area
+    const actionsRow = card.querySelector('.card-actions-row');
+    if (actionsRow && !container) {
+      actionsRow.appendChild(row);
+    } else {
+      expandArea.appendChild(row);
+    }
   }
 
   const SHOP_KEYWORDS = /setup|gear|tackle|recipe|ingredients|build|diy|unboxing|what\s+i\s+use|my\s+favorite|best\s+lures|starter\s+kit/i;
@@ -2581,9 +2592,11 @@ if (window.__contextExtensionLoaded) {
       <div class="card-expand-area">
         <div class="card-desc"></div>
         ${sourceLine}
-        <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia \u2192</a>
-        <button class="card-tellmore">Tell me more</button>
-        <button class="card-copy-btn">Copy text</button>
+        <div class="card-actions-row">
+          <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia \u2192</a>
+          <button class="card-tellmore">Tell me more</button>
+          <button class="card-copy-btn">Copy text</button>
+        </div>
         ${entity.followUps && entity.followUps.length > 0 ? `<div class="card-followups">${entity.followUps.map(q => `<button class="followup-chip">${escapeHtml(q)}</button>`).join('')}</div>` : ''}
       </div>
     `;
@@ -3122,19 +3135,18 @@ if (window.__contextExtensionLoaded) {
             <span class="ctx-live-dot"></span>
             <span class="ctx-live-text">Live</span>
           </div>
+          <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">CLEAR</button>
+          <button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">EXPORT<span class="ctx-export-tooltip">Copied!</span></button>
+          <div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div>
+          <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">HISTORY</button>
+          <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">SETTINGS</button>
         </div>
         <div class="ctx-header-row1-right">
           <button id="ctx-listen-btn" title="Start Listening">&#x25B6;</button>
           <button class="ctx-close-btn" title="Close sidebar">&times;</button>
         </div>
       </div>
-      <div class="ctx-header-row2">
-        <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">CLEAR</button>
-        <button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">EXPORT<span class="ctx-export-tooltip">Copied!</span></button>
-        <div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div>
-        <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">HISTORY</button>
-        <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">SETTINGS</button>
-      </div>
+      <div class="ctx-header-row2"></div>
     `;
 
     // Wire up listen button
@@ -3162,7 +3174,7 @@ if (window.__contextExtensionLoaded) {
 
     // Wire up clear button with inline confirmation
     const clearBtn = header.querySelector('.ctx-clear-btn');
-    const headerRow2 = header.querySelector('.ctx-header-row2');
+    const headerRow1 = header.querySelector('.ctx-header-row1');
     let clearTimer = null;
     clearBtn.addEventListener('click', () => {
       if (clearBtn.dataset.confirming === 'true') return;
@@ -3178,7 +3190,7 @@ if (window.__contextExtensionLoaded) {
       noBtn.textContent = 'No';
       confirm.appendChild(yesBtn);
       confirm.appendChild(noBtn);
-      headerRow2.appendChild(confirm);
+      headerRow1.appendChild(confirm);
       function revert() {
         if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
         confirm.remove();
@@ -3582,17 +3594,16 @@ if (window.__contextExtensionLoaded) {
     cardsWrap.appendChild(statusBar);
     cardsWrap.appendChild(emptyState);
 
-    // Pinned "Now Watching" bar
+    // Now Watching label (embedded in filter bar)
     const nowWatchingBar = document.createElement('div');
     nowWatchingBar.id = 'ctx-now-watching';
     nowWatchingBar.className = 'ctx-now-watching';
-    nowWatchingBar.style.display = 'none';
     nowWatchingBar.innerHTML = `<span class="ctx-now-watching-label">NOW WATCHING</span><span class="ctx-now-watching-title"></span>`;
-    cardsWrap.appendChild(nowWatchingBar);
 
-    // Filter bar
+    // Filter bar (now-watching + filters on one row)
     const filterBar = document.createElement('div');
     filterBar.className = 'ctx-filter-bar';
+    filterBar.appendChild(nowWatchingBar);
     const hideKnownBtn = document.createElement('button');
     hideKnownBtn.className = 'ctx-filter-btn';
     hideKnownBtn.textContent = 'Hide known';
@@ -4371,7 +4382,7 @@ if (window.__contextExtensionLoaded) {
           const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
           if (title && title !== 'YouTube') {
             bar.querySelector('.ctx-now-watching-title').textContent = title;
-            bar.style.display = 'flex';
+            bar.classList.add('visible');
           }
         }
       }
@@ -4380,7 +4391,7 @@ if (window.__contextExtensionLoaded) {
     // Watch for title changes to keep Now Watching bar current (YouTube SPA updates title dynamically)
     const titleObserver = new MutationObserver(() => {
       const bar = shadowRoot?.getElementById('ctx-now-watching');
-      if (bar && bar.style.display !== 'none') {
+      if (bar && bar.classList.contains('visible')) {
         const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
         if (title && title !== 'YouTube') {
           bar.querySelector('.ctx-now-watching-title').textContent = title;
@@ -5086,7 +5097,7 @@ if (window.__contextExtensionLoaded) {
             const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
             if (title && title !== 'YouTube') {
               bar.querySelector('.ctx-now-watching-title').textContent = title;
-              bar.style.display = 'flex';
+              bar.classList.add('visible');
             }
           }
         }
@@ -5097,7 +5108,7 @@ if (window.__contextExtensionLoaded) {
         if (liveDot) liveDot.classList.remove('active');
         // Hide Now Watching bar
         const nwBar = shadowRoot?.getElementById('ctx-now-watching');
-        if (nwBar) nwBar.style.display = 'none';
+        if (nwBar) nwBar.classList.remove('visible');
       }
     }
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
@@ -5449,7 +5460,7 @@ if (window.__contextExtensionLoaded) {
         const title = document.title.replace(/\s*-\s*YouTube$/i, '').replace(/^\(\d+\)\s*/, '').trim();
         if (title && title !== 'YouTube') {
           bar.querySelector('.ctx-now-watching-title').textContent = title;
-          bar.style.display = 'flex';
+          bar.classList.add('visible');
         }
       }
     }

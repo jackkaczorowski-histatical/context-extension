@@ -1686,6 +1686,18 @@ if (window.__contextExtensionLoaded) {
     .light-theme .floating-widget { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .light-theme .floating-widget:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
 
+    /* Why-this-card tooltip */
+    .card-why-tooltip {
+      position: absolute; top: -32px; left: 12px;
+      background: #1e1e2e; color: var(--text-secondary);
+      font-size: 10px; padding: 4px 8px; border-radius: 4px;
+      white-space: nowrap; pointer-events: none;
+      opacity: 0; transition: opacity 150ms ease;
+      z-index: 10; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .context-card:hover .card-why-tooltip { opacity: 1; }
+    .light-theme .card-why-tooltip { background: #fff; color: #64748b; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
     /* Focus indicators */
     .context-card:focus-visible, .insight-strip:focus-visible {
       outline: 2px solid var(--accent);
@@ -2429,7 +2441,15 @@ if (window.__contextExtensionLoaded) {
       collapsedPriceHTML = ` <span class="stock-collapsed-price">${cpDisplay}</span> <span class="stock-change ${cpClass}">${cpSign}${cpPct.toFixed(2)}%</span>`;
     }
 
+    const stockWhyText = entity.fromPack ? 'Mentioned in a previous session'
+      : entity.familiarity > 0.5 ? "You've seen this before but it came up again"
+      : entity._score > 0.8 ? 'Highly relevant to this content'
+      : entity.salience === 'highlight' ? 'Key term in this segment'
+      : 'First mention in this session';
+    card.dataset.why = stockWhyText;
+
     card.innerHTML = `
+      <div class="card-why-tooltip">${escapeHtml(stockWhyText)}</div>
       <button class="card-quick-dismiss" title="Remove">\u00D7</button>
       <div class="card-row">
         <span class="card-type" style="color:${color}">STOCK</span>
@@ -2542,7 +2562,15 @@ if (window.__contextExtensionLoaded) {
 
     const previewDesc = entity.description ? truncateHeadline(entity.description, 60) : '';
 
+    const whyText = entity.fromPack ? 'Mentioned in a previous session'
+      : entity.familiarity > 0.5 ? "You've seen this before but it came up again"
+      : entity._score > 0.8 ? 'Highly relevant to this content'
+      : entity.salience === 'highlight' ? 'Key term in this segment'
+      : 'First mention in this session';
+    card.dataset.why = whyText;
+
     card.innerHTML = `
+      <div class="card-why-tooltip">${escapeHtml(whyText)}</div>
       <button class="card-quick-dismiss" title="Remove">\u00D7</button>
       <div class="card-row">
         ${typeBadge}

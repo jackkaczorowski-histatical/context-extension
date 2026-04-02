@@ -92,7 +92,10 @@ if (window.__contextExtensionLoaded) {
     tradeoff: '#f97316',
     stock: '#38bdf8',
     commodity: '#f97316',
-    ingredient: '#ec4899'
+    ingredient: '#ec4899',
+    work: '#a78bfa',
+    legislation: '#f59e0b',
+    metric: '#06b6d4'
   };
 
   let cardsRenderedThisSession = 0;

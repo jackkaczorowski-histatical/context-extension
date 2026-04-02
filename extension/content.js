@@ -3393,6 +3393,42 @@ if (window.__contextExtensionLoaded) {
       addToggle('Show insights', 'showInsights');
       settingsPanel.appendChild(s3);
 
+      // Section 3b: Data & Privacy
+      const s3b = document.createElement('div');
+      s3b.className = 'ctx-settings-section';
+      const s3bLabel = document.createElement('div');
+      s3bLabel.className = 'ctx-settings-label';
+      s3bLabel.textContent = 'Data & privacy';
+      s3b.appendChild(s3bLabel);
+
+      const consentRow = document.createElement('div');
+      consentRow.className = 'ctx-settings-toggle-row';
+      const consentLbl = document.createElement('span');
+      consentLbl.className = 'ctx-settings-toggle-label';
+      consentLbl.textContent = 'Help improve Context';
+      const consentToggle = document.createElement('button');
+      chrome.storage.local.get('dataConsent', (dc) => {
+        consentToggle.className = 'ctx-settings-toggle' + (dc.dataConsent ? ' on' : '');
+      });
+      consentToggle.className = 'ctx-settings-toggle';
+      consentToggle.addEventListener('click', () => {
+        chrome.storage.local.get('dataConsent', (dc) => {
+          const newVal = !dc.dataConsent;
+          chrome.storage.local.set({ dataConsent: newVal });
+          consentToggle.classList.toggle('on', newVal);
+          try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'settings_change', properties: { dataConsent: newVal } }); } catch (e) {}
+        });
+      });
+      consentRow.appendChild(consentLbl);
+      consentRow.appendChild(consentToggle);
+      s3b.appendChild(consentRow);
+
+      const consentHint = document.createElement('div');
+      consentHint.style.cssText = 'font-size:11px;color:#64748b;line-height:1.4;margin-top:4px;padding-left:2px;';
+      consentHint.textContent = 'Anonymized session data helps us improve entity extraction and build better features. No personal data is shared.';
+      s3b.appendChild(consentHint);
+      settingsPanel.appendChild(s3b);
+
       // Section 4: Keyboard Shortcuts
       const s4 = document.createElement('div');
       s4.className = 'ctx-settings-section';

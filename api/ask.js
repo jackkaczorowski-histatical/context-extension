@@ -1,10 +1,13 @@
+const { rateLimit } = require('./_rateLimit');
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
-
-const { rateLimit } = require('./_rateLimit');
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -89,6 +92,26 @@ INSTRUCTIONS:
     const parsed = JSON.parse(text);
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+
+    // Save query to Supabase (fire and forget)
+    if (SUPABASE_URL && SUPABASE_KEY) {
+      fetch(`${SUPABASE_URL}/rest/v1/ask_queries`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY
+        },
+        body: JSON.stringify({
+          install_id: req.body.installId || null,
+          user_id: req.body.userId || null,
+          question,
+          term: req.body.term || null,
+          video_title: title
+        })
+      }).catch(() => {});
+    }
+
     return res.status(200).json(parsed);
   } catch (err) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));

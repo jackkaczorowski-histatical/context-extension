@@ -365,7 +365,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'CLEAR_SESSION') {
     console.log('[BACKGROUND] Session cleared by user');
     trackEvent('session_clear', { entities_count: sessionEntities.length });
-    chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'pastSessions'], (data) => {
+    chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'pastSessions', 'dataConsent', 'installId', 'user', 'activeTabUrl'], (data) => {
       const sessionHist = data.sessionHistory || [];
       const kb = data.knowledgeBase || {};
 
@@ -398,6 +398,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         if (pastSessions.length > 20) pastSessions.length = 20;
         console.log('[BACKGROUND] Session snapshot saved, total past sessions:', pastSessions.length);
+      }
+
+      // 2b. Send session data to Supabase if user consented
+      if (data.dataConsent && sessionHist.length > 0) {
+        const filteredEntities = sessionHist.filter(i => i.term && i.type !== 'insight' && i.type !== 'video-divider');
+        fetch(`${API_BASE}/session-data`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            installId: data.installId || null,
+            userId: data.user?.id || null,
+            videoTitle: capturingTabTitle || 'Untitled',
+            videoUrl: data.activeTabUrl || '',
+            transcript: sessionTranscript,
+            durationSeconds: captureStartTime ? Math.round((Date.now() - captureStartTime) / 1000) : 0,
+            entities: filteredEntities.map(e => ({
+              term: e.term,
+              type: e.type,
+              description: e.description || ''
+            })),
+            entityCount: filteredEntities.length
+          })
+        }).catch(err => {
+          console.error('[BACKGROUND] Session data upload failed:', err.message);
+        });
       }
 
       // 3. Save KB and pastSessions, then clear session data

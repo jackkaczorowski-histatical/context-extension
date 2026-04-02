@@ -679,6 +679,14 @@ if (window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
+    .card-followups { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .followup-chip {
+      font-size: 10px; color: #a5b4fc; background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.2); border-radius: 12px;
+      padding: 3px 10px; cursor: pointer; font-family: inherit;
+      text-align: left; line-height: 1.3; transition: background 0.15s, border-color 0.15s;
+    }
+    .followup-chip:hover { background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.4); }
     .card-copy-btn {
       background: rgba(99,102,241,0.1); color: #6366f1; border: none;
       border-radius: 10px; padding: 3px 10px; cursor: pointer;
@@ -876,6 +884,8 @@ if (window.__contextExtensionLoaded) {
     .light-theme .card-wiki-link:hover { color: #5a5a70; }
     .light-theme .card-shop-link { background: rgba(255,153,0,0.1); }
     .light-theme .card-tellmore { background: rgba(99,102,241,0.08); }
+    .light-theme .followup-chip { color: #4f46e5; background: rgba(99,102,241,0.06); border-color: rgba(99,102,241,0.15); }
+    .light-theme .followup-chip:hover { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.3); }
     .light-theme .card-copy-btn { background: rgba(99,102,241,0.08); color: #6366f1; }
     .light-theme .card-copy-btn:hover { background: rgba(99,102,241,0.15); }
     .light-theme .card-copy-btn.copied { color: #059669; background: rgba(5,150,105,0.08); }
@@ -2299,6 +2309,7 @@ if (window.__contextExtensionLoaded) {
         <a class="card-wiki-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia \u2192</a>
         <button class="card-tellmore">Tell me more</button>
         <button class="card-copy-btn">Copy text</button>
+        ${entity.followUps && entity.followUps.length > 0 ? `<div class="card-followups">${entity.followUps.map(q => `<button class="followup-chip">${escapeHtml(q)}</button>`).join('')}</div>` : ''}
       </div>
     `;
 
@@ -2536,6 +2547,19 @@ if (window.__contextExtensionLoaded) {
         input.focus();
         input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       }
+    });
+
+    card.querySelectorAll('.followup-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = shadowRoot.querySelector('.ctx-ask-input');
+        if (input) {
+          askEntityLabel = entity.term || entity.name || '';
+          input.value = chip.textContent;
+          input.focus();
+          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        }
+      });
     });
 
     const key = (entity.term || entity.name || '').toLowerCase();

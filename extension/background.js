@@ -70,6 +70,7 @@ let captureStartTime = null;
 let eventQueue = [];
 let eventFlushTimer = null;
 let knowledgeState = {};
+let topicAffinities = {};
 
 function trackEvent(eventName, properties = {}) {
   chrome.storage.local.get(['installId', 'user'], (data) => {
@@ -160,6 +161,74 @@ function updateKnowledgeState(entities) {
     entry.lastSeen = now;
   });
   debounceSaveKnowledgeState();
+}
+
+function classifyTopic(entity) {
+  const term = (entity.term || '').toLowerCase();
+  const desc = (entity.description || '').toLowerCase();
+  const type = (entity.type || '').toLowerCase();
+
+  if (type === 'stock') return 'finance';
+  if (type === 'legislation') return 'politics';
+  if (type === 'metric') return 'economics';
+
+  const text = term + ' ' + desc;
+  const topicKeywords = {
+    finance: ['bank', 'stock', 'market', 'trading', 'investment', 'gdp', 'inflation', 'federal reserve', 'interest rate', 'bond', 'currency', 'fiscal', 'monetary', 'wall street', 'hedge fund', 'etf', 'dividend'],
+    history: ['century', 'empire', 'dynasty', 'war', 'treaty', 'revolution', 'kingdom', 'colonial', 'medieval', 'ancient', 'monarch', 'reign', 'conquest', 'republic', 'civilization'],
+    science: ['theory', 'experiment', 'research', 'molecule', 'atom', 'gene', 'evolution', 'species', 'quantum', 'gravity', 'cell', 'dna', 'protein', 'climate', 'physics', 'biology', 'chemistry'],
+    technology: ['algorithm', 'software', 'hardware', 'ai', 'machine learning', 'blockchain', 'crypto', 'internet', 'computing', 'data', 'startup', 'silicon valley', 'programming'],
+    politics: ['president', 'congress', 'senate', 'legislation', 'policy', 'election', 'democrat', 'republican', 'parliament', 'prime minister', 'diplomat', 'sanction', 'nato', 'united nations'],
+    culture: ['film', 'music', 'art', 'literature', 'novel', 'album', 'director', 'artist', 'museum', 'fashion', 'architecture', 'philosophy', 'religion'],
+    economics: ['trade', 'tariff', 'supply', 'demand', 'labor', 'wage', 'tax', 'debt', 'deficit', 'surplus', 'recession', 'depression', 'boom', 'bust', 'inequality']
+  };
+
+  let bestTopic = 'general';
+  let bestScore = 0;
+  for (const [topic, keywords] of Object.entries(topicKeywords)) {
+    let score = 0;
+    for (const kw of keywords) {
+      if (text.includes(kw)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestTopic = topic;
+    }
+  }
+  return bestTopic;
+}
+
+function updateTopicAffinities() {
+  const sessionTopics = {};
+  sessionEntities.forEach(termStr => {
+    const ks = knowledgeState[termStr];
+    const entity = ks ? { term: ks.term, type: ks.type, description: '' } : { term: termStr, type: '', description: '' };
+    const topic = classifyTopic(entity);
+    sessionTopics[topic] = (sessionTopics[topic] || 0) + 1;
+  });
+
+  const totalEntities = Object.values(sessionTopics).reduce((a, b) => a + b, 0);
+  if (totalEntities === 0) return;
+
+  for (const [topic, count] of Object.entries(sessionTopics)) {
+    const sessionWeight = count / totalEntities;
+    if (!topicAffinities[topic]) {
+      topicAffinities[topic] = { score: 0, sessions: 0, lastSession: Date.now() };
+    }
+    const ta = topicAffinities[topic];
+    ta.score = ta.score * 0.7 + sessionWeight * 0.3;
+    ta.sessions++;
+    ta.lastSession = Date.now();
+  }
+
+  for (const [topic, ta] of Object.entries(topicAffinities)) {
+    if (!sessionTopics[topic]) {
+      ta.score *= 0.95;
+    }
+  }
+
+  chrome.storage.local.set({ topicAffinities });
+  console.log('[BACKGROUND] Topic affinities updated:', JSON.stringify(topicAffinities));
 }
 
 function getUsageKey() {
@@ -294,8 +363,9 @@ chrome.runtime.onInstalled.addListener(() => {
       console.log('[BACKGROUND] Generated installId:', installId);
     }
   });
-  chrome.storage.local.get('knowledgeState', (data) => {
+  chrome.storage.local.get(['knowledgeState', 'topicAffinities'], (data) => {
     knowledgeState = data.knowledgeState || {};
+    topicAffinities = data.topicAffinities || {};
   });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
@@ -304,8 +374,9 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.storage.local.set({ capturing: false });
-  chrome.storage.local.get('knowledgeState', (data) => {
+  chrome.storage.local.get(['knowledgeState', 'topicAffinities'], (data) => {
     knowledgeState = data.knowledgeState || {};
+    topicAffinities = data.topicAffinities || {};
   });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
@@ -605,6 +676,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'SESSION_METRICS') {
     console.log(`[BACKGROUND] Session metrics — rendered: ${message.cardsRendered}, expanded: ${message.cardsExpanded}, rate: ${message.expansionRate}`);
     trackEvent('session_metrics', { cardsRendered: message.cardsRendered, cardsExpanded: message.cardsExpanded, expansionRate: message.expansionRate });
+    updateTopicAffinities();
   } else if (message.type === 'TRACK_EVENT') {
     trackEvent(message.eventName, message.properties || {});
     // Update knowledge state for card reactions and tell-me-more
@@ -825,6 +897,7 @@ async function stopCapture() {
   isPaused = false;
   firstFlush = true;
   stopUsageTimer();
+  updateTopicAffinities();
   flushEvents();
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });

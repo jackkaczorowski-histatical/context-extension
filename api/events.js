@@ -1,5 +1,8 @@
 const { rateLimit } = require('./_rateLimit');
 
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -25,6 +28,33 @@ module.exports = async function handler(req, res) {
 
   console.log('[EVENTS]', JSON.stringify({ count: events.length, installId: events[0]?.installId, events: events.map(e => e.event) }));
 
-  // TODO: Store events in Supabase
-  return res.status(200).json({ received: events.length });
+  try {
+    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify(events.map(e => ({
+        install_id: e.installId,
+        user_id: e.userId,
+        event: e.event,
+        properties: e.properties || {},
+        session_id: e.sessionId || null,
+        url: e.url || null
+      })))
+    });
+
+    if (!insertRes.ok) {
+      const errText = await insertRes.text();
+      console.error('[EVENTS] Supabase insert failed:', insertRes.status, errText);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    return res.status(200).json({ received: events.length });
+  } catch (err) {
+    console.error('[EVENTS] Error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 };

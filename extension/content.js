@@ -101,6 +101,15 @@ if (window.__contextExtensionLoaded) {
   let cardsRenderedThisSession = 0;
   let cardsExpandedThisSession = 0;
 
+  function computeCardScore(entity) {
+    const novelty = 1.0 - (entity.familiarity || 0);
+    const salienceMap = { 'highlight': 1.0, 'background': 0.4 };
+    const salience = salienceMap[entity.salience] || 0.6;
+    const ageMs = Date.now() - (entity.timestamp || Date.now());
+    const recency = Math.max(0, 1.0 - (ageMs / (5 * 60 * 1000)));
+    return (novelty * 0.45) + (salience * 0.35) + (recency * 0.2);
+  }
+
   function toggleCardExpand(card) {
     if (card.classList.contains('expanded')) {
       // Collapsing — record dwell time
@@ -686,6 +695,9 @@ if (window.__contextExtensionLoaded) {
       max-width: 240px; z-index: 9999; pointer-events: none;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4); line-height: 1.4; word-wrap: break-word;
     }
+    .context-card.high-relevance { border-left-width: 3px; border-left-color: rgba(99, 102, 241, 0.7) !important; }
+    .context-card.high-relevance .card-term { color: #a5b4fc; }
+    .light-theme .context-card.high-relevance .card-term { color: #6366f1; }
     .context-card.salience-background { opacity: 0.65; border-left-color: transparent !important; }
     .context-card.salience-background .card-term { font-size: 12px; }
     .context-card.salience-background .card-type { font-size: 10px; }
@@ -4360,7 +4372,12 @@ if (window.__contextExtensionLoaded) {
     const limited = entities.slice(0, settings.cardsPerChunk);
     const sidebarClosed = !hostEl || hostEl.dataset.open !== 'true';
 
-    limited.forEach(entity => {
+    // Score and sort entities by relevance
+    const scored = limited.map(e => ({ ...e, _score: computeCardScore(e) }));
+    scored.sort((a, b) => b._score - a._score);
+
+    let autoExpandCount = 0;
+    scored.forEach(entity => {
       const vcType = entity.type === 'stock' ? 'stock' : 'entity';
       const vc = { data: entity, height: HEIGHT_COLLAPSED, measuredHeight: 0, type: vcType, el: null, dismissed: false, highlighted: false };
 
@@ -4371,6 +4388,22 @@ if (window.__contextExtensionLoaded) {
           ? createStockCard(entity)
           : createGenericCard(entity);
         card.dataset.createdAt = Date.now().toString();
+
+        // High-relevance visual indicator
+        if (entity._score > 0.75) {
+          card.classList.add('high-relevance');
+        }
+
+        // Auto-expand highest-score cards (max 2 per batch)
+        if (entity._score > 0.85 && autoExpandCount < 2) {
+          card.classList.add('expanded');
+          card.dataset.expandedAt = Date.now().toString();
+          card.dataset.wasExpanded = 'true';
+          cardsExpandedThisSession++;
+          autoExpandCount++;
+          vc.height = HEIGHT_EXPANDED;
+        }
+
         cards.prepend(card);
         vc.el = card;
         virtualCards.unshift(vc);
@@ -4382,7 +4415,7 @@ if (window.__contextExtensionLoaded) {
       }
       termCount++;
       cardsRenderedThisSession++;
-      console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
+      console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name, 'score:', entity._score.toFixed(2));
     });
 
     updateBadge(limited.length);

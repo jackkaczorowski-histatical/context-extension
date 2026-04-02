@@ -66,6 +66,8 @@ if (window.__contextExtensionLoaded) {
   let transcriptAutoScroll = true;
   let consecutiveErrors = 0;
   let statusHideTimer = null;
+  let missedNewCards = 0;
+  let lastDividerTime = 0;
 
   // Virtual scrolling state
   const VIRTUAL_THRESHOLD = 50;
@@ -734,6 +736,8 @@ if (window.__contextExtensionLoaded) {
       animation: reactionPop 200ms ease;
     }
     .card-highlighted { border-left-color: #eab308 !important; background: rgba(234,179,8,0.05); }
+    .context-card.reacted { opacity: 0.65; transition: opacity 0.2s; }
+    .context-card.reacted:hover { opacity: 0.85; }
     .ctx-filter-bar {
       display: flex; gap: 8px; padding: 8px 16px;
       background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
@@ -1134,6 +1138,16 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-divider-link:hover { color: rgba(0, 0, 0, 0.7); }
     .light-theme .ctx-divider-count { color: rgba(0, 0, 0, 0.2); }
     .light-theme .ctx-divider-line-full { background: rgba(0, 0, 0, 0.08); }
+
+    .time-divider {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px; margin: 4px 0;
+    }
+    .time-divider-line { flex: 1; height: 1px; background: var(--border-subtle); }
+    .time-divider-label {
+      font-size: 10px; font-weight: 600; color: var(--text-tertiary);
+      letter-spacing: 0.05em;
+    }
 
     .ctx-now-watching {
       display: flex;
@@ -1537,6 +1551,15 @@ if (window.__contextExtensionLoaded) {
     .ctx-transcript-view.active { display: flex; }
     .ctx-cards-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
     .ctx-cards-wrap.hidden { display: none; }
+    .ctx-cards-area { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .new-cards-pill {
+      position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: white; padding: 6px 16px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; cursor: pointer; z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); display: none;
+      transition: opacity 150ms ease; font-family: inherit;
+    }
+    .new-cards-pill.visible { display: block; }
     .ctx-transcript-scroll {
       flex: 1; overflow-y: auto; padding: 12px 16px;
       font-size: 12px; line-height: 1.5; color: var(--text-primary);
@@ -2042,7 +2065,7 @@ if (window.__contextExtensionLoaded) {
     ];
 
     function applyReactionVisuals(reaction) {
-      card.classList.remove('card-dismissed', 'card-highlighted');
+      card.classList.remove('card-dismissed', 'card-highlighted', 'reacted');
       row.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('active'));
       const dismissEl = card.querySelector('.card-dismiss-inline');
       if (dismissEl) {
@@ -2051,9 +2074,9 @@ if (window.__contextExtensionLoaded) {
       }
       if (!reaction) return;
       if (reaction === 'known') {
-        card.classList.add('card-dismissed');
+        card.classList.add('card-dismissed', 'reacted');
       } else if (reaction === 'new') {
-        card.classList.add('card-highlighted');
+        card.classList.add('card-highlighted', 'reacted');
         if (dismissEl) {
           dismissEl.classList.add('dismiss-starred');
           dismissEl.textContent = '\u2605';
@@ -3403,7 +3426,29 @@ if (window.__contextExtensionLoaded) {
     filterBar.appendChild(collapseAllBtn);
     cardsWrap.appendChild(filterBar);
 
-    cardsWrap.appendChild(cardContainer);
+    // Cards area wrapper (for new-cards pill overlay)
+    const cardsArea = document.createElement('div');
+    cardsArea.className = 'ctx-cards-area';
+    cardsArea.appendChild(cardContainer);
+    const newCardsPill = document.createElement('div');
+    newCardsPill.className = 'new-cards-pill';
+    newCardsPill.addEventListener('click', () => {
+      cardContainer.scrollTo({ top: cardContainer.scrollHeight, behavior: 'smooth' });
+      missedNewCards = 0;
+      newCardsPill.classList.remove('visible');
+    });
+    cardsArea.appendChild(newCardsPill);
+    cardsWrap.appendChild(cardsArea);
+
+    // Scroll listener: detect when user reaches bottom → hide pill
+    cardContainer.addEventListener('scroll', () => {
+      const atBottom = cardContainer.scrollHeight - cardContainer.scrollTop - cardContainer.clientHeight < 100;
+      if (atBottom && missedNewCards > 0) {
+        missedNewCards = 0;
+        newCardsPill.classList.remove('visible');
+      }
+    }, { passive: true });
+
     cardsWrap.appendChild(askResponse);
     cardsWrap.appendChild(suggestionsBar);
     cardsWrap.appendChild(askBar);
@@ -4167,6 +4212,8 @@ if (window.__contextExtensionLoaded) {
     termCount = 0;
     seenTerms.clear();
     lastRenderedTerm = '';
+    missedNewCards = 0;
+    lastDividerTime = 0;
     resetVirtualScroll();
     if (askIdleTimer) { clearTimeout(askIdleTimer); askIdleTimer = null; }
     if (listeningTimer) { clearTimeout(listeningTimer); listeningTimer = null; }
@@ -4195,6 +4242,9 @@ if (window.__contextExtensionLoaded) {
       // Clear any session summary
       const summary = shadowRoot.querySelector('.ctx-session-summary');
       if (summary) summary.remove();
+      // Reset new-cards pill
+      const pill = shadowRoot.querySelector('.new-cards-pill');
+      if (pill) pill.classList.remove('visible');
       // Reset ask bar
       const askInput = shadowRoot.querySelector('.ctx-ask-input');
       if (askInput) {
@@ -4238,13 +4288,14 @@ if (window.__contextExtensionLoaded) {
 
   function estimateCardHeight(vcard) {
     if (vcard.measuredHeight) return vcard.measuredHeight;
-    if (vcard.type === 'divider') return HEIGHT_DIVIDER;
+    if (vcard.type === 'divider' || vcard.type === 'time-divider') return HEIGHT_DIVIDER;
     if (vcard.type === 'insight') return HEIGHT_INSIGHT;
     return HEIGHT_COLLAPSED;
   }
 
   function isCardFiltered(vcard, cardsEl) {
     if (!cardsEl) return false;
+    if (vcard.type === 'divider' || vcard.type === 'time-divider') return false;
     // Sync filter state from DOM element if it exists
     if (vcard.el) {
       vcard.dismissed = vcard.el.classList.contains('card-dismissed');
@@ -4321,7 +4372,7 @@ if (window.__contextExtensionLoaded) {
     for (let i = endIdx; i < visible.length; i++) bottomH += estimateCardHeight(visible[i]);
 
     // Remove all card elements (keep spacers)
-    const existingCards = cardsEl.querySelectorAll('.context-card, .ctx-video-divider');
+    const existingCards = cardsEl.querySelectorAll('.context-card, .ctx-video-divider, .insight-strip, .time-divider');
     existingCards.forEach(el => el.remove());
 
     topSpacer.style.height = topH + 'px';
@@ -4357,6 +4408,12 @@ if (window.__contextExtensionLoaded) {
   }
 
   function createVirtualCardElement(vc) {
+    if (vc.type === 'time-divider') {
+      const d = document.createElement('div');
+      d.className = 'time-divider';
+      d.innerHTML = '<span class="time-divider-line"></span><span class="time-divider-label">' + escapeHtml(vc.data.label || '') + '</span><span class="time-divider-line"></span>';
+      return d;
+    }
     if (vc.type === 'divider') {
       const divider = document.createElement('div');
       divider.className = 'ctx-video-divider';
@@ -4403,7 +4460,7 @@ if (window.__contextExtensionLoaded) {
 
     // Convert existing DOM cards to virtual entries (if not already populated)
     if (virtualCards.length === 0) {
-      const existing = cardsEl.querySelectorAll('.context-card, .ctx-video-divider');
+      const existing = cardsEl.querySelectorAll('.context-card, .ctx-video-divider, .insight-strip, .time-divider');
       existing.forEach(el => {
         const vc = domCardToVirtual(el);
         if (vc) virtualCards.push(vc);
@@ -4424,6 +4481,10 @@ if (window.__contextExtensionLoaded) {
     if (el.classList.contains('ctx-video-divider')) {
       return { data: { term: el.textContent, type: 'video-divider' }, height: h, measuredHeight: h, type: 'divider', el: null, dismissed: false, highlighted: false };
     }
+    if (el.classList.contains('time-divider')) {
+      const label = el.querySelector('.time-divider-label')?.textContent || '';
+      return { data: { type: 'time-divider', label }, height: h, measuredHeight: h, type: 'time-divider', el: null, dismissed: false, highlighted: false };
+    }
     const isInsight = el.classList.contains('insight-strip');
     const isStock = el.classList.contains('stock-card');
     const term = el.querySelector('.card-term')?.textContent || '';
@@ -4439,8 +4500,8 @@ if (window.__contextExtensionLoaded) {
     };
   }
 
-  function addVirtualCard(vc, cardsEl, prepend) {
-    virtualCards[prepend ? 'unshift' : 'push'](vc);
+  function addVirtualCard(vc, cardsEl) {
+    virtualCards.push(vc);
 
     if (!virtualActive && virtualCards.length > VIRTUAL_THRESHOLD) {
       activateVirtualScroll(cardsEl);
@@ -4448,12 +4509,14 @@ if (window.__contextExtensionLoaded) {
     }
 
     if (virtualActive) {
-      // Check if user is near bottom (for prepend, "bottom" is top since newest = first)
-      const atTop = cardsEl.scrollTop < 100;
+      const atBottom = cardsEl.scrollHeight - cardsEl.scrollTop - cardsEl.clientHeight < 100;
       virtualRenderedRange = { start: -1, end: -1 };
       virtualScrollRender(cardsEl);
-      if (prepend && atTop) {
-        cardsEl.scrollTop = 0;
+      if (atBottom) {
+        requestAnimationFrame(() => { cardsEl.scrollTop = cardsEl.scrollHeight; });
+      } else {
+        missedNewCards++;
+        updateNewCardsPill();
       }
     }
   }
@@ -4463,6 +4526,43 @@ if (window.__contextExtensionLoaded) {
     virtualActive = false;
     virtualRenderedRange = { start: -1, end: -1 };
     if (virtualScrollRAF) { cancelAnimationFrame(virtualScrollRAF); virtualScrollRAF = null; }
+  }
+
+  function updateNewCardsPill() {
+    if (!shadowRoot) return;
+    const pill = shadowRoot.querySelector('.new-cards-pill');
+    if (!pill) return;
+    if (missedNewCards > 0) {
+      pill.textContent = '\u2193 ' + missedNewCards + ' new card' + (missedNewCards !== 1 ? 's' : '');
+      pill.classList.add('visible');
+    } else {
+      pill.classList.remove('visible');
+    }
+  }
+
+  function maybeInsertTimeDivider(cardsEl) {
+    if (!lastDividerTime) {
+      lastDividerTime = lastSessionStart || Date.now();
+      return;
+    }
+    const now = Date.now();
+    if (now - lastDividerTime < 120000) return;
+    const elapsed = now - (lastSessionStart || now);
+    const totalSec = Math.floor(elapsed / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    const label = min + ':' + (sec < 10 ? '0' : '') + sec;
+
+    if (virtualActive) {
+      virtualCards.push({ data: { type: 'time-divider', label }, height: HEIGHT_DIVIDER, measuredHeight: 0, type: 'time-divider', el: null, dismissed: false, highlighted: false });
+    } else {
+      const divider = document.createElement('div');
+      divider.className = 'time-divider';
+      divider.innerHTML = '<span class="time-divider-line"></span><span class="time-divider-label">' + escapeHtml(label) + '</span><span class="time-divider-line"></span>';
+      cardsEl.appendChild(divider);
+      virtualCards.push({ data: { type: 'time-divider', label }, height: HEIGHT_DIVIDER, measuredHeight: 0, type: 'time-divider', el: divider, dismissed: false, highlighted: false });
+    }
+    lastDividerTime = now;
   }
 
   function renderCards(entities) {
@@ -4524,7 +4624,7 @@ if (window.__contextExtensionLoaded) {
   }
 
   function renderCardsInner(entities, cards) {
-
+    const isFirstCards = !hasCards;
     showCardsHideEmpty();
 
     // Hide listening indicator and reset timer (only show after cards exist)
@@ -4549,13 +4649,19 @@ if (window.__contextExtensionLoaded) {
     const scored = limited.map(e => ({ ...e, _score: computeCardScore(e) }));
     scored.sort((a, b) => b._score - a._score);
 
+    // Check if user is at bottom before insertion (always true for first cards)
+    const wasAtBottom = isFirstCards || cards.scrollHeight - cards.scrollTop - cards.clientHeight < 100;
+
+    // Insert time divider if enough time has passed
+    maybeInsertTimeDivider(cards);
+
     let autoExpandCount = 0;
     scored.forEach(entity => {
       const vcType = entity.type === 'stock' ? 'stock' : 'entity';
       const vc = { data: entity, height: HEIGHT_COLLAPSED, measuredHeight: 0, type: vcType, el: null, dismissed: false, highlighted: false };
 
       if (virtualActive) {
-        addVirtualCard(vc, cards, true);
+        addVirtualCard(vc, cards);
       } else {
         const card = entity.type === 'stock'
           ? createStockCard(entity)
@@ -4577,9 +4683,9 @@ if (window.__contextExtensionLoaded) {
           vc.height = HEIGHT_EXPANDED;
         }
 
-        cards.prepend(card);
+        cards.appendChild(card);
         vc.el = card;
-        virtualCards.unshift(vc);
+        virtualCards.push(vc);
 
         // Check if we should activate virtual scrolling
         if (virtualCards.length > VIRTUAL_THRESHOLD) {
@@ -4590,6 +4696,14 @@ if (window.__contextExtensionLoaded) {
       cardsRenderedThisSession++;
       console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name, 'score:', entity._score.toFixed(2));
     });
+
+    // Auto-scroll to bottom or show new-cards pill
+    if (wasAtBottom) {
+      requestAnimationFrame(() => { cards.scrollTop = cards.scrollHeight; });
+    } else if (!virtualActive) {
+      missedNewCards += scored.length;
+      updateNewCardsPill();
+    }
 
     updateBadge(limited.length);
 
@@ -4719,7 +4833,7 @@ if (window.__contextExtensionLoaded) {
             <div class="ctx-divider-line-full"></div>
           `;
 
-          cards.prepend(divider);
+          cards.appendChild(divider);
         }
       });
     }
@@ -4880,13 +4994,13 @@ if (window.__contextExtensionLoaded) {
                   const vc = { data: insight, height: HEIGHT_INSIGHT, measuredHeight: 0, type: 'insight', el: null, dismissed: false, highlighted: false };
                   cardsRenderedThisSession++;
                   if (virtualActive) {
-                    addVirtualCard(vc, cards, true);
+                    addVirtualCard(vc, cards);
                   } else {
                     const card = createInsightCard(insight);
                     card.dataset.createdAt = Date.now().toString();
-                    cards.prepend(card);
+                    cards.appendChild(card);
                     vc.el = card;
-                    virtualCards.unshift(vc);
+                    virtualCards.push(vc);
                     addToNotes(card);
                     if (virtualCards.length > VIRTUAL_THRESHOLD) {
                       activateVirtualScroll(cards);
@@ -4934,7 +5048,7 @@ if (window.__contextExtensionLoaded) {
           if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) return;
           const card = createInsightCard(insight);
           card.dataset.createdAt = Date.now().toString();
-          cards.prepend(card);
+          cards.appendChild(card);
           addToNotes(card);
         });
       }
@@ -4979,7 +5093,7 @@ if (window.__contextExtensionLoaded) {
                 }
                 const card = createInsightCard(insight);
                 card.dataset.createdAt = Date.now().toString();
-                cards.prepend(card);
+                cards.appendChild(card);
                 addToNotes(card);
               });
             }
@@ -5019,8 +5133,8 @@ if (window.__contextExtensionLoaded) {
       const cards = shadowRoot?.getElementById('cards');
       if (!cards || cards.children.length === 0) return;
       // Skip if a divider was already added by the storage listener
-      const firstChild = cards.firstElementChild;
-      if (firstChild && firstChild.classList.contains('ctx-video-divider')) return;
+      const lastChild = cards.lastElementChild;
+      if (lastChild && lastChild.classList.contains('ctx-video-divider')) return;
 
       const prevTitle = escapeHtml(
         (document.title || 'Previous video')
@@ -5040,7 +5154,7 @@ if (window.__contextExtensionLoaded) {
         </div>
         <div class="ctx-divider-line-full"></div>
       `;
-      cards.prepend(divider);
+      cards.appendChild(divider);
       console.log('[CONTENT] Video switch divider added via SPA detection:', oldVid, '->', newVid);
 
       // Update Now Watching bar

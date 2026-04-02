@@ -77,6 +77,7 @@ let eventQueue = [];
 let eventFlushTimer = null;
 let knowledgeState = {};
 let topicAffinities = {};
+let entityPackCache = {}; // { normalizedTerm: entityObject } — loaded from pack
 
 function trackEvent(eventName, properties = {}) {
   chrome.storage.local.get(['installId', 'user'], (data) => {
@@ -851,47 +852,12 @@ async function startCapture() {
     if (!isResume) {
       checkEntityPack(tab.url).then(pack => {
         if (pack && pack.entities && pack.entities.length > 0) {
-          console.log('[BACKGROUND] Entity pack found for video:', pack.entities.length, 'entities,', (pack.insights || []).length, 'insights');
-          // Enrich pack entities with familiarity data and save as pending
-          const packEntities = pack.entities.map(e => {
+          entityPackCache = {};
+          pack.entities.forEach(e => {
             const key = (e.term || '').toLowerCase().trim();
-            const ks = knowledgeState[key];
-            return {
-              ...e,
-              familiarity: ks ? ks.familiarity : 0,
-              timesSeen: ks ? ks.timesSeen : 0,
-              _fromPack: true
-            };
+            if (key) entityPackCache[key] = e;
           });
-          // Register pack entities for dedup so live extraction doesn't repeat them
-          packEntities.forEach(e => {
-            const term = (e.term || '').toLowerCase().replace(/s$/, '');
-            if (term && !sessionEntities.includes(term)) sessionEntities.push(term);
-          });
-          chrome.storage.local.set({ sessionEntities });
-          updateKnowledgeState(packEntities);
-          // Build history entries for pack entities
-          const histEntries = [];
-          packEntities.forEach(e => {
-            const term = e.term || '';
-            if (term) histEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', elapsedSeconds: 0 });
-          });
-          (pack.insights || []).forEach(i => {
-            histEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail || '', category: i.category || 'tip', elapsedSeconds: 0 });
-            sessionInsights.push(i.insight || '');
-          });
-          chrome.storage.local.get('sessionHistory', (hData) => {
-            const history = hData.sessionHistory || [];
-            history.push(...histEntries);
-            chrome.storage.local.set({
-              pendingEntities: packEntities,
-              pendingInsights: pack.insights || [],
-              pendingTimestamp: Date.now(),
-              pendingSessionId: sessionId,
-              sessionHistory: history
-            });
-            console.log('[BACKGROUND] Pack entities delivered to sidebar');
-          });
+          console.log('[BACKGROUND] Entity pack cached:', Object.keys(entityPackCache).length, 'entities');
         }
       }).catch(err => {
         console.error('[BACKGROUND] Entity pack check failed:', err.message || err);
@@ -1021,6 +987,7 @@ async function stopCapture() {
   updateTopicAffinities();
   sessionEntities = [];
   sessionInsights = [];
+  entityPackCache = {};
   sessionTranscript = '';
   isPaused = false;
   firstFlush = true;
@@ -1099,6 +1066,58 @@ async function processNextTranscript() {
       .slice(0, 3)
       .map(([topic, data]) => `${topic} (${(data.score * 100).toFixed(0)}%)`)
       .join(', ');
+
+    // Check entity pack cache for instant matches
+    const packMatches = [];
+    const transcriptLower = transcript.toLowerCase();
+    for (const [key, entity] of Object.entries(entityPackCache)) {
+      if (transcriptLower.includes(key) && !sessionEntities.includes(key.replace(/s$/, ''))) {
+        packMatches.push({ ...entity, fromPack: true });
+        // Register in sessionEntities for dedup
+        const normalized = key.replace(/s$/, '');
+        sessionEntities.push(normalized);
+      }
+    }
+
+    if (packMatches.length > 0) {
+      console.log('[BACKGROUND] Pack cache hits:', packMatches.map(e => e.term).join(', '));
+      // Save pack matches to storage immediately — cards appear instantly
+      // Add familiarity data
+      const enrichedPackMatches = packMatches.map(e => {
+        const ks = knowledgeState[(e.term || '').toLowerCase().trim()];
+        return {
+          ...e,
+          familiarity: ks ? ks.familiarity : 0,
+          timesSeen: ks ? ks.timesSeen : 0,
+          timestamp: Date.now()
+        };
+      });
+
+      updateKnowledgeState(enrichedPackMatches);
+
+      chrome.storage.local.get('sessionHistory', (histData) => {
+        const history = histData.sessionHistory || [];
+        enrichedPackMatches.forEach(entity => {
+          history.push({
+            term: entity.term,
+            type: entity.type,
+            description: entity.description,
+            salience: entity.salience || 'highlight',
+            followUps: entity.followUps || [],
+            familiarity: entity.familiarity,
+            timesSeen: entity.timesSeen,
+            timestamp: Date.now(),
+            fromPack: true
+          });
+        });
+        chrome.storage.local.set({
+          sessionHistory: history,
+          pendingEntities: enrichedPackMatches,
+          pendingTimestamp: Date.now()
+        });
+      });
+      chrome.storage.local.set({ sessionEntities });
+    }
 
     // Skip sponsor/ad segments
     if (isLikelyAd(transcript)) {

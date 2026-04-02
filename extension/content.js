@@ -923,15 +923,32 @@ if (window.__contextExtensionLoaded) {
     .ctx-session-summary-header {
       font-size: 13px; font-weight: 600; color: #e0e0f0; margin-bottom: 10px;
     }
+    .ctx-session-summary-headline {
+      font-size: 12px; color: #c0c0e0; margin-bottom: 8px; line-height: 1.4;
+    }
+    .ctx-session-summary-headline strong { color: #e0e0f0; font-weight: 600; }
+    .ctx-session-summary-topics {
+      font-size: 10px; color: #7a7a9a; margin-bottom: 8px; line-height: 1.5;
+    }
+    .ctx-session-summary-kb {
+      font-size: 10px; color: #5a5a7a; margin-bottom: 10px; line-height: 1.4;
+    }
     .ctx-session-summary-stats {
       font-size: 11px; color: #9a9ab0; line-height: 1.6;
     }
+    .ctx-session-summary-actions { display: flex; gap: 8px; margin-top: 10px; }
     .ctx-session-summary-export {
       background: rgba(90,90,255,0.15); color: #a0a0ff; border: none;
       border-radius: 8px; padding: 6px 14px; font-size: 11px;
-      cursor: pointer; margin-top: 10px; font-family: inherit;
+      cursor: pointer; font-family: inherit;
     }
     .ctx-session-summary-export:hover { background: rgba(90,90,255,0.25); }
+    .ctx-session-summary-viewkb {
+      background: rgba(20,184,166,0.12); color: #14b8a6; border: none;
+      border-radius: 8px; padding: 6px 14px; font-size: 11px;
+      cursor: pointer; font-family: inherit;
+    }
+    .ctx-session-summary-viewkb:hover { background: rgba(20,184,166,0.22); }
     .ctx-session-summary-dismiss {
       display: block; font-size: 10px; color: #3a3a5a; margin-top: 8px;
       cursor: pointer; text-decoration: none; background: none; border: none;
@@ -940,7 +957,13 @@ if (window.__contextExtensionLoaded) {
     .ctx-session-summary-dismiss:hover { color: #5a5a7a; }
     .light-theme .ctx-session-summary { background: #f0f0fa; border-color: rgba(90,90,255,0.12); }
     .light-theme .ctx-session-summary-header { color: #1a1a2e; }
+    .light-theme .ctx-session-summary-headline { color: #3a3a5a; }
+    .light-theme .ctx-session-summary-headline strong { color: #1a1a2e; }
+    .light-theme .ctx-session-summary-topics { color: #7a7a9a; }
+    .light-theme .ctx-session-summary-kb { color: #9a9ab0; }
     .light-theme .ctx-session-summary-stats { color: #5a5a7a; }
+    .light-theme .ctx-session-summary-viewkb { background: rgba(20,184,166,0.08); }
+    .light-theme .ctx-session-summary-viewkb:hover { background: rgba(20,184,166,0.15); }
     .light-theme .ctx-session-summary-dismiss { color: #b0b0c0; }
 
     .ctx-video-divider {
@@ -4598,18 +4621,34 @@ if (window.__contextExtensionLoaded) {
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
       isActiveTab((active) => {
         if (!active) return;
-        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions', 'sessionQA'], (data) => {
+        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions', 'sessionQA', 'sessionStats', 'sessionCount'], (data) => {
           const history = data.sessionHistory || [];
           const kb = data.knowledgeBase || {};
           const title = data.capturingTabTitle || document.title || 'Untitled Video';
           const summaryReactions = data.cardReactions || {};
           const summaryQA = data.sessionQA || [];
-          const totalTerms = history.length;
-          const expanded = history.filter(h => h.description).length;
-          const knownCount = history.filter(h => {
-            const key = (h.term || '').toLowerCase();
-            return kb[key] && kb[key].timesSeen > 1;
-          }).length;
+          const stats = data.sessionStats || {};
+          const sessionCount = data.sessionCount || 1;
+
+          const totalEntities = stats.totalEntities || history.filter(h => h.term && h.type !== 'insight').length;
+          const totalInsights = stats.totalInsights || history.filter(h => h.type === 'insight').length;
+          const dominantTopic = stats.dominantTopic || 'general';
+          const topicBreakdown = stats.topicBreakdown || {};
+          const kbSize = stats.knowledgeBaseSize || Object.keys(kb).length;
+
+          // Build topic breakdown string with percentages
+          const totalTopicCount = Object.values(topicBreakdown).reduce((a, b) => a + b, 0) || 1;
+          const topicParts = Object.entries(topicBreakdown)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4)
+            .map(([topic, count]) => {
+              const pct = Math.round((count / totalTopicCount) * 100);
+              const label = topic.charAt(0).toUpperCase() + topic.slice(1);
+              return label + ' ' + pct + '%';
+            });
+          const topicLine = topicParts.length > 0 ? topicParts.join(' \u00B7 ') : '';
+
+          const dominantLabel = dominantTopic.charAt(0).toUpperCase() + dominantTopic.slice(1);
 
           const cardsContainer = shadowRoot ? shadowRoot.getElementById('cards') : null;
           if (!cardsContainer) return;
@@ -4618,29 +4657,17 @@ if (window.__contextExtensionLoaded) {
           const existing = cardsContainer.querySelector('.ctx-session-summary');
           if (existing) existing.remove();
 
-          const watchNextEntries = history
-            .filter(h => h.term)
-            .sort((a, b) => (b.relevance || 0) - (a.relevance || 0))
-            .slice(0, 3);
-          const watchNextHTML = watchNextEntries.length > 0
-            ? '<div style="margin-top: 12px; font-size: 10px; color: #6a6a8a;">Keep learning:</div>' +
-              watchNextEntries.map(ent => {
-                const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ent.term + ' explained');
-                return '<a href="' + url + '" target="_blank" rel="noopener" style="display: block; font-size: 11px; color: #6366f1; text-decoration: none; padding: 2px 0; margin-top: 2px;">' + escapeHtml(ent.term) + ' explained \u2192</a>';
-              }).join('')
-            : '';
-
           const summaryEl = document.createElement('div');
           summaryEl.className = 'ctx-session-summary';
           summaryEl.innerHTML = `
-            <div class="ctx-session-summary-header">Session complete</div>
-            <div class="ctx-session-summary-stats">
-              ${totalTerms} terms detected<br>
-              ${expanded} expanded by you<br>
-              ${knownCount} previously known
+            <div class="ctx-session-summary-header">Session Complete \u2713</div>
+            <div class="ctx-session-summary-headline"><strong>${totalEntities} terms</strong> \u00B7 <strong>${totalInsights} insights</strong> \u00B7 Dominant topic: <strong>${escapeHtml(dominantLabel)}</strong></div>
+            ${topicLine ? `<div class="ctx-session-summary-topics">${escapeHtml(topicLine)}</div>` : ''}
+            <div class="ctx-session-summary-kb">Your knowledge base: ${kbSize} total terms across ${sessionCount} session${sessionCount !== 1 ? 's' : ''}</div>
+            <div class="ctx-session-summary-actions">
+              <button class="ctx-session-summary-export">Export Study Guide</button>
+              <button class="ctx-session-summary-viewkb">View Knowledge Base</button>
             </div>
-            <button class="ctx-session-summary-export">Export study guide</button>
-            ${watchNextHTML}
             <button class="ctx-session-summary-dismiss">Dismiss</button>
           `;
 
@@ -4650,8 +4677,14 @@ if (window.__contextExtensionLoaded) {
             copyToClipboard(guide).then(() => {
               const btn = summaryEl.querySelector('.ctx-session-summary-export');
               btn.textContent = 'Copied!';
-              setTimeout(() => { btn.textContent = 'Export study guide'; }, 1500);
+              setTimeout(() => { btn.textContent = 'Export Study Guide'; }, 1500);
             });
+          });
+
+          summaryEl.querySelector('.ctx-session-summary-viewkb').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const historyBtn = shadowRoot.querySelector('.ctx-history-btn');
+            if (historyBtn) historyBtn.click();
           });
 
           summaryEl.querySelector('.ctx-session-summary-dismiss').addEventListener('click', (e) => {

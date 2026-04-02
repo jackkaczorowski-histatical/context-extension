@@ -198,6 +198,33 @@ function classifyTopic(entity) {
   return bestTopic;
 }
 
+function computeSessionStats() {
+  const typeCounts = {};
+  const topicCounts = {};
+
+  sessionEntities.forEach(termStr => {
+    const ks = knowledgeState[termStr];
+    const type = ks ? (ks.type || 'unknown') : 'unknown';
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+
+    const entity = ks ? { term: ks.term, type: ks.type, description: '' } : { term: termStr, type: '', description: '' };
+    const topic = classifyTopic(entity);
+    topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+  });
+
+  const dominantTopic = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    totalEntities: sessionEntities.length,
+    totalInsights: sessionInsights.length,
+    dominantTopic: dominantTopic ? dominantTopic[0] : 'general',
+    topicBreakdown: topicCounts,
+    typeBreakdown: typeCounts,
+    knowledgeBaseSize: Object.keys(knowledgeState).filter(k => k !== '_saveTimer').length
+  };
+}
+
 function updateTopicAffinities() {
   const sessionTopics = {};
   sessionEntities.forEach(termStr => {
@@ -883,6 +910,9 @@ async function stopCapture() {
 
   // KB save removed — only happens in CLEAR_SESSION handler to avoid double-counting timesSeen
 
+  // Compute session stats before clearing in-memory data
+  const sessionStats = computeSessionStats();
+
   // Small delay after closing offscreen doc before resetting state
   await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -891,16 +921,16 @@ async function stopCapture() {
   pendingStreamId = null;
   sessionId = null;
   sessionTotal = 0;
+  updateTopicAffinities();
   sessionEntities = [];
   sessionInsights = [];
   sessionTranscript = '';
   isPaused = false;
   firstFlush = true;
   stopUsageTimer();
-  updateTopicAffinities();
   flushEvents();
   chrome.storage.local.remove('activeTabId');
-  chrome.storage.local.set({ capturing: false });
+  chrome.storage.local.set({ capturing: false, sessionStats });
   console.log('[BACKGROUND] Capture stopped');
   isStoppingCapture = false;
 }

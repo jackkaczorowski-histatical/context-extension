@@ -713,10 +713,9 @@ if (window.__contextExtensionLoaded) {
     .ctx-filter-btn.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.3); }
     .filter-hide-known .context-card.card-dismissed { display: none; }
     .filter-starred-only .context-card:not(.card-highlighted) { display: none; }
-    .collapse-all .context-card:not(.insight-card) { }
-    .collapse-all .context-card:not(.insight-card) .card-expand-area { max-height: 0; opacity: 0; padding-top: 0; }
-    .collapse-all .context-card:not(.insight-card) .card-chevron { transform: rotate(0deg); }
-    .collapse-all .context-card:not(.insight-card).expanded .card-preview-text { display: inline; }
+    .collapse-all .context-card .card-expand-area { max-height: 0; opacity: 0; padding-top: 0; }
+    .collapse-all .context-card .card-chevron { transform: rotate(0deg); }
+    .collapse-all .context-card.expanded .card-preview-text { display: inline; }
     .reaction-label {
       font-size: 9px; color: var(--text-tertiary); margin-top: 4px; text-align: center;
     }
@@ -769,15 +768,45 @@ if (window.__contextExtensionLoaded) {
     .context-card.salience-background { opacity: 0.65; border-left-color: transparent !important; }
     .context-card.salience-background .card-term { font-size: 12px; }
     .context-card.salience-background .card-type { font-size: 10px; }
-    .context-card.insight-card { border-left: 3px solid var(--type-insight); background: rgba(234,179,8,0.04); }
-    .context-card.insight-card:hover { background: rgba(234,179,8,0.08); }
-    .insight-icon { font-size: 11px; margin-right: 4px; }
-    .insight-category {
-      font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
-      text-transform: uppercase; color: var(--type-insight);
+    .insight-strip {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 8px 12px; background: rgba(234, 179, 8, 0.04);
+      border-left: 3px solid var(--type-insight); border-radius: 4px;
+      margin: 4px 8px; cursor: pointer; transition: background 150ms ease;
+      user-select: none;
     }
-    .insight-text { font-size: 12px; color: var(--text-primary); font-weight: 500; line-height: 1.5; margin-top: 4px; }
-    .insight-detail { font-size: 12px; color: #a0a0c0; line-height: 1.5; margin-top: 4px; }
+    .insight-strip:hover { background: rgba(234, 179, 8, 0.08); }
+    .insight-strip .insight-icon { font-size: 12px; flex-shrink: 0; margin-top: 2px; }
+    .insight-strip .insight-category {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--type-insight); flex-shrink: 0;
+    }
+    .insight-strip .insight-body { flex: 1; min-width: 0; }
+    .insight-strip .insight-text {
+      font-size: 12px; color: var(--text-secondary); line-height: 1.4;
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .insight-strip .insight-time {
+      font-size: 10px; color: var(--text-tertiary); flex-shrink: 0; margin-left: auto;
+      cursor: pointer;
+    }
+    .insight-strip .insight-time:hover { text-decoration: underline; }
+    .insight-strip.expanded .insight-text {
+      -webkit-line-clamp: unset; overflow: visible;
+    }
+    .insight-strip .insight-detail {
+      display: none; font-size: 11px; color: #a0a0c0; margin-top: 4px; line-height: 1.4;
+    }
+    .insight-strip.expanded .insight-detail { display: block; }
+    .insight-strip .insight-copy-btn {
+      display: none; font-size: 10px; color: #6366f1; background: rgba(99,102,241,0.1);
+      border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer;
+      margin-top: 4px; font-family: inherit; transition: background 0.15s, color 0.15s;
+    }
+    .insight-strip.expanded .insight-copy-btn { display: inline-block; }
+    .insight-strip .insight-copy-btn:hover { background: rgba(99,102,241,0.2); }
+    .insight-strip .insight-copy-btn.copied { color: #00e676; background: rgba(0,230,118,0.1); }
     .feedback-msg { font-size: 11px; color: var(--text-tertiary); padding: 4px 0; text-align: center; }
     /* ─── KB matches ─── */
     #kb-matches-wrapper {
@@ -953,10 +982,10 @@ if (window.__contextExtensionLoaded) {
     .light-theme .card-dismiss-inline { border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.3); }
     .light-theme .card-dismiss-inline:hover { border-color: rgba(5,150,105,0.5); color: #059669; background: rgba(5,150,105,0.1); }
     .light-theme .context-card.card-dismissed .card-dismiss-inline { border-color: rgba(5,150,105,0.6); color: #fff; background: #059669; }
-    .light-theme .context-card.insight-card { background: rgba(245,158,11,0.05); border-left-color: #f59e0b; }
-    .light-theme .context-card.insight-card:hover { background: rgba(245,158,11,0.1); }
-    .light-theme .insight-text { color: #1a1a2e; }
-    .light-theme .insight-detail { color: #5a5a7a; }
+    .light-theme .insight-strip { background: rgba(245,158,11,0.05); }
+    .light-theme .insight-strip:hover { background: rgba(245,158,11,0.1); }
+    .light-theme .insight-strip .insight-text { color: #64748b; }
+    .light-theme .insight-strip .insight-detail { color: #5a5a7a; }
     .light-theme .feedback-msg { color: #9a9ab0; }
     .light-theme #ctx-listen-btn { background: #059669; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     .light-theme #ctx-listen-btn:hover { background: #047857; }
@@ -1325,7 +1354,7 @@ if (window.__contextExtensionLoaded) {
     }
     .ctx-settings-done:hover { background: #0d9488; }
     .light-theme .ctx-settings-done { color: #fff; }
-    #cards.hide-insights .context-card.insight-card { display: none; }
+    #cards.hide-insights .insight-strip { display: none; }
 
     /* ─── History panel ─── */
     .ctx-history-btn.active { color: var(--accent); }
@@ -2083,93 +2112,46 @@ if (window.__contextExtensionLoaded) {
   }
 
   function createInsightCard(insight) {
-    const card = document.createElement('div');
-    card.className = 'context-card insight-card';
-    card.dataset.insightKey = insightKey(insight.insight || '');
-    card.dataset.entityType = 'insight';
+    const strip = document.createElement('div');
+    strip.className = 'insight-strip';
+    strip.dataset.insightKey = insightKey(insight.insight || '');
+    strip.dataset.entityType = 'insight';
     const vt = formatVideoTime();
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
-    const shortInsight = truncateHeadline(insightText, 47);
-    const displayHeadline = truncateHeadline(insightText);
     const detail = escapeHtml(insight.detail || '');
 
-    card.innerHTML = `
-      <div class="card-row">
-        <span class="insight-category">\u{1F4A1} ${category}</span>
-        <span class="card-term" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; display:inline-block; vertical-align:middle;">${escapeHtml(shortInsight)}</span>
-        <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
-        <span class="card-chevron">&#x203A;</span>
-        <span class="card-dismiss-inline" title="Dismiss">\u2713</span>
-      </div>
-      <div class="card-expand-area">
+    strip.innerHTML = `
+      <span class="insight-category">${category}</span>
+      <div class="insight-body">
         <div class="insight-text">${escapeHtml(insightText)}</div>
         ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
-        <button class="card-copy-btn">Copy text</button>
+        <button class="insight-copy-btn">Copy text</button>
       </div>
+      <span class="insight-time" data-seek="${vt.seconds}">${vt.display}</span>
     `;
 
-    const insightDismissKey = (insight.insight || '').toLowerCase();
-    const iDismissEl = card.querySelector('.card-dismiss-inline');
-    chrome.storage.local.get('dismissedEntities', (data) => {
-      const dismissed = data.dismissedEntities || [];
-      if (dismissed.includes(insightDismissKey)) {
-        card.classList.add('card-dismissed');
-        if (iDismissEl) iDismissEl.title = 'Restore';
-      }
-    });
-    if (iDismissEl) {
-      iDismissEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        card.classList.toggle('card-dismissed');
-        const isDismissed = card.classList.contains('card-dismissed');
-        iDismissEl.title = isDismissed ? 'Restore' : 'Dismiss';
-        chrome.storage.local.get('dismissedEntities', (data) => {
-          let dismissed = data.dismissedEntities || [];
-          if (isDismissed) {
-            if (!dismissed.includes(insightDismissKey)) dismissed.push(insightDismissKey);
-          } else {
-            dismissed = dismissed.filter(k => k !== insightDismissKey);
-          }
-          chrome.storage.local.set({ dismissedEntities: dismissed });
-        });
-      });
-    }
-
-    // Title attributes for native tooltips on truncated elements
-    const termEl = card.querySelector('.card-term');
-    if (termEl) termEl.setAttribute('title', insightText);
-    const catEl = card.querySelector('.insight-category');
-    if (catEl) catEl.setAttribute('title', insight.category || 'insight');
-    if (detail) {
-      const detailEl = card.querySelector('.insight-detail');
-      if (detailEl) detailEl.setAttribute('title', insight.detail);
-    }
-
-    card.querySelector('.card-copy-btn').addEventListener('click', (e) => {
+    strip.querySelector('.insight-copy-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       const text = insight.insight || '';
       const det = insight.detail || '';
       const copyText = text + (det ? ' \u2014 ' + det : '');
       copyToClipboard(copyText).then(() => {
-        const btn = card.querySelector('.card-copy-btn');
+        const btn = strip.querySelector('.insight-copy-btn');
         btn.textContent = 'Copied!';
         btn.classList.add('copied');
         setTimeout(() => { btn.textContent = 'Copy text'; btn.classList.remove('copied'); }, 1500);
       });
     });
 
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-dismiss-inline') || e.target.closest('.card-quick-dismiss')) return;
-      if (e.target.closest('a')) return;
-      const timeEl = e.target.closest('.card-time');
+    strip.addEventListener('click', (e) => {
+      if (e.target.closest('a') || e.target.closest('.insight-copy-btn')) return;
+      const timeEl = e.target.closest('.insight-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
-      toggleCardExpand(card);
+      strip.classList.toggle('expanded');
     });
 
-    return card;
+    return strip;
   }
 
   function createStockCard(entity) {
@@ -3334,7 +3316,7 @@ if (window.__contextExtensionLoaded) {
       allCollapsed = !allCollapsed;
       collapseAllBtn.classList.toggle('active', allCollapsed);
       collapseAllBtn.textContent = allCollapsed ? '\u25BC Expand' : '\u25B2 Collapse';
-      const entityCards = cardContainer.querySelectorAll('.context-card:not(.insight-card)');
+      const entityCards = cardContainer.querySelectorAll('.context-card');
       if (allCollapsed) {
         // Collapse all: remove expanded from all entity cards, use CSS collapse
         allowMultipleExpand = false;
@@ -3361,7 +3343,7 @@ if (window.__contextExtensionLoaded) {
 
     // Copy event tracking
     sidebar.addEventListener('copy', (e) => {
-      const card = e.target.closest('.context-card, .insight-card');
+      const card = e.target.closest('.context-card, .insight-strip');
       if (card) {
         try { chrome.runtime.sendMessage({ type: 'CARD_COPY', term: card.dataset.term || 'unknown', entityType: card.dataset.entityType || 'unknown' }); } catch (err) {}
       }
@@ -4360,7 +4342,7 @@ if (window.__contextExtensionLoaded) {
     if (el.classList.contains('ctx-video-divider')) {
       return { data: { term: el.textContent, type: 'video-divider' }, height: h, measuredHeight: h, type: 'divider', el: null, dismissed: false, highlighted: false };
     }
-    const isInsight = el.classList.contains('insight-card');
+    const isInsight = el.classList.contains('insight-strip');
     const isStock = el.classList.contains('stock-card');
     const term = el.querySelector('.card-term')?.textContent || '';
     const type = isInsight ? 'insight' : (isStock ? 'stock' : 'entity');

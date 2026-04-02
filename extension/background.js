@@ -69,6 +69,7 @@ let lastAnalyzeFailed = false;
 let captureStartTime = null;
 let eventQueue = [];
 let eventFlushTimer = null;
+let knowledgeState = {};
 
 function trackEvent(eventName, properties = {}) {
   chrome.storage.local.get(['installId', 'user'], (data) => {
@@ -101,6 +102,64 @@ function flushEvents() {
   }).catch(err => {
     console.error('[BACKGROUND] Event flush failed:', err.message);
   });
+}
+
+function recalcFamiliarity(key) {
+  const e = knowledgeState[key];
+  if (!e) return;
+
+  let score = 0;
+  if (e.timesKnewThis > 0) score += 0.4;
+  if (e.timesNewToMe > 0) score -= 0.1;
+  score += Math.min(e.timesSeen * 0.05, 0.2);
+  if (e.timesExpanded > 0) {
+    const avgDwell = e.totalDwellMs / e.timesExpanded;
+    if (avgDwell > 10000) score += 0.15;
+    else if (avgDwell > 3000) score += 0.1;
+    else score += 0.05;
+  }
+  if (e.timesTellMeMore > 0) score += 0.1;
+  const daysSinceLastSeen = (Date.now() - e.lastSeen) / (1000 * 60 * 60 * 24);
+  if (daysSinceLastSeen > 30) score -= 0.15;
+  else if (daysSinceLastSeen > 14) score -= 0.08;
+  else if (daysSinceLastSeen > 7) score -= 0.03;
+  e.familiarity = Math.max(0, Math.min(1, score));
+}
+
+function debounceSaveKnowledgeState() {
+  clearTimeout(knowledgeState._saveTimer);
+  knowledgeState._saveTimer = setTimeout(() => {
+    const toSave = { ...knowledgeState };
+    delete toSave._saveTimer;
+    chrome.storage.local.set({ knowledgeState: toSave });
+  }, 5000);
+}
+
+function updateKnowledgeState(entities) {
+  const now = Date.now();
+  entities.forEach(e => {
+    const key = (e.term || e.name || '').toLowerCase().trim();
+    if (!key) return;
+    if (!knowledgeState[key]) {
+      knowledgeState[key] = {
+        term: e.term || e.name,
+        type: e.type,
+        timesSeen: 0,
+        timesExpanded: 0,
+        timesNewToMe: 0,
+        timesKnewThis: 0,
+        timesTellMeMore: 0,
+        totalDwellMs: 0,
+        familiarity: 0.0,
+        firstSeen: now,
+        lastSeen: now
+      };
+    }
+    const entry = knowledgeState[key];
+    entry.timesSeen++;
+    entry.lastSeen = now;
+  });
+  debounceSaveKnowledgeState();
 }
 
 function getUsageKey() {
@@ -235,6 +294,9 @@ chrome.runtime.onInstalled.addListener(() => {
       console.log('[BACKGROUND] Generated installId:', installId);
     }
   });
+  chrome.storage.local.get('knowledgeState', (data) => {
+    knowledgeState = data.knowledgeState || {};
+  });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
   });
@@ -242,6 +304,9 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.storage.local.set({ capturing: false });
+  chrome.storage.local.get('knowledgeState', (data) => {
+    knowledgeState = data.knowledgeState || {};
+  });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
   });
@@ -323,6 +388,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'CONTEXT_FETCH') {
     incrementUsage('contextFetches');
     trackEvent('tell_me_more', { term: message.term || '' });
+    const tmKey = (message.term || '').toLowerCase().trim();
+    if (knowledgeState[tmKey]) {
+      knowledgeState[tmKey].timesTellMeMore++;
+      recalcFamiliarity(tmKey);
+      debounceSaveKnowledgeState();
+    }
   } else if (message.type === 'STREAM_DIED') {
     if (restartAttempted) {
       console.log('[BACKGROUND] STREAM_DIED received again, already attempted restart — ignoring');
@@ -521,6 +592,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'CARD_DWELL') {
     console.log(`[BACKGROUND] Card dwell: ${message.term} — ${message.dwellMs}ms`);
     trackEvent('card_dwell', { term: message.term, dwellMs: message.dwellMs, entityType: message.entityType });
+    const dwellKey = (message.term || '').toLowerCase().trim();
+    if (knowledgeState[dwellKey]) {
+      knowledgeState[dwellKey].timesExpanded++;
+      knowledgeState[dwellKey].totalDwellMs += (message.dwellMs || 0);
+      recalcFamiliarity(dwellKey);
+      debounceSaveKnowledgeState();
+    }
   } else if (message.type === 'CARD_COPY') {
     console.log(`[BACKGROUND] Card copied: ${message.term}`);
     trackEvent('card_copy', { term: message.term, entityType: message.entityType });
@@ -529,6 +607,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     trackEvent('session_metrics', { cardsRendered: message.cardsRendered, cardsExpanded: message.cardsExpanded, expansionRate: message.expansionRate });
   } else if (message.type === 'TRACK_EVENT') {
     trackEvent(message.eventName, message.properties || {});
+    // Update knowledge state for card reactions and tell-me-more
+    if (message.eventName === 'card_reaction' && message.properties) {
+      const rKey = (message.properties.term || '').toLowerCase().trim();
+      if (knowledgeState[rKey]) {
+        if (message.properties.reaction === 'known') {
+          knowledgeState[rKey].timesKnewThis++;
+        } else if (message.properties.reaction === 'new') {
+          knowledgeState[rKey].timesNewToMe++;
+        }
+        recalcFamiliarity(rKey);
+        debounceSaveKnowledgeState();
+      }
+    }
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
@@ -1098,7 +1189,14 @@ async function processNextTranscript() {
         e.kbSource = kb[key].source || '';
         console.log('[BACKGROUND] KB match:', key, 'timesSeen:', kb[key].timesSeen);
       }
+      // Attach familiarity data from knowledge state
+      const ks = knowledgeState[key];
+      e.familiarity = ks ? ks.familiarity : 0;
+      e.timesSeen = ks ? ks.timesSeen : 0;
     });
+
+    // Update knowledge state with new entities
+    updateKnowledgeState(enrichedEntities);
 
     // Save pending entities/insights for content script (onChanged) and append to sessionHistory
     console.log('[BACKGROUND] Saving', enrichedEntities.length, 'entities and', dedupedInsights.length, 'insights to storage');

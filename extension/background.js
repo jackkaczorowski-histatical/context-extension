@@ -450,15 +450,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           picture: userInfo.picture,
           token: token,
           signedInAt: Date.now(),
-          plan: 'free'
+          plan: 'free',
+          minutesLimit: 30
         };
-        chrome.storage.local.set({ user });
-        console.log('[BACKGROUND] Google sign-in success:', user.email);
-        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_SUCCESS', user }).catch(() => {});
-        // Sync with backend
+        // Sync with backend before notifying content script
         try {
           const installData = await chrome.storage.local.get('installId');
-          await fetch(`${API_BASE}/auth-sync`, {
+          const syncRes = await fetch(`${API_BASE}/auth-sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -469,9 +467,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               installId: installData.installId || null
             })
           });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json();
+            user.plan = syncData.plan || 'free';
+            user.minutesLimit = syncData.minutesLimit || 30;
+          }
         } catch (e) {
           console.error('[BACKGROUND] Auth sync failed:', e.message);
         }
+        chrome.storage.local.set({ user });
+        console.log('[BACKGROUND] Google sign-in success:', user.email, 'plan:', user.plan);
+        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_SUCCESS', user }).catch(() => {});
       })
       .catch(err => {
         console.error('[BACKGROUND] Google userinfo fetch failed:', err.message);

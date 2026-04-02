@@ -960,6 +960,19 @@ async function processNextTranscript() {
     const depth = (storageData.extensionSettings && storageData.extensionSettings.depth) || 2;
     const knownTerms = Object.values(storageData.knowledgeBase || {}).map(e => e.term);
 
+    // Build familiarity-filtered terms from knowledge state
+    const familiarTerms = Object.values(knowledgeState)
+      .filter(e => e.familiarity > 0.6)
+      .map(e => e.term)
+      .slice(0, 30);
+
+    // Build top topic affinities
+    const topTopics = Object.entries(topicAffinities)
+      .sort((a, b) => b[1].score - a[1].score)
+      .slice(0, 3)
+      .map(([topic, data]) => `${topic} (${(data.score * 100).toFixed(0)}%)`)
+      .join(', ');
+
     // Skip sponsor/ad segments
     if (isLikelyAd(transcript)) {
       console.log('[BACKGROUND] Ad segment detected, skipping analyze:', transcript.slice(0, 60) + '...');
@@ -970,7 +983,7 @@ async function processNextTranscript() {
 
     // Step 1: Analyze (up to 3 attempts, handles both HTTP errors and network failures)
     const installId = storageData.installId || null;
-    const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms, typeCalibration, difficultyProfile, installId });
+    const analyzeBody = JSON.stringify({ transcript, pageTitle: capturingTabTitle, userProfile, tasteProfile, reactionProfile, depth, previousEntities: sessionEntities, sessionContext: sessionTranscript.slice(-2000), knownTerms, familiarTerms, topTopics, typeCalibration, difficultyProfile, installId });
     const retryDelays = [0, 2000, 4000];
     let analyzeRes;
     for (let attempt = 0; attempt < 3; attempt++) {

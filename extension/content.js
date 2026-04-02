@@ -1685,6 +1685,24 @@ if (window.__contextExtensionLoaded) {
     }
     .light-theme .floating-widget { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .light-theme .floating-widget:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+
+    /* Focus indicators */
+    .context-card:focus-visible, .insight-strip:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .context-card,
+      .insight-strip,
+      .card-expand-area,
+      .floating-widget,
+      .live-dot.active {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
   `;
 
   const BADGE_CSS = `
@@ -2246,6 +2264,9 @@ if (window.__contextExtensionLoaded) {
     strip.className = 'insight-strip';
     strip.dataset.insightKey = insightKey(insight.insight || '');
     strip.dataset.entityType = 'insight';
+    strip.setAttribute('tabindex', '0');
+    strip.setAttribute('role', 'article');
+    strip.setAttribute('aria-label', 'insight: ' + (insight.insight || ''));
     const vt = formatVideoTime();
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
@@ -2297,6 +2318,9 @@ if (window.__contextExtensionLoaded) {
     card.className = 'context-card stock-card expanded';
     card.dataset.term = entity.ticker || entity.name || '';
     card.dataset.entityType = 'stock';
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'article');
+    card.setAttribute('aria-label', 'stock: ' + (entity.ticker || entity.name || ''));
     const color = getTypeColor('stock');
 
     const ticker = escapeHtml(entity.ticker || '');
@@ -2486,6 +2510,9 @@ if (window.__contextExtensionLoaded) {
     card.className = 'context-card';
     card.dataset.term = entity.term || entity.name || '';
     card.dataset.entityType = entity.type || 'other';
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'article');
+    card.setAttribute('aria-label', (entity.type || 'other') + ': ' + (entity.term || entity.name || ''));
     const type = entity.type || 'other';
     const color = getTypeColor(type);
     const isRectx = !!entity.recontextualized;
@@ -3056,6 +3083,8 @@ if (window.__contextExtensionLoaded) {
     // Sidebar wrapper
     const sidebar = document.createElement('div');
     sidebar.id = 'sidebar';
+    sidebar.setAttribute('role', 'complementary');
+    sidebar.setAttribute('aria-label', 'Context Listener sidebar');
 
     // Header
     const header = document.createElement('div');
@@ -3346,6 +3375,34 @@ if (window.__contextExtensionLoaded) {
     // Cards container
     const cardContainer = document.createElement('div');
     cardContainer.id = 'cards';
+    cardContainer.setAttribute('role', 'feed');
+    cardContainer.setAttribute('aria-label', 'Entity cards');
+
+    // Keyboard navigation for cards
+    cardContainer.addEventListener('keydown', (e) => {
+      const focused = shadowRoot.activeElement;
+      if (!focused) return;
+      const isCard = focused.classList.contains('context-card') || focused.classList.contains('insight-strip');
+      if (!isCard) return;
+
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (focused.classList.contains('insight-strip')) {
+          focused.classList.toggle('expanded');
+        } else {
+          toggleCardExpand(focused);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        if (focused.classList.contains('expanded')) {
+          if (focused.classList.contains('insight-strip')) {
+            focused.classList.remove('expanded');
+          } else {
+            toggleCardExpand(focused);
+          }
+        }
+      }
+    });
 
     // Ask response area
     const askResponse = document.createElement('div');

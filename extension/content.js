@@ -233,6 +233,17 @@ if (window.__contextExtensionLoaded) {
     return div.innerHTML;
   }
 
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    const days = Math.floor(hrs / 24);
+    return days + 'd ago';
+  }
+
   function formatVideoTime() {
     const elapsed = lastSessionStart ? Date.now() - lastSessionStart : 0;
     const totalSec = Math.floor(elapsed / 1000);
@@ -511,6 +522,29 @@ if (window.__contextExtensionLoaded) {
       50% { height: 20px; }
     }
     .ctx-empty-text { font-size: 11px; color: #6a6a8a; }
+    .transcript-ticker {
+      padding: 8px 12px; font-size: 11px; color: var(--text-tertiary);
+      font-style: italic; overflow: hidden; white-space: nowrap;
+      text-overflow: ellipsis; max-height: 24px;
+      transition: opacity 200ms ease;
+    }
+    .transcript-ticker.hidden { opacity: 0; max-height: 0; padding: 0 12px; overflow: hidden; }
+    .empty-state-returning { text-align: center; padding: 24px 16px; }
+    .last-session-summary {
+      font-size: 11px; color: var(--text-secondary); line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .start-btn-large {
+      display: block; width: 80%; margin: 24px auto; padding: 12px 24px;
+      background: var(--accent); color: white; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: background 150ms ease;
+    }
+    .start-btn-large:hover { background: #0d9488; }
+    .light-theme .start-btn-large { color: #fff; }
+    .ctx-usage-countdown {
+      font-size: 12px; color: var(--text-secondary); margin-top: 8px;
+    }
     #listening-indicator {
       display: none; align-items: center; gap: 8px;
       padding: 8px 16px; background: var(--bg-primary);
@@ -3041,11 +3075,13 @@ if (window.__contextExtensionLoaded) {
     emptyState.id = 'empty-state';
     emptyState.innerHTML = `
       <div class="ctx-waveform"><span></span><span></span><span></span><span></span></div>
+      <div class="transcript-ticker hidden"><span class="ticker-text"></span></div>
       <div class="ctx-empty-text">Listening for context...</div>
       <div id="kb-matches-wrapper">
         <div class="kb-matches-toggle">\u25BE You've explored related topics before</div>
         <div id="empty-kb-matches"></div>
       </div>
+      <div class="empty-state-returning" style="display:none;"></div>
     `;
 
     // KB matches toggle header
@@ -3085,6 +3121,38 @@ if (window.__contextExtensionLoaded) {
       } else {
         matchContainer.innerHTML = '<div style="font-size:12px;color:#64748b;">Terms, people, and concepts will appear here as they\'re mentioned.</div>';
       }
+    });
+
+    // Returning user empty state: show last session info when not capturing
+    chrome.storage.local.get(['capturing', 'pastSessions'], (data) => {
+      if (data.capturing) return;
+      const sessions = data.pastSessions || [];
+      if (sessions.length === 0) return;
+      const last = sessions[0];
+      const returningDiv = emptyState.querySelector('.empty-state-returning');
+      if (!returningDiv) return;
+      const title = last.title || 'Untitled';
+      const count = (last.entities || []).length;
+      const ago = last.timestamp ? timeAgo(last.timestamp) : '';
+      returningDiv.innerHTML =
+        '<div class="last-session-summary">Last session: ' + escapeHtml(title) + ' &mdash; ' + count + ' terms' + (ago ? ', ' + ago : '') + '</div>' +
+        '<button class="start-btn-large">\u25B6 Start Capturing</button>';
+      returningDiv.style.display = '';
+      // Hide waveform and listening text — user isn't capturing yet
+      const waveform = emptyState.querySelector('.ctx-waveform');
+      if (waveform) waveform.style.display = 'none';
+      const emptyTextEl = emptyState.querySelector('.ctx-empty-text');
+      if (emptyTextEl) emptyTextEl.style.display = 'none';
+      const kbWrapper = emptyState.querySelector('#kb-matches-wrapper');
+      if (kbWrapper) kbWrapper.style.display = 'none';
+      returningDiv.querySelector('.start-btn-large').addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+        returningDiv.style.display = 'none';
+        // Restore waveform and listening text for active capture
+        if (waveform) waveform.style.display = '';
+        if (emptyTextEl) emptyTextEl.style.display = '';
+        if (kbWrapper) kbWrapper.style.display = '';
+      });
     });
 
     // View tabs (Cards / Transcript)
@@ -4062,6 +4130,9 @@ if (window.__contextExtensionLoaded) {
     hasCards = true;
     const empty = shadowRoot.getElementById('empty-state');
     const cards = shadowRoot.getElementById('cards');
+    // Fade out transcript ticker
+    const ticker = empty ? empty.querySelector('.transcript-ticker') : null;
+    if (ticker) ticker.classList.add('hidden');
     // Fade out briefing
     const briefing = empty ? empty.querySelector('#empty-briefing') : null;
     if (briefing) { briefing.style.opacity = '0'; }
@@ -4107,7 +4178,18 @@ if (window.__contextExtensionLoaded) {
         cards.style.display = 'none';
       }
       const empty = shadowRoot.getElementById('empty-state');
-      if (empty) empty.style.display = '';
+      if (empty) {
+        empty.style.display = '';
+        empty.style.opacity = '1';
+        const emptyText = empty.querySelector('.ctx-empty-text');
+        if (emptyText) emptyText.style.display = '';
+        const ticker = empty.querySelector('.transcript-ticker');
+        if (ticker) ticker.classList.add('hidden');
+        const waveform = empty.querySelector('.ctx-waveform');
+        if (waveform) waveform.style.display = '';
+        const returningDiv = empty.querySelector('.empty-state-returning');
+        if (returningDiv) returningDiv.style.display = 'none';
+      }
       const li = shadowRoot.getElementById('listening-indicator');
       if (li) li.classList.remove('visible');
       // Clear any session summary
@@ -4536,6 +4618,19 @@ if (window.__contextExtensionLoaded) {
         const last40 = text.slice(-120);
         strip.textContent = last40;
         strip.classList.toggle('visible', text.length > 0);
+
+        // Feed transcript ticker in empty state
+        if (!hasCards) {
+          const ticker = shadowRoot.querySelector('.transcript-ticker');
+          const tickerText = ticker ? ticker.querySelector('.ticker-text') : null;
+          if (tickerText && text.length > 0) {
+            tickerText.textContent = text.slice(-100);
+            ticker.classList.remove('hidden');
+            // Hide static text once real transcript flows — proves the product is working
+            const emptyText = shadowRoot.querySelector('.ctx-empty-text');
+            if (emptyText) emptyText.style.display = 'none';
+          }
+        }
 
         // Flash on new transcript
         strip.classList.remove('paused');
@@ -5065,11 +5160,11 @@ if (window.__contextExtensionLoaded) {
       if (consecutiveErrors >= 3) {
         bar.className = 'ctx-status-bar visible error';
         icon.textContent = '\u2716';
-        text.textContent = 'Connection failed. Try stopping and restarting capture.';
+        text.innerHTML = 'Connection failed. Try stopping and restarting.<br><span style="opacity:0.7;font-size:10px;">Still trying\u2026 your audio is still playing normally.</span>';
       } else {
         bar.className = 'ctx-status-bar visible warning';
         icon.textContent = '\u26A0';
-        text.textContent = name + ' connection lost, retrying...';
+        text.innerHTML = escapeHtml(name) + ' connection lost, retrying\u2026<br><span style="opacity:0.7;font-size:10px;">Still trying\u2026 your audio is still playing normally.</span>';
       }
     } else if (msg.type === 'CONNECTION_RESTORED') {
       if (!shadowRoot) return;
@@ -5150,12 +5245,32 @@ if (window.__contextExtensionLoaded) {
       // Show usage limit overlay
       const overlay = document.createElement('div');
       overlay.className = 'ctx-usage-limit';
+      // Calculate time until midnight reset (live-ticking)
+      function calcResetText() {
+        const n = new Date();
+        const mid = new Date(n);
+        mid.setHours(24, 0, 0, 0);
+        const diff = mid - n;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        return 'Resets in ' + h + 'h ' + m + 'm';
+      }
       overlay.innerHTML = '<div class="ctx-usage-limit-title">Daily limit reached</div>' +
         '<div class="ctx-usage-limit-meter">' + (msg.minutes || 30) + '/30 minutes used today</div>' +
-        '<div class="ctx-usage-limit-body">You\'ve used your 30 free minutes for today. Your limit resets at midnight.</div>' +
+        '<div class="ctx-usage-limit-body">You\'ve used your 30 free minutes for today.</div>' +
+        '<div class="ctx-usage-countdown">' + calcResetText() + '</div>' +
         '<a class="ctx-usage-limit-link" href="https://context-listener.com" target="_blank">Upgrade for unlimited</a>' +
         '<button class="ctx-usage-limit-dismiss">Dismiss</button>';
-      overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => overlay.remove());
+      // Live-tick the countdown every 60s
+      const countdownEl = overlay.querySelector('.ctx-usage-countdown');
+      const countdownInterval = setInterval(() => {
+        if (!overlay.isConnected) { clearInterval(countdownInterval); return; }
+        countdownEl.textContent = calcResetText();
+      }, 60000);
+      overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => {
+        clearInterval(countdownInterval);
+        overlay.remove();
+      });
       const sidebar = shadowRoot.getElementById('sidebar');
       if (sidebar) sidebar.appendChild(overlay);
     } else if (msg.type === 'SIGN_IN_SUCCESS') {

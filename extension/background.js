@@ -396,9 +396,10 @@ chrome.runtime.onInstalled.addListener(() => {
       console.log('[BACKGROUND] Generated installId:', installId);
     }
   });
-  chrome.storage.local.get(['knowledgeState', 'topicAffinities'], (data) => {
+  chrome.storage.local.get(['knowledgeState', 'topicAffinities', 'sessionEntities'], (data) => {
     knowledgeState = data.knowledgeState || {};
     topicAffinities = data.topicAffinities || {};
+    sessionEntities = data.sessionEntities || [];
   });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
@@ -407,9 +408,10 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.storage.local.set({ capturing: false });
-  chrome.storage.local.get(['knowledgeState', 'topicAffinities'], (data) => {
+  chrome.storage.local.get(['knowledgeState', 'topicAffinities', 'sessionEntities'], (data) => {
     knowledgeState = data.knowledgeState || {};
     topicAffinities = data.topicAffinities || {};
+    sessionEntities = data.sessionEntities || [];
   });
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
@@ -602,7 +604,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // 3. Save KB and pastSessions, then clear session data
       chrome.storage.local.set({ knowledgeBase: kb, pastSessions }, () => {
-        chrome.storage.local.remove(['sessionHistory', 'pendingEntities', 'pendingInsights', 'sessionTranscript']);
+        chrome.storage.local.remove(['sessionHistory', 'pendingEntities', 'pendingInsights', 'sessionTranscript', 'sessionEntities']);
         sessionTotal = 0;
       });
     });
@@ -866,6 +868,7 @@ async function startCapture() {
             const term = (e.term || '').toLowerCase().replace(/s$/, '');
             if (term && !sessionEntities.includes(term)) sessionEntities.push(term);
           });
+          chrome.storage.local.set({ sessionEntities });
           updateKnowledgeState(packEntities);
           // Build history entries for pack entities
           const histEntries = [];
@@ -1023,7 +1026,7 @@ async function stopCapture() {
   firstFlush = true;
   stopUsageTimer();
   flushEvents();
-  chrome.storage.local.remove('activeTabId');
+  chrome.storage.local.remove(['activeTabId', 'sessionEntities']);
   chrome.storage.local.set({ capturing: false, sessionStats });
   console.log('[BACKGROUND] Capture stopped');
   isStoppingCapture = false;
@@ -1211,6 +1214,8 @@ async function processNextTranscript() {
       const term = (e.term || e.name || '').toLowerCase().replace(/s$/, '');
       if (term) sessionEntities.push(term);
     });
+    // Persist to survive service worker restarts
+    chrome.storage.local.set({ sessionEntities });
 
     // Filter out generic/common single-word terms
     const filteredEntities = dedupedEntities.filter(entity => {

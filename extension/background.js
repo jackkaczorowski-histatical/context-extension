@@ -9,7 +9,7 @@ const GENERIC_TERMS = new Set([
   'house', 'car', 'phone', 'energy', 'power', 'oil', 'gas', 'gold',
   'silver', 'time', 'work', 'people', 'business', 'tax', 'taxes',
   'loan', 'interest', 'government', 'bank', 'country', 'world',
-  'europe', 'asia', 'africa', 'america', 'russia', 'china', 'moscow'
+  'europe', 'asia', 'africa', 'america'
 ]);
 
 function isLikelyAd(text) {
@@ -881,7 +881,14 @@ async function processNextTranscript() {
         const prevNorm = normalize(prev);
         // Ingredients: exact match only (e.g. "olive oil" vs "extra virgin olive oil" are distinct)
         if (isIngredient) return prevNorm === newTerm;
-        return prevNorm.includes(newTerm) || newTerm.includes(prevNorm);
+        if (prevNorm === newTerm) return true;
+        if (prevNorm.includes(newTerm) || newTerm.includes(prevNorm)) {
+          // Length ratio check: only count as dupe if shorter is ≥80% of longer
+          const shorter = prevNorm.length <= newTerm.length ? prevNorm : newTerm;
+          const longer = prevNorm.length > newTerm.length ? prevNorm : newTerm;
+          return shorter.length / longer.length >= 0.80;
+        }
+        return false;
       });
       if (isDup) {
         console.log('[BACKGROUND] Dedup filtered:', entity.term, '(already seen similar in session)');
@@ -910,7 +917,7 @@ async function processNextTranscript() {
       return true;
     });
 
-    // Fuzzy dedup insights, limit to 1 per chunk
+    // Fuzzy dedup insights, limit to 2 per chunk
     function normalizeInsight(s) {
       return s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
     }
@@ -954,20 +961,17 @@ async function processNextTranscript() {
       return false;
     }
 
-    let dedupedInsight = null;
+    const dedupedInsights = [];
     for (const insight of insights) {
+      if (dedupedInsights.length >= 2) break;
       const newText = insight.insight || '';
       if (!newText) continue;
       if (isInsightDuplicate(newText, sessionInsights)) {
         console.log('[BACKGROUND] Insight dedup filtered:', insight.insight);
         continue;
       }
-      dedupedInsight = insight;
-      break;
-    }
-    const dedupedInsights = dedupedInsight ? [dedupedInsight] : [];
-    if (dedupedInsight) {
-      sessionInsights.push(dedupedInsight.insight || '');
+      dedupedInsights.push(insight);
+      sessionInsights.push(newText);
     }
 
     if (filteredEntities.length === 0 && dedupedInsights.length === 0) {

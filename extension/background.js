@@ -66,6 +66,42 @@ let sessionTotal = 0;
 let isStoppingCapture = false;
 let isStartingCapture = false;
 let lastAnalyzeFailed = false;
+let captureStartTime = null;
+let eventQueue = [];
+let eventFlushTimer = null;
+
+function trackEvent(eventName, properties = {}) {
+  chrome.storage.local.get(['installId', 'user'], (data) => {
+    eventQueue.push({
+      event: eventName,
+      properties,
+      installId: data.installId || null,
+      userId: data.user?.id || null,
+      timestamp: Date.now()
+    });
+    if (eventQueue.length >= 20) {
+      flushEvents();
+    } else if (!eventFlushTimer) {
+      eventFlushTimer = setTimeout(() => flushEvents(), 30000);
+    }
+  });
+}
+
+function flushEvents() {
+  if (eventFlushTimer) {
+    clearTimeout(eventFlushTimer);
+    eventFlushTimer = null;
+  }
+  if (eventQueue.length === 0) return;
+  const batch = eventQueue.splice(0);
+  fetch(`${API_BASE}/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ events: batch })
+  }).catch(err => {
+    console.error('[BACKGROUND] Event flush failed:', err.message);
+  });
+}
 
 function getUsageKey() {
   const d = new Date();
@@ -286,6 +322,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === 'CONTEXT_FETCH') {
     incrementUsage('contextFetches');
+    trackEvent('tell_me_more', { term: message.term || '' });
   } else if (message.type === 'STREAM_DIED') {
     if (restartAttempted) {
       console.log('[BACKGROUND] STREAM_DIED received again, already attempted restart — ignoring');
@@ -327,6 +364,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
   } else if (message.type === 'CLEAR_SESSION') {
     console.log('[BACKGROUND] Session cleared by user');
+    trackEvent('session_clear', { entities_count: sessionEntities.length });
     chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'pastSessions'], (data) => {
       const sessionHist = data.sessionHistory || [];
       const kb = data.knowledgeBase || {};
@@ -449,6 +487,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('[BACKGROUND] User signed out');
       if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_OUT_SUCCESS' }).catch(() => {});
     });
+  } else if (message.type === 'TRACK_EVENT') {
+    trackEvent(message.eventName, message.properties || {});
   } else if (message.type === 'TRANSCRIPT') {
     if (isPaused) return;
     console.log('[BACKGROUND] Received TRANSCRIPT:', message.transcript);
@@ -504,6 +544,7 @@ async function startCapture() {
     return;
   }
   restartAttempted = false;
+  captureStartTime = Date.now();
   startUsageTimer();
   try {
     // Close any existing offscreen document before proceeding
@@ -536,6 +577,7 @@ async function startCapture() {
     capturingTabId = tab.id;
     capturingTabTitle = tab.title || '';
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
+    trackEvent('capture_start', { url: tab.url || '', title: capturingTabTitle });
 
     // Store activeTabId, URL, title, and sessionId for content script
     // Only set sessionStart on fresh sessions (no existing cards), not on resume
@@ -604,6 +646,10 @@ async function stopCapture() {
   if (isStoppingCapture) return;
   isStoppingCapture = true;
 
+  const durationSec = captureStartTime ? Math.round((Date.now() - captureStartTime) / 1000) : 0;
+  trackEvent('capture_stop', { duration_seconds: durationSec, entities_count: sessionEntities.length });
+  captureStartTime = null;
+
   capturingTabId = null;
 
   try {
@@ -648,6 +694,7 @@ async function stopCapture() {
   isPaused = false;
   firstFlush = true;
   stopUsageTimer();
+  flushEvents();
   chrome.storage.local.remove('activeTabId');
   chrome.storage.local.set({ capturing: false });
   console.log('[BACKGROUND] Capture stopped');

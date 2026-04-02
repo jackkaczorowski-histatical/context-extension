@@ -1865,6 +1865,7 @@ if (window.__contextExtensionLoaded) {
           }
 
           chrome.storage.local.set({ cardReactions: reactions, dismissedEntities: dismissed });
+          try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'card_reaction', properties: { term: key, reaction: wasActive ? 'removed' : reaction, entity_type: entity.type || 'other' } }); } catch (e) {}
         });
       });
 
@@ -2338,7 +2339,7 @@ if (window.__contextExtensionLoaded) {
           }
 
           // No cached description, fetch from API
-          try { if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH' }); } catch (e) {}
+          try { if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH', term: termName }); } catch (e) {}
           fetch('https://context-extension-zv8d.vercel.app/api/context', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2818,6 +2819,7 @@ if (window.__contextExtensionLoaded) {
           setTimeout(() => tooltip.classList.remove('visible'), 1500);
         });
       });
+      try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'export', properties: { method: 'clipboard' } }); } catch (e2) {}
     });
 
     exportMenu.querySelector('[data-action="gmail"]').addEventListener('click', (e) => {
@@ -2834,6 +2836,7 @@ if (window.__contextExtensionLoaded) {
           window.open(gmailUrl, '_blank');
         });
       });
+      try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'export', properties: { method: 'gmail' } }); } catch (e2) {}
     });
 
     exportMenu.querySelector('[data-action="download"]').addEventListener('click', (e) => {
@@ -2850,6 +2853,7 @@ if (window.__contextExtensionLoaded) {
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
+      try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'export', properties: { method: 'download' } }); } catch (e2) {}
     });
 
     // Empty state
@@ -2922,6 +2926,7 @@ if (window.__contextExtensionLoaded) {
       transcriptTab.classList.toggle('active', view === 'transcript');
       cardsWrap.classList.toggle('hidden', view !== 'cards');
       transcriptView.classList.toggle('active', view === 'transcript');
+      try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'tab_switch', properties: { tab: view } }); } catch (e) {}
     }
     cardsTab.addEventListener('click', () => switchView('cards'));
     transcriptTab.addEventListener('click', () => switchView('transcript'));
@@ -3384,6 +3389,7 @@ if (window.__contextExtensionLoaded) {
 
     function saveUserSettings() {
       chrome.storage.local.set({ userSettings });
+      try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'settings_change', properties: { knowledgeLevel: userSettings.knowledgeLevel, interests_count: (userSettings.interests || []).length } }); } catch (e) {}
     }
 
     // Load saved settings

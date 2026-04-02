@@ -22,7 +22,7 @@
     "*://*.podcasts.google.com/*"
   ],
   "oauth2": {
-    "client_id": "PLACEHOLDER_CLIENT_ID.apps.googleusercontent.com",
+    "client_id": "431347797056-i4th6beimiv4ask3dtm8l4nlhceua8ba.apps.googleusercontent.com",
     "scopes": ["openid", "email", "profile"]
   },
   "background": {

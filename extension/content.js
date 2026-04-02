@@ -426,24 +426,27 @@ if (window.__contextExtensionLoaded) {
       overflow: visible;
     }
     .ctx-header-row1 {
-      display: flex; align-items: center;
-      height: 32px; padding: 0 8px; gap: 4px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 12px;
+    }
+    .ctx-header-row1-left { display: flex; align-items: center; gap: 8px; }
+    .ctx-header-row1-right { display: flex; align-items: center; gap: 6px; }
+    .ctx-header-row2 {
+      display: flex; align-items: center; justify-content: center;
+      padding: 2px 12px; gap: 12px;
       border-bottom: 1px solid var(--border-subtle);
       position: relative; overflow: visible;
     }
-    .ctx-header-row1-left { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-    .ctx-header-row1-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-    .ctx-header-row2 { display: none; }
     .ctx-toolbar-btn {
       background: none; border: none; color: var(--text-tertiary); font-size: 9px;
       font-family: inherit; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.05em; cursor: pointer; padding: 2px 4px;
+      letter-spacing: 0.04em; cursor: pointer; padding: 2px 4px;
       line-height: 1; transition: color 0.15s; flex-shrink: 0; border-radius: 4px;
       white-space: nowrap;
     }
     .ctx-toolbar-btn:hover { color: var(--text-primary); }
     .ctx-toolbar-btn.active { color: var(--accent); }
-    .ctx-wordmark { font-size: 13px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+    .ctx-wordmark { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
     .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
@@ -461,9 +464,9 @@ if (window.__contextExtensionLoaded) {
     .ctx-export-btn { position: relative; }
     .ctx-clear-btn:hover { color: #ef4444; }
     .ctx-close-btn {
-      background: none; border: none; color: var(--text-secondary); font-size: 16px;
-      cursor: pointer; padding: 0 2px; line-height: 1; transition: color 0.15s;
-      flex-shrink: 0;
+      background: none; border: none; color: var(--text-secondary); font-size: 18px;
+      cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
+      flex-shrink: 0; width: 28px; text-align: center;
     }
     .ctx-close-btn:hover { color: #f8fafc; }
     .ctx-clear-confirm {
@@ -522,9 +525,9 @@ if (window.__contextExtensionLoaded) {
     }
     .ctx-empty-text { font-size: 11px; color: #6a6a8a; }
     .transcript-ticker {
-      padding: 4px 12px; font-size: 10px; color: var(--text-tertiary);
+      padding: 3px 12px; font-size: 10px; color: var(--text-tertiary);
       font-style: italic; overflow: hidden; white-space: nowrap;
-      text-overflow: ellipsis; max-height: 20px;
+      text-overflow: ellipsis; max-height: 18px;
       transition: opacity 200ms ease;
     }
     .transcript-ticker.hidden { opacity: 0; max-height: 0; padding: 0 12px; overflow: hidden; }
@@ -560,9 +563,9 @@ if (window.__contextExtensionLoaded) {
     }
     #listening-indicator .li-text { font-size: 10px; color: #5a5a7a; }
     #transcript-strip {
-      font-size: 12px; color: var(--text-primary); line-height: 20px; max-width: 100%;
+      font-size: 10px; color: var(--text-primary); line-height: 18px; max-width: 100%;
       overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-      padding: 8px 12px; flex-shrink: 0; display: none; font-style: italic;
+      padding: 3px 12px; flex-shrink: 0; display: none; font-style: italic;
       background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border-subtle);
       -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
       mask-image: linear-gradient(to right, black 70%, transparent 100%);
@@ -754,12 +757,12 @@ if (window.__contextExtensionLoaded) {
     .context-card.reacted { opacity: 0.65; transition: opacity 0.2s; }
     .context-card.reacted:hover { opacity: 0.85; }
     .ctx-filter-bar {
-      display: flex; gap: 4px; padding: 4px 8px;
+      display: flex; gap: 6px; padding: 4px 12px;
       background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
       align-items: center;
     }
     .ctx-filter-btn {
-      font-size: 9px; padding: 2px 6px; border-radius: 4px;
+      font-size: 9px; padding: 2px 8px; border-radius: 4px;
       border: 1px solid rgba(255,255,255,0.1); background: none;
       color: var(--text-secondary); cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
@@ -892,7 +895,7 @@ if (window.__contextExtensionLoaded) {
     /* ─── Listen button ─── */
     #ctx-listen-btn {
       background: #00e676; color: white; border: none; border-radius: 50%;
-      width: 32px; height: 32px; font-size: 14px; font-weight: 600; cursor: pointer;
+      width: 28px; height: 28px; font-size: 13px; font-weight: 600; cursor: pointer;
       transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
       flex-shrink: 0; padding: 0;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
@@ -1167,9 +1170,11 @@ if (window.__contextExtensionLoaded) {
     .ctx-now-watching {
       display: none;
       align-items: center;
-      gap: 4px;
-      min-width: 0;
-      flex: 1;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
     }
     .ctx-now-watching.visible { display: flex; }
     .ctx-now-watching-label {
@@ -1181,7 +1186,7 @@ if (window.__contextExtensionLoaded) {
       white-space: nowrap;
     }
     .ctx-now-watching-title {
-      font-size: 10px;
+      font-size: 11px;
       color: rgba(255, 255, 255, 0.6);
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1548,7 +1553,7 @@ if (window.__contextExtensionLoaded) {
     }
     .light-theme .ctx-view-tabs { background: #f5f5f8; border-bottom-color: rgba(0,0,0,0.08); }
     .ctx-view-tab {
-      flex: 1; padding: 8px 0; background: none; border: none;
+      flex: 1; padding: 4px 0; background: none; border: none;
       border-bottom: 2px solid transparent;
       color: #64748b; font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit; transition: all 0.15s;
@@ -3135,18 +3140,19 @@ if (window.__contextExtensionLoaded) {
             <span class="ctx-live-dot"></span>
             <span class="ctx-live-text">Live</span>
           </div>
-          <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">CLEAR</button>
-          <button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">EXPORT<span class="ctx-export-tooltip">Copied!</span></button>
-          <div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div>
-          <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">HISTORY</button>
-          <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">SETTINGS</button>
         </div>
         <div class="ctx-header-row1-right">
           <button id="ctx-listen-btn" title="Start Listening">&#x25B6;</button>
           <button class="ctx-close-btn" title="Close sidebar">&times;</button>
         </div>
       </div>
-      <div class="ctx-header-row2"></div>
+      <div class="ctx-header-row2">
+        <button class="ctx-clear-btn ctx-toolbar-btn" title="Clear session">CLEAR</button>
+        <button class="ctx-export-btn ctx-toolbar-btn" title="Export study guide">EXPORT<span class="ctx-export-tooltip">Copied!</span></button>
+        <div class="ctx-export-menu"><button class="ctx-export-menu-item" data-action="clipboard">Copy to clipboard</button><button class="ctx-export-menu-item" data-action="gmail">Open in Gmail</button><button class="ctx-export-menu-item" data-action="download">Download as .txt</button></div>
+        <button class="ctx-history-btn ctx-toolbar-btn" title="Session history">HISTORY</button>
+        <button class="ctx-settings-btn ctx-toolbar-btn" title="Settings">SETTINGS</button>
+      </div>
     `;
 
     // Wire up listen button
@@ -3174,7 +3180,7 @@ if (window.__contextExtensionLoaded) {
 
     // Wire up clear button with inline confirmation
     const clearBtn = header.querySelector('.ctx-clear-btn');
-    const headerRow1 = header.querySelector('.ctx-header-row1');
+    const headerRow2 = header.querySelector('.ctx-header-row2');
     let clearTimer = null;
     clearBtn.addEventListener('click', () => {
       if (clearBtn.dataset.confirming === 'true') return;
@@ -3190,7 +3196,7 @@ if (window.__contextExtensionLoaded) {
       noBtn.textContent = 'No';
       confirm.appendChild(yesBtn);
       confirm.appendChild(noBtn);
-      headerRow1.appendChild(confirm);
+      headerRow2.appendChild(confirm);
       function revert() {
         if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
         confirm.remove();
@@ -3594,16 +3600,16 @@ if (window.__contextExtensionLoaded) {
     cardsWrap.appendChild(statusBar);
     cardsWrap.appendChild(emptyState);
 
-    // Now Watching label (embedded in filter bar)
+    // Now Watching bar (row 5)
     const nowWatchingBar = document.createElement('div');
     nowWatchingBar.id = 'ctx-now-watching';
     nowWatchingBar.className = 'ctx-now-watching';
     nowWatchingBar.innerHTML = `<span class="ctx-now-watching-label">NOW WATCHING</span><span class="ctx-now-watching-title"></span>`;
+    cardsWrap.appendChild(nowWatchingBar);
 
-    // Filter bar (now-watching + filters on one row)
+    // Filter bar (row 6)
     const filterBar = document.createElement('div');
     filterBar.className = 'ctx-filter-bar';
-    filterBar.appendChild(nowWatchingBar);
     const hideKnownBtn = document.createElement('button');
     hideKnownBtn.className = 'ctx-filter-btn';
     hideKnownBtn.textContent = 'Hide known';

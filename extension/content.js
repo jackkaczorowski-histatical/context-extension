@@ -1638,6 +1638,39 @@ if (window.__contextExtensionLoaded) {
     .ctx-virtual-spacer-top, .ctx-virtual-spacer-bottom {
       flex-shrink: 0; width: 100%; pointer-events: none;
     }
+
+    /* ─── Floating widget (sidebar closed + capturing) ─── */
+    .floating-widget {
+      position: fixed; bottom: 20px; right: 20px;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--bg-surface); border: 1px solid var(--border-subtle);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      cursor: pointer; z-index: 2147483646;
+      display: none; align-items: center; justify-content: center;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      pointer-events: auto;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .floating-widget.visible { display: flex; }
+    .floating-widget:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    }
+    .widget-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ef4444;
+      animation: livePulse 2s ease-in-out infinite;
+    }
+    .widget-count {
+      position: absolute; top: -4px; right: -4px;
+      background: var(--accent); color: white;
+      font-size: 10px; font-weight: 700;
+      min-width: 18px; height: 18px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 4px;
+    }
+    .light-theme .floating-widget { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .light-theme .floating-widget:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
   `;
 
   const BADGE_CSS = `
@@ -1792,6 +1825,10 @@ if (window.__contextExtensionLoaded) {
         badge.classList.add('entity-flash');
       }
     }
+
+    // Sync floating widget count
+    const widgetCount = shadowRoot?.querySelector('.widget-count');
+    if (widgetCount) widgetCount.textContent = termCount;
   }
 
   function setBadgeCapturing(capturing, paused) {
@@ -1801,6 +1838,24 @@ if (window.__contextExtensionLoaded) {
     badge.classList.toggle('capturing', capturing);
     badge.classList.toggle('not-capturing', !capturing);
     badge.classList.toggle('paused', capturing && paused);
+    updateFloatingWidget(capturing);
+  }
+
+  function updateFloatingWidget(capturing) {
+    if (!shadowRoot) return;
+    const widget = shadowRoot.querySelector('.floating-widget');
+    if (!widget) return;
+    const sidebarOpen = hostEl && hostEl.dataset.open === 'true';
+    // Infer capturing state from badge if not provided
+    if (capturing === undefined) {
+      const badge = badgeShadow?.querySelector('.ctx-badge');
+      capturing = badge ? badge.classList.contains('capturing') : false;
+    }
+    const shouldShow = !sidebarOpen && !!capturing;
+    widget.classList.toggle('visible', shouldShow);
+    widget.querySelector('.widget-count').textContent = termCount;
+    // Hide badge when widget is visible to prevent overlap
+    if (badgeEl) badgeEl.style.display = shouldShow ? 'none' : '';
   }
 
   let toastTimer = null;
@@ -2020,6 +2075,7 @@ if (window.__contextExtensionLoaded) {
       }
     }
     chrome.storage.local.set({ sidebarOpen: true });
+    updateFloatingWidget();
   }
 
   function closeSidebar() {
@@ -2043,6 +2099,7 @@ if (window.__contextExtensionLoaded) {
       }
     }, 250);
     chrome.storage.local.set({ sidebarOpen: false });
+    updateFloatingWidget();
   }
 
   function resetAutoHide() {
@@ -4040,6 +4097,16 @@ if (window.__contextExtensionLoaded) {
       }
     });
 
+    // Floating widget (visible when sidebar closed + capturing active)
+    const floatingWidget = document.createElement('div');
+    floatingWidget.className = 'floating-widget';
+    floatingWidget.innerHTML = '<div class="widget-dot"></div><span class="widget-count">0</span>';
+    floatingWidget.addEventListener('click', () => {
+      openSidebar();
+      resetAutoHide();
+    });
+    shadowRoot.appendChild(floatingWidget);
+
     shadowRoot.appendChild(sidebar);
     document.body.appendChild(hostEl);
 
@@ -4136,6 +4203,9 @@ if (window.__contextExtensionLoaded) {
         }
         console.log('[CONTENT] Auto-reopened sidebar after refresh (capturing tab)');
       }
+
+      // Sync floating widget with initial state
+      updateFloatingWidget(!!data.capturing);
     });
 
     // Restore Now Watching bar on page refresh — read document.title directly
@@ -5261,6 +5331,7 @@ if (window.__contextExtensionLoaded) {
           } catch (e) {}
         }
       }
+      updateFloatingWidget(msg.capturing);
     } else if (msg.type === 'CONNECTION_ERROR') {
       if (!shadowRoot) return;
       const bar = shadowRoot.getElementById('ctx-status-bar');

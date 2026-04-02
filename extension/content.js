@@ -795,7 +795,17 @@ if (window.__contextExtensionLoaded) {
       display: inline-block; transition: background 0.15s;
     }
     .card-tellmore:hover { background: rgba(99,102,241,0.2); }
-    .card-followups { display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+    .followups-toggle {
+      font-size: 9px; color: var(--text-tertiary); cursor: pointer;
+      margin-top: 4px; padding: 2px 0; transition: color 150ms ease;
+    }
+    .followups-toggle:hover { color: var(--text-secondary); }
+    .card-followups {
+      display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px;
+      max-height: 0; overflow: hidden; opacity: 0;
+      transition: max-height 150ms ease, opacity 150ms ease;
+    }
+    .card-followups.show { max-height: 200px; opacity: 1; margin-top: 4px; }
     .followup-chip {
       font-size: 9px; color: #a5b4fc; background: rgba(99,102,241,0.08);
       border: 1px solid rgba(99,102,241,0.2); border-radius: 4px;
@@ -2605,7 +2615,7 @@ if (window.__contextExtensionLoaded) {
           <button class="card-tellmore">Tell me more</button>
           <button class="card-copy-btn">Copy text</button>
         </div>
-        ${entity.followUps && entity.followUps.length > 0 ? `<div class="card-followups">${entity.followUps.map(q => `<button class="followup-chip">${escapeHtml(q)}</button>`).join('')}</div>` : ''}
+        ${entity.followUps && entity.followUps.length > 0 ? `<div class="followups-toggle">\uD83D\uDCAC Questions</div><div class="card-followups">${entity.followUps.map(q => `<button class="followup-chip">${escapeHtml(q)}</button>`).join('')}</div>` : ''}
       </div>
     `;
 
@@ -2870,6 +2880,12 @@ if (window.__contextExtensionLoaded) {
         input.focus();
         input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       }
+    });
+
+    card.querySelector('.followups-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const followups = card.querySelector('.card-followups');
+      if (followups) followups.classList.toggle('show');
     });
 
     card.querySelectorAll('.followup-chip').forEach(chip => {

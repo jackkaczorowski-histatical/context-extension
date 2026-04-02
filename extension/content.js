@@ -400,11 +400,14 @@ if (window.__contextExtensionLoaded) {
       border-left: 1px solid var(--border-subtle);
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
       border-radius: 0;
-      transform: translateX(100%);
-      transition: transform 0.2s ease-out;
+      transform: translateX(100%) scale(0.98);
+      transition: transform 200ms ease-in;
     }
-    #sidebar[data-pos="left"] { transform: translateX(-100%); }
-    #sidebar.open { transform: translateX(0) !important; }
+    #sidebar[data-pos="left"] { transform: translateX(-100%) scale(0.98); }
+    #sidebar.open {
+      transform: translateX(0) scale(1) !important;
+      transition: transform 250ms cubic-bezier(0.0, 0.0, 0.2, 1);
+    }
     #header {
       display: flex; flex-direction: column; background: var(--bg-primary); flex-shrink: 0;
       overflow: visible;
@@ -434,7 +437,15 @@ if (window.__contextExtensionLoaded) {
     .ctx-live { display: flex; align-items: center; gap: 5px; }
     .ctx-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #00e676;
-      animation: ctx-pulse 2s ease-in-out infinite;
+      opacity: 0.3;
+    }
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .ctx-live-dot.active {
+      opacity: 1;
+      animation: livePulse 2s ease-in-out infinite;
     }
     .ctx-live-text { font-size: 10px; color: #00e676; font-weight: 500; }
     .ctx-export-btn { position: relative; }
@@ -481,10 +492,6 @@ if (window.__contextExtensionLoaded) {
     .ctx-export-menu-item:hover { background: rgba(255,255,255,0.05); }
     .ctx-export-menu-item:disabled { color: #4a4a6a; cursor: default; }
     .ctx-export-menu-item:disabled:hover { background: none; }
-    @keyframes ctx-pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
     #empty-state {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 12px;
@@ -542,11 +549,17 @@ if (window.__contextExtensionLoaded) {
     .context-card {
       position: relative; padding: 12px 16px;
       border-bottom: 1px solid var(--border-subtle); border-left: 3px solid var(--text-tertiary);
-      background: var(--bg-surface); animation: ctx-card-in 0.25s ease-out both;
+      background: var(--bg-surface);
+      animation: cardEntrance 200ms cubic-bezier(0.0, 0.0, 0.2, 1) forwards;
       cursor: pointer; user-select: none; overflow: hidden;
       border-radius: 8px; margin: 8px 8px 0 8px;
+      transition: box-shadow 150ms ease, transform 150ms ease, background 150ms ease;
     }
-    .context-card:hover { background: var(--bg-surface-hover); }
+    .context-card:hover {
+      background: var(--bg-surface-hover);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transform: translateY(-1px);
+    }
     .context-card[data-entity-type="person"] { border-left: 3px solid var(--type-person); }
     .context-card[data-entity-type="people"] { border-left: 3px solid var(--type-person); }
     .context-card[data-entity-type="place"] { border-left: 3px solid var(--type-place); }
@@ -558,8 +571,8 @@ if (window.__contextExtensionLoaded) {
     .context-card[data-entity-type="legislation"] { border-left: 3px solid var(--type-legislation); }
     .context-card[data-entity-type="metric"] { border-left: 3px solid var(--type-metric); }
     .context-card[data-entity-type="ingredient"] { border-left: 3px solid var(--type-ingredient); }
-    @keyframes ctx-card-in {
-      from { opacity: 0; transform: translateY(6px); }
+    @keyframes cardEntrance {
+      from { opacity: 0; transform: translateY(-4px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .context-card.collapsed { animation: none; cursor: default; }
@@ -603,8 +616,13 @@ if (window.__contextExtensionLoaded) {
       transition: transform 0.2s ease; line-height: 1;
     }
     .context-card.expanded .card-chevron { transform: rotate(90deg); }
-    .card-expand-area { display: none; padding-top: 8px; }
-    .context-card.expanded .card-expand-area { display: block; }
+    .card-expand-area {
+      max-height: 0; overflow: hidden; opacity: 0; padding-top: 0;
+      transition: max-height 200ms cubic-bezier(0.4, 0.0, 0.2, 1), opacity 150ms ease 50ms, padding-top 200ms ease;
+    }
+    .context-card.expanded .card-expand-area {
+      max-height: 500px; opacity: 1; padding-top: 8px;
+    }
     .card-desc { font-size: 12px; font-weight: 400; color: #a0a0c0; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
     .card-thumbnail {
       width: 60px; height: 60px; max-width: 60px; max-height: 60px;
@@ -673,6 +691,14 @@ if (window.__contextExtensionLoaded) {
     .reaction-btn.active { transform: scale(1.1); }
     .reaction-known.active { background: rgba(34,197,94,0.2); border-color: #22c55e; color: #22c55e; }
     .reaction-new.active { background: rgba(234,179,8,0.2); border-color: #eab308; color: #eab308; }
+    @keyframes reactionPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    .reaction-btn.just-clicked {
+      animation: reactionPop 200ms ease;
+    }
     .card-highlighted { border-left-color: #eab308 !important; background: rgba(234,179,8,0.05); }
     .ctx-filter-bar {
       display: flex; gap: 8px; padding: 8px 16px;
@@ -688,7 +714,7 @@ if (window.__contextExtensionLoaded) {
     .filter-hide-known .context-card.card-dismissed { display: none; }
     .filter-starred-only .context-card:not(.card-highlighted) { display: none; }
     .collapse-all .context-card:not(.insight-card) { }
-    .collapse-all .context-card:not(.insight-card) .card-expand-area { display: none; }
+    .collapse-all .context-card:not(.insight-card) .card-expand-area { max-height: 0; opacity: 0; padding-top: 0; }
     .collapse-all .context-card:not(.insight-card) .card-chevron { transform: rotate(0deg); }
     .collapse-all .context-card:not(.insight-card).expanded .card-preview-text { display: inline; }
     .reaction-label {
@@ -1995,6 +2021,10 @@ if (window.__contextExtensionLoaded) {
 
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        btn.classList.remove('just-clicked');
+        void btn.offsetWidth; // force reflow to restart animation
+        btn.classList.add('just-clicked');
+        setTimeout(() => btn.classList.remove('just-clicked'), 200);
         const wasActive = btn.classList.contains('active');
 
         chrome.storage.local.get(['cardReactions', 'dismissedEntities'], (data) => {
@@ -2904,6 +2934,8 @@ if (window.__contextExtensionLoaded) {
       if (data.capturing) {
         listenBtn.textContent = '\u25A0'; listenBtn.title = 'Stop Recording';
         listenBtn.classList.add('listening');
+        const liveDot = header.querySelector('.ctx-live-dot');
+        if (liveDot) liveDot.classList.add('active');
       }
     });
 
@@ -4620,6 +4652,8 @@ if (window.__contextExtensionLoaded) {
         ensureBadge();
         setBadgeCapturing(true, false);
         if (btn) { btn.textContent = '\u25A0'; btn.title = 'Stop Recording'; btn.classList.add('listening'); }
+        const liveDot = shadowRoot?.querySelector('.ctx-live-dot');
+        if (liveDot) liveDot.classList.add('active');
         // Auto-open sidebar on capture start if enabled
         chrome.storage.local.get('userSettings', (data) => {
           const us = data.userSettings || {};
@@ -4643,6 +4677,8 @@ if (window.__contextExtensionLoaded) {
       } else if (changes.capturing.newValue === false) {
         setBadgeCapturing(false, false);
         if (btn) { btn.textContent = '\u25B6'; btn.title = 'Start Listening'; btn.classList.remove('listening'); }
+        const liveDot = shadowRoot?.querySelector('.ctx-live-dot');
+        if (liveDot) liveDot.classList.remove('active');
         // Hide Now Watching bar
         const nwBar = shadowRoot?.getElementById('ctx-now-watching');
         if (nwBar) nwBar.style.display = 'none';

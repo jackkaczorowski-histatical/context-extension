@@ -518,6 +518,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('[BACKGROUND] User signed out');
       if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_OUT_SUCCESS' }).catch(() => {});
     });
+  } else if (message.type === 'CARD_DWELL') {
+    console.log(`[BACKGROUND] Card dwell: ${message.term} — ${message.dwellMs}ms`);
+    trackEvent('card_dwell', { term: message.term, dwellMs: message.dwellMs, entityType: message.entityType });
+  } else if (message.type === 'CARD_COPY') {
+    console.log(`[BACKGROUND] Card copied: ${message.term}`);
+    trackEvent('card_copy', { term: message.term, entityType: message.entityType });
+  } else if (message.type === 'SESSION_METRICS') {
+    console.log(`[BACKGROUND] Session metrics — rendered: ${message.cardsRendered}, expanded: ${message.cardsExpanded}, rate: ${message.expansionRate}`);
+    trackEvent('session_metrics', { cardsRendered: message.cardsRendered, cardsExpanded: message.cardsExpanded, expansionRate: message.expansionRate });
   } else if (message.type === 'TRACK_EVENT') {
     trackEvent(message.eventName, message.properties || {});
   } else if (message.type === 'TRANSCRIPT') {

@@ -95,16 +95,43 @@ if (window.__contextExtensionLoaded) {
     ingredient: '#ec4899'
   };
 
+  let cardsRenderedThisSession = 0;
+  let cardsExpandedThisSession = 0;
+
   function toggleCardExpand(card) {
     if (card.classList.contains('expanded')) {
+      // Collapsing — record dwell time
+      const expandedAt = parseInt(card.dataset.expandedAt || '0');
+      if (expandedAt) {
+        const dwellMs = Date.now() - expandedAt;
+        if (dwellMs > 500) {
+          try { chrome.runtime.sendMessage({ type: 'CARD_DWELL', term: card.dataset.term || '', dwellMs, entityType: card.dataset.entityType || '' }); } catch (e) {}
+        }
+        delete card.dataset.expandedAt;
+      }
       card.classList.remove('expanded');
       if (currentlyExpandedCard === card) currentlyExpandedCard = null;
     } else {
       if (!allowMultipleExpand && currentlyExpandedCard && currentlyExpandedCard !== card) {
+        // Record dwell on the card being auto-collapsed
+        const prevAt = parseInt(currentlyExpandedCard.dataset.expandedAt || '0');
+        if (prevAt) {
+          const dwellMs = Date.now() - prevAt;
+          if (dwellMs > 500) {
+            try { chrome.runtime.sendMessage({ type: 'CARD_DWELL', term: currentlyExpandedCard.dataset.term || '', dwellMs, entityType: currentlyExpandedCard.dataset.entityType || '' }); } catch (e) {}
+          }
+          delete currentlyExpandedCard.dataset.expandedAt;
+        }
         currentlyExpandedCard.classList.remove('expanded');
       }
       card.classList.add('expanded');
+      card.dataset.expandedAt = Date.now().toString();
       currentlyExpandedCard = card;
+      // Track first expansion
+      if (!card.dataset.wasExpanded) {
+        card.dataset.wasExpanded = 'true';
+        cardsExpandedThisSession++;
+      }
     }
   }
 
@@ -2043,6 +2070,8 @@ if (window.__contextExtensionLoaded) {
 
     const card = document.createElement('div');
     card.className = 'context-card stock-card expanded';
+    card.dataset.term = entity.ticker || entity.name || '';
+    card.dataset.entityType = 'stock';
     const color = getTypeColor('stock');
 
     const ticker = escapeHtml(entity.ticker || '');
@@ -2206,6 +2235,8 @@ if (window.__contextExtensionLoaded) {
   function createGenericCard(entity) {
     const card = document.createElement('div');
     card.className = 'context-card';
+    card.dataset.term = entity.term || entity.name || '';
+    card.dataset.entityType = entity.type || 'other';
     const type = entity.type || 'other';
     const color = getTypeColor(type);
     const isRectx = !!entity.recontextualized;
@@ -3204,6 +3235,14 @@ if (window.__contextExtensionLoaded) {
     cardsWrap.appendChild(askBar);
     sidebar.appendChild(cardsWrap);
 
+    // Copy event tracking
+    sidebar.addEventListener('copy', (e) => {
+      const card = e.target.closest('.context-card, .insight-card');
+      if (card) {
+        try { chrome.runtime.sendMessage({ type: 'CARD_COPY', term: card.dataset.term || 'unknown', entityType: card.dataset.entityType || 'unknown' }); } catch (err) {}
+      }
+    });
+
     // ─── Transcript view ───
     const transcriptView = document.createElement('div');
     transcriptView.className = 'ctx-transcript-view';
@@ -3934,6 +3973,19 @@ if (window.__contextExtensionLoaded) {
   }
 
   function resetSidebar() {
+    // Send session metrics before resetting
+    if (cardsRenderedThisSession > 0) {
+      try {
+        chrome.runtime.sendMessage({
+          type: 'SESSION_METRICS',
+          cardsRendered: cardsRenderedThisSession,
+          cardsExpanded: cardsExpandedThisSession,
+          expansionRate: cardsRenderedThisSession > 0 ? (cardsExpandedThisSession / cardsRenderedThisSession).toFixed(2) : '0'
+        });
+      } catch (e) {}
+    }
+    cardsRenderedThisSession = 0;
+    cardsExpandedThisSession = 0;
     hasCards = false;
     termCount = 0;
     seenTerms.clear();
@@ -4326,6 +4378,7 @@ if (window.__contextExtensionLoaded) {
         }
       }
       termCount++;
+      cardsRenderedThisSession++;
       console.log('[CONTENT] Card added:', entity.ticker || entity.term || entity.name);
     });
 
@@ -4589,6 +4642,7 @@ if (window.__contextExtensionLoaded) {
                     return;
                   }
                   const vc = { data: insight, height: HEIGHT_INSIGHT, measuredHeight: 0, type: 'insight', el: null, dismissed: false, highlighted: false };
+                  cardsRenderedThisSession++;
                   if (virtualActive) {
                     addVirtualCard(vc, cards, true);
                   } else {
@@ -4840,9 +4894,21 @@ if (window.__contextExtensionLoaded) {
         if (msg.capturing) {
           btn.textContent = '\u25A0'; btn.title = 'Stop Recording';
           btn.classList.add('listening');
+          // Reset counters for new session
+          cardsRenderedThisSession = 0;
+          cardsExpandedThisSession = 0;
         } else {
           btn.textContent = '\u25B6'; btn.title = 'Start Listening';
           btn.classList.remove('listening');
+          // Send session metrics on stop
+          try {
+            chrome.runtime.sendMessage({
+              type: 'SESSION_METRICS',
+              cardsRendered: cardsRenderedThisSession,
+              cardsExpanded: cardsExpandedThisSession,
+              expansionRate: cardsRenderedThisSession > 0 ? (cardsExpandedThisSession / cardsRenderedThisSession).toFixed(2) : '0'
+            });
+          } catch (e) {}
         }
       }
     } else if (msg.type === 'CONNECTION_ERROR') {

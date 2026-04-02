@@ -45,6 +45,12 @@ function capitalizeTerm(term) {
   }).join(' ');
 }
 
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
 let capturingTabId = null;
 let capturingTabTitle = null;
 let pendingStreamId = null;
@@ -765,6 +771,19 @@ function flushTranscriptBuffer() {
   }
 }
 
+async function checkEntityPack(url) {
+  const videoId = extractYouTubeId(url);
+  if (!videoId) return null;
+  try {
+    const res = await fetch(`${API_BASE}/entity-pack?videoId=${videoId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.entities ? data : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function startCapture() {
   if (isStartingCapture) return;
   isStartingCapture = true;
@@ -825,6 +844,56 @@ async function startCapture() {
       storageUpdate.sessionStart = Date.now();
     }
     chrome.storage.local.set(storageUpdate);
+
+    // Check for pre-computed entity pack (non-blocking)
+    if (!isResume) {
+      checkEntityPack(tab.url).then(pack => {
+        if (pack && pack.entities && pack.entities.length > 0) {
+          console.log('[BACKGROUND] Entity pack found for video:', pack.entities.length, 'entities,', (pack.insights || []).length, 'insights');
+          // Enrich pack entities with familiarity data and save as pending
+          const packEntities = pack.entities.map(e => {
+            const key = (e.term || '').toLowerCase().trim();
+            const ks = knowledgeState[key];
+            return {
+              ...e,
+              familiarity: ks ? ks.familiarity : 0,
+              timesSeen: ks ? ks.timesSeen : 0,
+              _fromPack: true
+            };
+          });
+          // Register pack entities for dedup so live extraction doesn't repeat them
+          packEntities.forEach(e => {
+            const term = (e.term || '').toLowerCase().replace(/s$/, '');
+            if (term && !sessionEntities.includes(term)) sessionEntities.push(term);
+          });
+          updateKnowledgeState(packEntities);
+          // Build history entries for pack entities
+          const histEntries = [];
+          packEntities.forEach(e => {
+            const term = e.term || '';
+            if (term) histEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', elapsedSeconds: 0 });
+          });
+          (pack.insights || []).forEach(i => {
+            histEntries.push({ term: i.insight, type: 'insight', timestamp: Date.now(), description: i.detail || '', category: i.category || 'tip', elapsedSeconds: 0 });
+            sessionInsights.push(i.insight || '');
+          });
+          chrome.storage.local.get('sessionHistory', (hData) => {
+            const history = hData.sessionHistory || [];
+            history.push(...histEntries);
+            chrome.storage.local.set({
+              pendingEntities: packEntities,
+              pendingInsights: pack.insights || [],
+              pendingTimestamp: Date.now(),
+              pendingSessionId: sessionId,
+              sessionHistory: history
+            });
+            console.log('[BACKGROUND] Pack entities delivered to sidebar');
+          });
+        }
+      }).catch(err => {
+        console.error('[BACKGROUND] Entity pack check failed:', err.message || err);
+      });
+    }
 
     chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, async (streamId) => {
       try {
@@ -912,6 +981,31 @@ async function stopCapture() {
 
   // Compute session stats before clearing in-memory data
   const sessionStats = computeSessionStats();
+
+  // Upload entity pack for YouTube videos (fire and forget)
+  if (sessionEntities.length >= 5) {
+    chrome.storage.local.get(['activeTabUrl', 'sessionHistory'], (data) => {
+      const url = data.activeTabUrl || '';
+      const videoId = extractYouTubeId(url);
+      if (videoId) {
+        const history = data.sessionHistory || [];
+        const entities = history
+          .filter(h => h.term && h.type !== 'insight' && h.type !== 'video-divider')
+          .map(h => ({ term: h.term, type: h.type || 'other', description: h.description || '', salience: 'highlight' }))
+          .slice(0, 50);
+        const insights = history
+          .filter(h => h.type === 'insight')
+          .map(h => ({ insight: h.term, detail: h.description || '', category: h.category || 'tip' }))
+          .slice(0, 20);
+        fetch(`${API_BASE}/entity-pack`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, title: capturingTabTitle || '', entities, insights })
+        }).catch(() => {});
+        console.log('[BACKGROUND] Entity pack uploaded for', videoId, '- entities:', entities.length);
+      }
+    });
+  }
 
   // Small delay after closing offscreen doc before resetting state
   await new Promise(resolve => setTimeout(resolve, 500));

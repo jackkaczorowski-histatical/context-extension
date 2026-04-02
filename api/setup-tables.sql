@@ -37,8 +37,19 @@ CREATE TABLE ask_queries (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Pre-computed entity packs for popular videos
+CREATE TABLE entity_packs (
+  video_id TEXT PRIMARY KEY,
+  title TEXT,
+  entities JSONB DEFAULT '[]'::jsonb,
+  insights JSONB DEFAULT '[]'::jsonb,
+  view_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE INDEX idx_transcripts_user ON session_transcripts(user_id);
 CREATE INDEX idx_entities_term ON session_entities(term);
 CREATE INDEX idx_entities_type ON session_entities(type);
 CREATE INDEX idx_entities_reaction ON session_entities(reaction);
 CREATE INDEX idx_ask_user ON ask_queries(user_id);
+CREATE INDEX idx_entity_packs_views ON entity_packs(view_count DESC);

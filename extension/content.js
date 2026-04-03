@@ -678,12 +678,9 @@ if (window.__contextExtensionLoaded) {
     }
     .card-desc { font-size: 12px; font-weight: 400; color: #a0a0c0; line-height: 1.4; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
     .card-thumbnail {
-      width: 60px; height: 60px; max-width: 60px; max-height: 60px;
-      object-fit: cover; border-radius: 8px; flex-shrink: 0;
+      width: 100%; height: 80px; object-fit: cover;
+      border-radius: 4px; margin-bottom: 6px;
       opacity: 0; transition: opacity 0.3s ease;
-    }
-    .card-thumb-row {
-      display: flex; gap: 10px; align-items: flex-start;
     }
     .card-thumbnail.loaded { opacity: 1; }
     .card-thumb-mini {
@@ -2868,17 +2865,7 @@ if (window.__contextExtensionLoaded) {
               img.alt = termForWiki;
               img.addEventListener('load', () => img.classList.add('loaded'));
               const expandArea = card.querySelector('.card-expand-area');
-              const descEl = expandArea.querySelector('.card-desc');
-              if (descEl) {
-                // Wrap thumbnail + description in a flex row
-                const thumbRow = document.createElement('div');
-                thumbRow.className = 'card-thumb-row';
-                expandArea.insertBefore(thumbRow, expandArea.firstChild);
-                thumbRow.appendChild(img);
-                thumbRow.appendChild(descEl);
-              } else {
-                expandArea.insertBefore(img, expandArea.firstChild);
-              }
+              expandArea.insertBefore(img, expandArea.firstChild);
             }
           })
           .catch(() => {});

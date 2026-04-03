@@ -987,7 +987,35 @@ async function stopCapture() {
     console.error('[BACKGROUND] Session count error:', e.message || e);
   }
 
-  // KB save removed — only happens in CLEAR_SESSION handler to avoid double-counting timesSeen
+  // Save to knowledge base on stop (not just on clear)
+  chrome.storage.local.get(['sessionHistory', 'knowledgeBase'], (data) => {
+    const history = data.sessionHistory || [];
+    const kb = data.knowledgeBase || {};
+
+    history.forEach(item => {
+      if (!item.term || item.type === 'insight' || item.type === 'video-divider') return;
+      const key = item.term.toLowerCase().trim();
+      if (!kb[key]) {
+        kb[key] = {
+          term: item.term,
+          type: item.type,
+          description: item.description || '',
+          firstSeen: item.timestamp || Date.now(),
+          lastSeen: item.timestamp || Date.now(),
+          timesSeen: 1
+        };
+      } else {
+        kb[key].lastSeen = item.timestamp || Date.now();
+        kb[key].timesSeen = (kb[key].timesSeen || 0) + 1;
+        if ((item.description || '').length > (kb[key].description || '').length) {
+          kb[key].description = item.description;
+        }
+      }
+    });
+
+    chrome.storage.local.set({ knowledgeBase: kb });
+    console.log('[BACKGROUND] Knowledge base updated on stop, total:', Object.keys(kb).length);
+  });
 
   // Compute session stats before clearing in-memory data
   const sessionStats = computeSessionStats();

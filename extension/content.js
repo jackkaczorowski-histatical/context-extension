@@ -616,13 +616,14 @@ if (window.__contextExtensionLoaded) {
     .context-card.card-dismissed { opacity: 0.5 !important; transition: opacity 0.2s; animation: none; }
     .context-card.card-dismissed:hover { opacity: 0.7; }
     .card-quick-dismiss {
-      position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
+      position: absolute; top: 4px; right: 4px; width: 18px; height: 18px;
       border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: none;
       color: var(--text-tertiary); font-size: 11px; cursor: pointer;
       display: none; align-items: center; justify-content: center;
       transition: background 150ms ease, color 150ms ease; padding: 0; z-index: 5;
     }
     .context-card:hover .card-quick-dismiss { display: flex; }
+    .context-card.expanded .card-quick-dismiss { display: none !important; }
     .card-quick-dismiss:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
     @keyframes cardRipple {
       0% { box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.5); }

@@ -1222,6 +1222,27 @@ async function processNextTranscript() {
         }
       });
       chrome.storage.local.set({ sessionEntities });
+
+      // Fetch thumbnails for pack cache hits
+      enrichedPackMatches.forEach(async (entity) => {
+        const type = (entity.type || '').toLowerCase();
+        if (type === 'insight' || type === 'metric' || type === 'ingredient' || type === 'concept') return;
+        if (entity.thumbnail) return;
+        const term = entity.term || '';
+        if (!term) return;
+        const thumb = await fetchWikiThumbnail(term);
+        if (thumb && capturingTabId) {
+          chrome.storage.local.get('sessionHistory', (data) => {
+            const hist = data.sessionHistory || [];
+            const match = hist.find(h => h.term === term && !h.thumbnail);
+            if (match) {
+              match.thumbnail = thumb;
+              chrome.storage.local.set({ sessionHistory: hist });
+            }
+          });
+          chrome.tabs.sendMessage(capturingTabId, { type: 'THUMBNAIL_UPDATE', term, thumbnail: thumb }).catch(() => {});
+        }
+      });
     }
 
     // Skip sponsor/ad segments

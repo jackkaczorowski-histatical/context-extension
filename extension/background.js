@@ -12,6 +12,21 @@ const GENERIC_TERMS = new Set([
   'europe', 'asia', 'africa', 'america'
 ]);
 
+async function fetchWikiThumbnail(term) {
+  try {
+    const encoded = encodeURIComponent(term.replace(/ /g, '_'));
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.thumbnail && data.thumbnail.source && !data.thumbnail.source.includes('/Flag_of')) {
+      return data.thumbnail.source;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function isLikelyAd(text) {
   const lower = text.toLowerCase();
   const adPatterns = [
@@ -1029,7 +1044,7 @@ async function stopCapture() {
         const history = data.sessionHistory || [];
         const entities = history
           .filter(h => h.term && h.type !== 'insight' && h.type !== 'video-divider')
-          .map(h => ({ term: h.term, type: h.type || 'other', description: h.description || '', salience: 'highlight' }))
+          .map(h => ({ term: h.term, type: h.type || 'other', description: h.description || '', salience: 'highlight', thumbnail: h.thumbnail || null }))
           .slice(0, 50);
         const insights = history
           .filter(h => h.type === 'insight')
@@ -1547,6 +1562,28 @@ async function processNextTranscript() {
       const highlightTerms = enrichedEntities.map(e => ({ term: e.term || e.name || '', type: e.type || 'concept' })).filter(e => e.term);
       chrome.tabs.sendMessage(capturingTabId, { type: 'TRANSCRIPT_HIGHLIGHT', terms: highlightTerms }).catch(() => {});
     }
+    // Fetch Wikipedia thumbnails in parallel (don't block card rendering)
+    enrichedEntities.forEach(async (entity) => {
+      const type = (entity.type || '').toLowerCase();
+      if (type === 'insight' || type === 'metric' || type === 'ingredient' || type === 'concept') return;
+      const term = entity.term || entity.name || '';
+      if (!term) return;
+      const thumb = await fetchWikiThumbnail(term);
+      if (thumb && capturingTabId) {
+        // Update sessionHistory with thumbnail
+        chrome.storage.local.get('sessionHistory', (data) => {
+          const hist = data.sessionHistory || [];
+          const match = hist.find(h => h.term === term && !h.thumbnail);
+          if (match) {
+            match.thumbnail = thumb;
+            chrome.storage.local.set({ sessionHistory: hist });
+          }
+        });
+        // Notify content script to patch existing card
+        chrome.tabs.sendMessage(capturingTabId, { type: 'THUMBNAIL_UPDATE', term, thumbnail: thumb }).catch(() => {});
+      }
+    });
+
     incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
     sessionTotal += enrichedEntities.length + dedupedInsights.length;
     // Show card count badge when sidebar is closed

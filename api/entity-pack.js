@@ -135,7 +135,7 @@ module.exports = async function handler(req, res) {
         if (!key) return;
         const existing = entityMap.get(key);
         if (!existing) {
-          entityMap.set(key, { term: e.term, type: e.type, description: e.description || '', ticker: e.ticker || null, salience: e.salience || 'highlight', followUps: e.followUps || [] });
+          entityMap.set(key, { term: e.term, type: e.type, description: e.description || '', ticker: e.ticker || null, salience: e.salience || 'highlight', followUps: e.followUps || [], thumbnail: e.thumbnail || null });
         } else {
           // Update description if new one is longer
           if ((e.description || '').length > (existing.description || '').length) {
@@ -144,6 +144,10 @@ module.exports = async function handler(req, res) {
           // Backfill followUps if existing has none
           if ((!existing.followUps || existing.followUps.length === 0) && e.followUps && e.followUps.length > 0) {
             existing.followUps = e.followUps;
+          }
+          // Backfill thumbnail if existing has none
+          if (!existing.thumbnail && e.thumbnail) {
+            existing.thumbnail = e.thumbnail;
           }
         }
       });

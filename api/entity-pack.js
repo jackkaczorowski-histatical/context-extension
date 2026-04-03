@@ -134,8 +134,17 @@ module.exports = async function handler(req, res) {
         const key = normalizeKey(e.term);
         if (!key) return;
         const existing = entityMap.get(key);
-        if (!existing || (e.description || '').length > (existing.description || '').length) {
+        if (!existing) {
           entityMap.set(key, { term: e.term, type: e.type, description: e.description || '', ticker: e.ticker || null, salience: e.salience || 'highlight', followUps: e.followUps || [] });
+        } else {
+          // Update description if new one is longer
+          if ((e.description || '').length > (existing.description || '').length) {
+            existing.description = e.description;
+          }
+          // Backfill followUps if existing has none
+          if ((!existing.followUps || existing.followUps.length === 0) && e.followUps && e.followUps.length > 0) {
+            existing.followUps = e.followUps;
+          }
         }
       });
       const mergedEntities = Array.from(entityMap.values()).slice(0, 100);

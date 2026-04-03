@@ -683,6 +683,12 @@ if (window.__contextExtensionLoaded) {
       opacity: 0; transition: opacity 0.3s ease;
     }
     .card-thumbnail.loaded { opacity: 1; }
+    .card-thumb {
+      width: 100%; height: 80px; object-fit: cover;
+      border-radius: 4px; margin-bottom: 6px;
+      opacity: 0; transition: opacity 200ms ease;
+    }
+    .card-thumb[src] { opacity: 1; }
     .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: var(--text-tertiary); margin-top: 4px; }
     .card-desc-loading::after {
@@ -2615,6 +2621,7 @@ if (window.__contextExtensionLoaded) {
       </div>
       ${previewDesc ? `<div class="card-preview-text">${escapeHtml(previewDesc)}</div>` : ''}
       <div class="card-expand-area">
+        ${entity.thumbnail ? `<img class="card-thumb" src="${escapeHtml(entity.thumbnail)}" alt="" />` : ''}
         <div class="card-desc"></div>
         ${sourceLine}
         <div class="card-actions-row">
@@ -5301,6 +5308,28 @@ if (window.__contextExtensionLoaded) {
             chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
           });
       }
+    }
+    // Patch late-arriving thumbnails onto existing cards
+    if (changes.sessionHistory && shadowRoot) {
+      const history = changes.sessionHistory.newValue || [];
+      history.forEach(item => {
+        if (item.thumbnail && item.term) {
+          const cards = shadowRoot.querySelectorAll('.context-card');
+          cards.forEach(card => {
+            if (card.dataset.term === item.term && !card.querySelector('.card-thumb')) {
+              const expandArea = card.querySelector('.card-expand-area');
+              if (expandArea) {
+                const img = document.createElement('img');
+                img.className = 'card-thumb';
+                img.src = item.thumbnail;
+                img.alt = '';
+                expandArea.insertBefore(img, expandArea.firstChild);
+              }
+              card.dataset.thumbUrl = item.thumbnail;
+            }
+          });
+        }
+      });
     }
   });
 

@@ -724,18 +724,18 @@ if (window.__contextExtensionLoaded) {
     .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
     .stock-yahoo-link:hover { color: #818cf8; }
     .card-actions-row {
-      display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;
+      display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: nowrap;
     }
     .card-actions-row .card-wiki-link,
     .card-actions-row .card-tellmore,
     .card-actions-row .card-copy-btn { margin-top: 0; }
     .reaction-row {
-      display: flex; gap: 6px; margin-left: auto; align-items: center;
+      display: flex; gap: 6px; margin-left: auto; align-items: center; flex-shrink: 0;
     }
     .reaction-btn {
-      width: 16px; height: 16px; border-radius: 50%; background: none;
+      width: 24px; height: 24px; border-radius: 50%; background: none;
       display: flex; align-items: center; justify-content: center;
-      font-size: 10px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;
+      font-size: 14px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;
       padding: 0; line-height: 1; flex-shrink: 0;
     }
     .reaction-btn:hover { transform: scale(1.15); }
@@ -779,9 +779,10 @@ if (window.__contextExtensionLoaded) {
     .reaction-group { display: flex; align-items: center; }
     .card-wiki-link {
       font-size: 10px; color: var(--text-tertiary); text-decoration: none;
-      transition: color 0.15s; display: inline-block; margin-top: 2px; padding: 2px 8px;
+      transition: color 0.15s; display: inline-block; padding: 0;
+      background: none; border: none;
     }
-    .card-wiki-link:hover { color: #7a7aaa; }
+    .card-wiki-link:hover { color: var(--accent); }
     .card-shop-link {
       background: rgba(255,153,0,0.12); color: #FF9900; border-radius: 4px;
       padding: 4px 12px; font-size: 10px; text-decoration: none;
@@ -789,12 +790,12 @@ if (window.__contextExtensionLoaded) {
     }
     .card-shop-link:hover { background: rgba(255,153,0,0.22); }
     .card-tellmore {
-      font-size: 10px; color: #6366f1; background: rgba(99,102,241,0.1);
-      border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer;
-      margin-top: 2px; margin-left: 8px; font-family: inherit;
-      display: inline-block; transition: background 0.15s;
+      font-size: 10px; color: var(--text-tertiary); background: none;
+      border: none; border-radius: 0; padding: 0; cursor: pointer;
+      margin-left: 0; font-family: inherit;
+      display: inline-block; transition: color 0.15s;
     }
-    .card-tellmore:hover { background: rgba(99,102,241,0.2); }
+    .card-tellmore:hover { color: var(--accent); }
     .followups-toggle {
       font-size: 9px; color: var(--text-tertiary); cursor: pointer;
       margin-top: 4px; padding: 2px 0; transition: color 150ms ease;
@@ -814,13 +815,13 @@ if (window.__contextExtensionLoaded) {
     }
     .followup-chip:hover { background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.4); }
     .card-copy-btn {
-      background: rgba(99,102,241,0.1); color: #6366f1; border: none;
-      border-radius: 4px; padding: 2px 8px; cursor: pointer;
-      margin-top: 2px; font-size: 10px; font-family: inherit;
-      display: inline-block; transition: background 0.15s, color 0.15s;
+      background: none; color: var(--text-tertiary); border: none;
+      border-radius: 0; padding: 0; cursor: pointer;
+      font-size: 10px; font-family: inherit;
+      display: inline-block; transition: color 0.15s;
     }
-    .card-copy-btn:hover { background: rgba(99,102,241,0.2); }
-    .card-copy-btn.copied { color: #00e676; background: rgba(0,230,118,0.1); }
+    .card-copy-btn:hover { color: var(--accent); }
+    .card-copy-btn.copied { color: #00e676; background: none; }
     .card-preview-text { font-size: 11px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .context-card.expanded .card-preview-text { display: none; }
     .ctx-card-tooltip {

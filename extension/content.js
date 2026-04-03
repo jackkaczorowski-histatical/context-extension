@@ -3751,23 +3751,25 @@ if (window.__contextExtensionLoaded) {
     function buildSettingsPanel() {
       settingsPanel.innerHTML = '';
 
-      const heading = document.createElement('div');
-      heading.className = 'ctx-settings-heading';
-      heading.textContent = 'Settings';
-      settingsPanel.appendChild(heading);
-
-      // Close X button
+      const headingRow = document.createElement('div');
+      headingRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0 0 8px 0;';
+      const headingText = document.createElement('span');
+      headingText.className = 'ctx-settings-heading';
+      headingText.textContent = 'Settings';
+      headingText.style.padding = '0';
       const closeX = document.createElement('button');
       closeX.textContent = '\u2715';
-      closeX.style.cssText = 'position:sticky;top:0;float:right;background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:4px;z-index:5;margin-top:-28px;';
-      closeX.addEventListener('mouseenter', () => { closeX.style.color = '#e0e0f0'; });
-      closeX.addEventListener('mouseleave', () => { closeX.style.color = '#64748b'; });
+      closeX.style.cssText = 'background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer;padding:4px 8px;border-radius:4px;';
+      closeX.addEventListener('mouseenter', () => { closeX.style.color = 'var(--text-primary)'; });
+      closeX.addEventListener('mouseleave', () => { closeX.style.color = 'var(--text-secondary)'; });
       closeX.addEventListener('click', (e) => {
         e.stopPropagation();
         settingsPanel.classList.remove('open');
         settingsBtn.classList.remove('active');
       });
-      settingsPanel.appendChild(closeX);
+      headingRow.appendChild(headingText);
+      headingRow.appendChild(closeX);
+      settingsPanel.appendChild(headingRow);
 
       // Section 0: Account / Sign In
       const authSection = document.createElement('div');

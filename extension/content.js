@@ -654,6 +654,9 @@ if (window.__contextExtensionLoaded) {
       flex: 1; min-width: 0;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .context-card.expanded .card-term {
+      white-space: normal; overflow: visible; text-overflow: unset; word-break: break-word;
+    }
     .card-time { font-size: 10px; font-weight: 400; color: var(--text-secondary); flex-shrink: 0; cursor: pointer; text-decoration: none; }
     .card-time:hover { text-decoration: underline; }
     .card-seen { font-size: 9px; color: #94a3b8; font-style: italic; flex-shrink: 0; }

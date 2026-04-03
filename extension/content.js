@@ -683,11 +683,6 @@ if (window.__contextExtensionLoaded) {
       opacity: 0; transition: opacity 0.3s ease;
     }
     .card-thumbnail.loaded { opacity: 1; }
-    .card-thumb-mini {
-      width: 24px; height: 24px; border-radius: 50%; object-fit: cover;
-      flex-shrink: 0; opacity: 0; transition: opacity 200ms ease;
-    }
-    .card-thumb-mini.loaded { opacity: 1; }
     .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: var(--text-tertiary); margin-top: 4px; }
     .card-desc-loading::after {
@@ -2607,15 +2602,10 @@ if (window.__contextExtensionLoaded) {
       : 'First mention in this session';
     card.dataset.why = whyText;
 
-    const miniThumbType = (entity.type || '').toLowerCase();
-    const showMiniThumb = entity.thumbnail && miniThumbType !== 'insight' && miniThumbType !== 'metric' && miniThumbType !== 'ingredient';
-    const miniThumbHtml = showMiniThumb ? `<img class="card-thumb-mini" src="${escapeHtml(entity.thumbnail)}" alt="" />` : '';
-
     card.innerHTML = `
       <div class="card-why-tooltip">${escapeHtml(whyText)}</div>
       <button class="card-quick-dismiss" title="Remove">\u00D7</button>
       <div class="card-row">
-        ${miniThumbHtml}
         ${typeBadge}
         <span class="card-term">${termText}</span>
         ${seenTag}
@@ -2636,9 +2626,6 @@ if (window.__contextExtensionLoaded) {
       </div>
     `;
 
-    // Fade in mini thumbnail once loaded
-    const miniThumbEl = card.querySelector('.card-thumb-mini');
-    if (miniThumbEl) miniThumbEl.addEventListener('load', () => miniThumbEl.classList.add('loaded'));
 
     const genericDismissKey = (entity.term || entity.name || '').toLowerCase();
     const gDismissEl = card.querySelector('.card-dismiss-inline');
@@ -5721,18 +5708,6 @@ if (window.__contextExtensionLoaded) {
         const cardTerm = (card.dataset.term || '').toLowerCase();
         if (cardTerm === term) {
           card.dataset.thumbUrl = thumb;
-          // Add mini thumbnail to collapsed row if not already present
-          if (!card.querySelector('.card-thumb-mini')) {
-            const row = card.querySelector('.card-row');
-            if (row) {
-              const img = document.createElement('img');
-              img.className = 'card-thumb-mini';
-              img.src = thumb;
-              img.alt = '';
-              img.addEventListener('load', () => img.classList.add('loaded'));
-              row.insertBefore(img, row.firstChild);
-            }
-          }
           break;
         }
       }

@@ -2315,7 +2315,7 @@ if (window.__contextExtensionLoaded) {
     const detail = escapeHtml(insight.detail || '');
 
     strip.innerHTML = `
-      <span class="insight-category">${category}</span>
+      <span class="insight-category">INSIGHT</span>
       <div class="insight-body">
         <div class="insight-text">${escapeHtml(insightText)}</div>
         ${detail ? `<div class="insight-detail">${detail}</div>` : ''}

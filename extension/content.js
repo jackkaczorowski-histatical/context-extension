@@ -832,6 +832,8 @@ if (window.__contextExtensionLoaded) {
     .card-copy-btn:hover { color: var(--accent); }
     .card-copy-btn.copied { color: #00e676; background: none; }
     .card-preview-text { font-size: 11px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .context-card:not([data-visited="true"]):not(.expanded) .card-preview-text { display: none; }
+    .context-card[data-visited="true"]:not(.expanded) .card-preview-text { display: block; }
     .context-card.expanded .card-preview-text { display: none; }
     .ctx-card-tooltip {
       position: absolute; background: var(--bg-surface); border: 1px solid var(--border-subtle);
@@ -2576,6 +2578,9 @@ if (window.__contextExtensionLoaded) {
     if (isRectx) {
       card.classList.add('recontextualized');
     }
+    if (entity.visited) {
+      card.dataset.visited = 'true';
+    }
     if (entity.salience === 'background') card.classList.add('salience-background');
 
     const vt = formatVideoTime();
@@ -2773,6 +2778,20 @@ if (window.__contextExtensionLoaded) {
       const timeEl = e.target.closest('.card-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       toggleCardExpand(card);
+
+      // Mark as visited on first expand
+      if (card.classList.contains('expanded') && !card.dataset.visited) {
+        card.dataset.visited = 'true';
+        const visitedTerm = card.dataset.term;
+        chrome.storage.local.get('sessionHistory', (data) => {
+          const hist = data.sessionHistory || [];
+          const match = hist.find(h => (h.term || '').toLowerCase() === (visitedTerm || '').toLowerCase());
+          if (match) {
+            match.visited = true;
+            chrome.storage.local.set({ sessionHistory: hist });
+          }
+        });
+      }
 
       if (card.classList.contains('expanded') && !descFetched) {
         descFetched = true;

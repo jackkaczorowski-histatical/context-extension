@@ -1488,8 +1488,74 @@ if (window.__contextExtensionLoaded) {
       padding: 12px 16px; cursor: pointer;
       border-bottom: 1px solid var(--border-subtle);
       transition: background 0.15s;
+      position: relative;
     }
     .ctx-history-item:hover { background: rgba(255,255,255,0.03); }
+    .session-delete {
+      position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-tertiary);
+      font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 4px;
+      display: none; z-index: 2;
+    }
+    .ctx-history-item:hover .session-delete { display: block; }
+    .session-delete:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+    .session-folder-btn {
+      position: absolute; top: 50%; right: 28px; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-tertiary);
+      font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 4px;
+      display: none; z-index: 2;
+    }
+    .ctx-history-item:hover .session-folder-btn { display: block; }
+    .session-folder-btn:hover { color: var(--accent); }
+    .session-folder-dot {
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+      margin-right: 6px; flex-shrink: 0;
+    }
+    .session-folder-dropdown {
+      position: absolute; top: calc(50% + 16px); right: 28px;
+      background: var(--bg-surface); border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 4px; z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3); min-width: 120px;
+    }
+    .session-folder-dropdown-item {
+      display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+      font-size: 10px; color: var(--text-primary); cursor: pointer;
+      border-radius: 4px; border: none; background: none; width: 100%;
+      text-align: left; font-family: inherit;
+    }
+    .session-folder-dropdown-item:hover { background: rgba(255,255,255,0.06); }
+    .session-folder-dropdown-item.active { color: var(--accent); font-weight: 600; }
+    .folder-bar {
+      display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .folder-chip {
+      font-size: 10px; padding: 3px 10px; border-radius: 12px;
+      border: 1px solid var(--border-subtle); background: none;
+      color: var(--text-secondary); cursor: pointer; transition: all 150ms ease;
+      font-family: inherit;
+    }
+    .folder-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .folder-chip:hover:not(.active) { border-color: var(--text-tertiary); }
+    .folder-add {
+      font-size: 10px; padding: 3px 10px; border-radius: 12px;
+      border: 1px dashed var(--text-tertiary); background: none;
+      color: var(--text-tertiary); cursor: pointer; font-family: inherit;
+    }
+    .folder-add:hover { border-color: var(--accent); color: var(--accent); }
+    .folder-create {
+      display: flex; gap: 4px; align-items: center;
+    }
+    .folder-name-input {
+      font-size: 10px; padding: 3px 8px; border-radius: 8px;
+      border: 1px solid var(--border-subtle); background: var(--bg-surface);
+      color: var(--text-primary); width: 120px; outline: none; font-family: inherit;
+    }
+    .folder-name-input:focus { border-color: var(--accent); }
+    .folder-save {
+      font-size: 12px; padding: 2px 6px; border-radius: 4px;
+      border: none; background: var(--accent); color: white; cursor: pointer;
+    }
     .light-theme .ctx-history-item { border-bottom-color: rgba(0,0,0,0.04); }
     .light-theme .ctx-history-item:hover { background: rgba(0,0,0,0.03); }
     .ctx-history-item-title {
@@ -4051,6 +4117,8 @@ if (window.__contextExtensionLoaded) {
       return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
     }
 
+    const FOLDER_COLORS = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'];
+
     function buildHistoryPanel() {
       historyPanel.innerHTML = '';
 
@@ -4070,18 +4138,96 @@ if (window.__contextExtensionLoaded) {
       hdr.appendChild(hTitle);
       historyPanel.appendChild(hdr);
 
+      // Folder bar
+      const folderBar = document.createElement('div');
+      folderBar.className = 'folder-bar';
+      historyPanel.appendChild(folderBar);
+
       const list = document.createElement('div');
       list.className = 'ctx-history-list';
       historyPanel.appendChild(list);
 
-      chrome.storage.local.get('pastSessions', (data) => {
+      let activeFolder = 'all';
+
+      chrome.storage.local.get(['pastSessions', 'sessionFolders'], (data) => {
         const sessions = data.pastSessions || [];
-        if (sessions.length === 0) {
-          list.innerHTML = '<div class="ctx-history-empty">No past sessions yet.<br>Sessions are saved when you clear the sidebar.</div>';
-        } else {
-          sessions.forEach(session => {
+        const folders = data.sessionFolders || [];
+
+        // Build folder bar
+        function renderFolderBar() {
+          folderBar.innerHTML = '';
+          const allChip = document.createElement('button');
+          allChip.className = 'folder-chip' + (activeFolder === 'all' ? ' active' : '');
+          allChip.textContent = 'All';
+          allChip.addEventListener('click', (e) => { e.stopPropagation(); activeFolder = 'all'; renderFolderBar(); renderSessionList(); });
+          folderBar.appendChild(allChip);
+
+          folders.forEach(folder => {
+            const chip = document.createElement('button');
+            chip.className = 'folder-chip' + (activeFolder === folder.id ? ' active' : '');
+            chip.textContent = folder.name;
+            chip.style.borderColor = activeFolder === folder.id ? folder.color : '';
+            if (activeFolder === folder.id) chip.style.background = folder.color;
+            chip.addEventListener('click', (e) => { e.stopPropagation(); activeFolder = folder.id; renderFolderBar(); renderSessionList(); });
+            folderBar.appendChild(chip);
+          });
+
+          const addBtn = document.createElement('button');
+          addBtn.className = 'folder-add';
+          addBtn.textContent = '+ New';
+          addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const createDiv = document.createElement('div');
+            createDiv.className = 'folder-create';
+            const input = document.createElement('input');
+            input.className = 'folder-name-input';
+            input.type = 'text';
+            input.placeholder = 'Folder name...';
+            input.maxLength = 30;
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'folder-save';
+            saveBtn.textContent = '\u2713';
+            function doSave() {
+              const name = input.value.trim();
+              if (!name) return;
+              const color = FOLDER_COLORS[folders.length % FOLDER_COLORS.length];
+              const newFolder = { id: 'f' + Date.now(), name, color, sessionIds: [] };
+              folders.push(newFolder);
+              chrome.storage.local.set({ sessionFolders: folders });
+              renderFolderBar();
+            }
+            saveBtn.addEventListener('click', (ev) => { ev.stopPropagation(); doSave(); });
+            input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.stopPropagation(); doSave(); } if (ev.key === 'Escape') { ev.stopPropagation(); renderFolderBar(); } });
+            createDiv.appendChild(input);
+            createDiv.appendChild(saveBtn);
+            addBtn.replaceWith(createDiv);
+            input.focus();
+          });
+          folderBar.appendChild(addBtn);
+        }
+
+        function getFolderForSession(sessionId) {
+          return folders.find(f => f.sessionIds.includes(sessionId)) || null;
+        }
+
+        function renderSessionList() {
+          list.innerHTML = '';
+          const filtered = activeFolder === 'all'
+            ? sessions
+            : sessions.filter(s => {
+                const folder = folders.find(f => f.id === activeFolder);
+                return folder && folder.sessionIds.includes(s.id);
+              });
+
+          if (filtered.length === 0) {
+            list.innerHTML = '<div class="ctx-history-empty">No sessions in this view.</div>';
+            return;
+          }
+
+          filtered.forEach(session => {
             const item = document.createElement('div');
             item.className = 'ctx-history-item';
+            item.dataset.sessionId = String(session.id);
 
             const chevron = document.createElement('span');
             chevron.className = 'ctx-history-item-chevron';
@@ -4089,7 +4235,14 @@ if (window.__contextExtensionLoaded) {
 
             const titleDiv = document.createElement('div');
             titleDiv.className = 'ctx-history-item-title';
-            titleDiv.textContent = session.title || 'Untitled';
+            const sessionFolder = getFolderForSession(session.id);
+            if (sessionFolder) {
+              const dot = document.createElement('span');
+              dot.className = 'session-folder-dot';
+              dot.style.background = sessionFolder.color;
+              titleDiv.appendChild(dot);
+            }
+            titleDiv.appendChild(document.createTextNode(session.title || 'Untitled'));
             titleDiv.appendChild(chevron);
 
             const meta = document.createElement('div');
@@ -4105,13 +4258,84 @@ if (window.__contextExtensionLoaded) {
             const detail = document.createElement('div');
             detail.className = 'ctx-history-item-detail';
 
+            // Folder assign button
+            const folderBtn = document.createElement('button');
+            folderBtn.className = 'session-folder-btn';
+            folderBtn.textContent = '\uD83D\uDCC1';
+            folderBtn.title = 'Move to folder';
+            folderBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              // Remove any existing dropdown
+              const existing = item.querySelector('.session-folder-dropdown');
+              if (existing) { existing.remove(); return; }
+              const dropdown = document.createElement('div');
+              dropdown.className = 'session-folder-dropdown';
+              // "None" option
+              const noneOpt = document.createElement('button');
+              noneOpt.className = 'session-folder-dropdown-item' + (!sessionFolder ? ' active' : '');
+              noneOpt.textContent = 'None';
+              noneOpt.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                folders.forEach(f => { f.sessionIds = f.sessionIds.filter(id => id !== session.id); });
+                chrome.storage.local.set({ sessionFolders: folders });
+                dropdown.remove();
+                renderSessionList();
+              });
+              dropdown.appendChild(noneOpt);
+              folders.forEach(f => {
+                const opt = document.createElement('button');
+                opt.className = 'session-folder-dropdown-item' + (sessionFolder && sessionFolder.id === f.id ? ' active' : '');
+                const colorDot = document.createElement('span');
+                colorDot.className = 'session-folder-dot';
+                colorDot.style.background = f.color;
+                opt.appendChild(colorDot);
+                opt.appendChild(document.createTextNode(f.name));
+                opt.addEventListener('click', (ev) => {
+                  ev.stopPropagation();
+                  // Remove from all folders first
+                  folders.forEach(ff => { ff.sessionIds = ff.sessionIds.filter(id => id !== session.id); });
+                  f.sessionIds.push(session.id);
+                  chrome.storage.local.set({ sessionFolders: folders });
+                  dropdown.remove();
+                  renderSessionList();
+                });
+                dropdown.appendChild(opt);
+              });
+              item.appendChild(dropdown);
+              // Close on outside click
+              const closeDropdown = (ev) => {
+                if (!dropdown.contains(ev.target)) { dropdown.remove(); document.removeEventListener('click', closeDropdown, true); }
+              };
+              setTimeout(() => document.addEventListener('click', closeDropdown, true), 0);
+            });
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'session-delete';
+            deleteBtn.textContent = '\u00D7';
+            deleteBtn.title = 'Delete session';
+            deleteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const sid = String(session.id);
+              const idx = sessions.findIndex(s => String(s.id) === sid);
+              if (idx !== -1) sessions.splice(idx, 1);
+              folders.forEach(f => { f.sessionIds = f.sessionIds.filter(id => String(id) !== sid); });
+              chrome.storage.local.set({ pastSessions: sessions, sessionFolders: folders });
+              item.remove();
+              if (list.children.length === 0) {
+                list.innerHTML = '<div class="ctx-history-empty">No sessions in this view.</div>';
+              }
+            });
+
             item.appendChild(titleDiv);
             item.appendChild(meta);
             item.appendChild(detail);
+            item.appendChild(folderBtn);
+            item.appendChild(deleteBtn);
 
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (ev) => {
+              if (ev.target.closest('.session-delete') || ev.target.closest('.session-folder-btn') || ev.target.closest('.session-folder-dropdown')) return;
               const wasExpanded = item.classList.contains('expanded');
-              // Collapse any other expanded items
               list.querySelectorAll('.ctx-history-item.expanded').forEach(el => {
                 el.classList.remove('expanded');
                 el.querySelector('.ctx-history-item-detail').innerHTML = '';
@@ -4125,6 +4349,9 @@ if (window.__contextExtensionLoaded) {
             list.appendChild(item);
           });
         }
+
+        renderFolderBar();
+        renderSessionList();
       });
 
       // Clear history footer
@@ -4154,8 +4381,9 @@ if (window.__contextExtensionLoaded) {
         }
         yesBtn.addEventListener('click', (ev) => {
           ev.stopPropagation();
-          chrome.storage.local.remove('pastSessions');
+          chrome.storage.local.remove(['pastSessions', 'sessionFolders']);
           list.innerHTML = '<div class="ctx-history-empty">No past sessions yet.<br>Sessions are saved when you clear the sidebar.</div>';
+          folderBar.innerHTML = '';
           revert();
         });
         noBtn.addEventListener('click', (ev) => {

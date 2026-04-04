@@ -643,7 +643,10 @@ if (window.__contextExtensionLoaded) {
     .card-dismiss-inline.dismiss-starred { background: #eab308; border-color: #eab308; color: #fff; }
     .card-dismiss-inline.dismiss-starred:hover { background: #ca9a06; border-color: #ca9a06; }
     .card-row {
-      display: flex; align-items: center; gap: 6px; min-height: 28px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .card-row-top {
+      display: flex; align-items: center; gap: 6px;
     }
     .card-type {
       font-size: 8px; font-weight: 700; letter-spacing: 0.05em;
@@ -651,8 +654,7 @@ if (window.__contextExtensionLoaded) {
       padding: 1px 5px; border-radius: 4px;
     }
     .card-term {
-      font-size: 13px; font-weight: 600; color: var(--text-primary);
-      flex: 1; min-width: 0;
+      font-size: 14px; font-weight: 600; color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .context-card.expanded .card-term {
@@ -2553,10 +2555,14 @@ if (window.__contextExtensionLoaded) {
       <div class="card-why-tooltip">${escapeHtml(stockWhyText)}</div>
       <button class="card-quick-dismiss" title="Remove">\u00D7</button>
       <div class="card-row">
-        <span class="card-type" style="color:${color}">STOCK</span>
-        <span class="card-term">${ticker || companyName}${collapsedPriceHTML}</span>
-        <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
-        <span class="card-chevron">&#x203A;</span>
+        <div class="card-row-top">
+          <span class="card-type" style="color:${color}">STOCK</span>
+          <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
+          <span style="margin-left:auto;display:flex;gap:4px;align-items:center;">
+            <span class="card-chevron">&#x203A;</span>
+          </span>
+        </div>
+        <div class="card-term">${ticker || companyName}${collapsedPriceHTML}</div>
       </div>
       <div class="card-expand-area">${expandContent}</div>
     `;
@@ -2677,12 +2683,16 @@ if (window.__contextExtensionLoaded) {
       <div class="card-why-tooltip">${escapeHtml(whyText)}</div>
       <button class="card-quick-dismiss" title="Remove">\u00D7</button>
       <div class="card-row">
-        ${typeBadge}
-        <span class="card-term">${termText}</span>
-        ${seenTag}
-        <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
-        <span class="card-chevron">&#x203A;</span>
-        <span class="card-dismiss-inline" title="Dismiss">\u2713</span>
+        <div class="card-row-top">
+          ${typeBadge}
+          <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
+          ${seenTag}
+          <span style="margin-left:auto;display:flex;gap:4px;align-items:center;">
+            <span class="card-chevron">&#x203A;</span>
+            <span class="card-dismiss-inline" title="Dismiss">\u2713</span>
+          </span>
+        </div>
+        <div class="card-term">${termText}</div>
       </div>
       ${previewDesc ? `<div class="card-preview-text">${escapeHtml(previewDesc)}</div>` : ''}
       <div class="card-expand-area">

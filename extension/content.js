@@ -616,7 +616,7 @@ if (window.__contextExtensionLoaded) {
     .context-card.card-dismissed { opacity: 0.5 !important; transition: opacity 0.2s; animation: none; }
     .context-card.card-dismissed:hover { opacity: 0.7; }
     .card-quick-dismiss {
-      position: absolute; top: 4px; right: 4px; width: 18px; height: 18px;
+      position: absolute; top: 4px; left: 4px; right: auto; width: 18px; height: 18px;
       border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: none;
       color: var(--text-tertiary); font-size: 11px; cursor: pointer;
       display: none; align-items: center; justify-content: center;

@@ -672,6 +672,7 @@ if (window.__contextExtensionLoaded) {
     .card-expand-area {
       max-height: 0; overflow: hidden; opacity: 0; padding-top: 0;
       transition: max-height 200ms cubic-bezier(0.4, 0.0, 0.2, 1), opacity 150ms ease 50ms, padding-top 200ms ease;
+      display: flex; flex-direction: column;
     }
     .context-card.expanded .card-expand-area {
       max-height: 500px; opacity: 1; padding-top: 6px;
@@ -684,11 +685,9 @@ if (window.__contextExtensionLoaded) {
     }
     .card-thumbnail.loaded { opacity: 1; }
     .card-thumb {
-      width: 100%; height: 80px; object-fit: cover;
+      display: block; width: 100%; height: 80px; object-fit: cover;
       border-radius: 4px; margin-bottom: 6px;
-      opacity: 0; transition: opacity 200ms ease;
     }
-    .card-thumb[src] { opacity: 1; }
     .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: var(--text-tertiary); margin-top: 4px; }
     .card-desc-loading::after {
@@ -2925,7 +2924,9 @@ if (window.__contextExtensionLoaded) {
               img.alt = termForWiki;
               img.addEventListener('load', () => img.classList.add('loaded'));
               const expandArea = card.querySelector('.card-expand-area');
-              expandArea.insertBefore(img, expandArea.firstChild);
+              if (expandArea && !expandArea.querySelector('.card-thumbnail') && !expandArea.querySelector('.card-thumb')) {
+                expandArea.insertBefore(img, expandArea.firstChild);
+              }
             }
           })
           .catch(() => {});

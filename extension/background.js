@@ -18,7 +18,7 @@ async function fetchWikiThumbnail(term) {
     const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
     if (!res.ok) return null;
     const data = await res.json();
-    if (data.thumbnail && data.thumbnail.source && !data.thumbnail.source.includes('/Flag_of')) {
+    if (data.thumbnail && data.thumbnail.source && data.thumbnail.width >= 200 && !data.thumbnail.source.includes('/Flag_of')) {
       return data.thumbnail.source;
     }
     return null;

@@ -2414,44 +2414,69 @@ if (window.__contextExtensionLoaded) {
     // Reaction buttons
     const insightReactionKey = (insight.insight || '').toLowerCase().trim();
     const reactRow = document.createElement('div');
-    reactRow.style.cssText = 'display:flex;gap:8px;margin-top:6px;align-items:center;';
-    [{ label: '\u2713', reaction: 'known', title: 'Knew this' }, { label: '\u2605', reaction: 'new', title: 'New to me' }].forEach(({ label, reaction, title }) => {
-      const btn = document.createElement('button');
-      btn.className = 'reaction-btn reaction-' + reaction;
-      btn.style.cssText = 'background:none;border:1px solid var(--border-subtle);border-radius:50%;width:24px;height:24px;cursor:pointer;color:var(--text-tertiary);font-size:12px;display:flex;align-items:center;justify-content:center;';
-      btn.title = title;
-      btn.textContent = label;
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const wasActive = btn.classList.contains('active');
-        reactRow.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('active'));
-        strip.classList.remove('reacted');
-        if (!wasActive) {
-          btn.classList.add('active');
-          strip.classList.add('reacted');
-        }
-        chrome.storage.local.get('cardReactions', (data) => {
-          const reactions = data.cardReactions || {};
-          if (wasActive) { delete reactions[insightReactionKey]; } else { reactions[insightReactionKey] = { reaction, timestamp: Date.now(), type: 'insight' }; }
-          chrome.storage.local.set({ cardReactions: reactions });
-        });
-        try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'card_reaction', properties: { term: insightReactionKey, reaction: wasActive ? 'removed' : reaction, entity_type: 'insight' } }); } catch (e) {}
-      });
-      reactRow.appendChild(btn);
-    });
-    const insightBody = strip.querySelector('.insight-body');
-    if (insightBody) insightBody.appendChild(reactRow);
+    reactRow.className = 'reaction-row';
+    reactRow.style.marginTop = '6px';
 
-    // Restore reaction state
+    const reactionDefs = [
+      { cls: 'reaction-known', icon: '\u2713', label: 'Knew this', reaction: 'known' },
+      { cls: 'reaction-new', icon: '\u2605', label: 'New to me', reaction: 'new' }
+    ];
+
+    function applyInsightReaction(reaction) {
+      strip.classList.remove('reacted');
+      reactRow.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('active'));
+      if (!reaction) return;
+      strip.classList.add('reacted');
+      const activeBtn = reactRow.querySelector('.reaction-' + reaction);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    // Restore reaction state on render
     chrome.storage.local.get('cardReactions', (data) => {
       const reactions = data.cardReactions || {};
-      if (reactions[insightReactionKey]) {
-        const r = reactions[insightReactionKey].reaction;
-        const activeBtn = reactRow.querySelector('.reaction-' + r);
-        if (activeBtn) activeBtn.classList.add('active');
-        strip.classList.add('reacted');
-      }
+      if (reactions[insightReactionKey]) applyInsightReaction(reactions[insightReactionKey].reaction);
     });
+
+    reactionDefs.forEach(({ cls, icon, label, reaction }) => {
+      const group = document.createElement('div');
+      group.className = 'reaction-group';
+      const btn = document.createElement('button');
+      btn.className = `reaction-btn ${cls}`;
+      btn.textContent = icon;
+      btn.title = label;
+      const labelEl = document.createElement('div');
+      labelEl.className = 'reaction-label';
+      labelEl.textContent = label;
+      group.appendChild(btn);
+      group.appendChild(labelEl);
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        btn.classList.remove('just-clicked');
+        void btn.offsetWidth;
+        btn.classList.add('just-clicked');
+        setTimeout(() => btn.classList.remove('just-clicked'), 200);
+        const wasActive = btn.classList.contains('active');
+
+        chrome.storage.local.get('cardReactions', (data) => {
+          const reactions = data.cardReactions || {};
+          if (wasActive) {
+            delete reactions[insightReactionKey];
+            applyInsightReaction(null);
+          } else {
+            reactions[insightReactionKey] = { reaction, timestamp: Date.now(), type: 'insight' };
+            applyInsightReaction(reaction);
+          }
+          chrome.storage.local.set({ cardReactions: reactions });
+          try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'card_reaction', properties: { term: insightReactionKey, reaction: wasActive ? 'removed' : reaction, entity_type: 'insight' } }); } catch (e) {}
+        });
+      });
+
+      reactRow.appendChild(group);
+    });
+
+    const insightBody = strip.querySelector('.insight-body');
+    if (insightBody) insightBody.appendChild(reactRow);
 
     // Dismiss button
     const dismissBtn = document.createElement('button');

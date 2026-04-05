@@ -616,13 +616,14 @@ if (window.__contextExtensionLoaded) {
     .context-card.card-dismissed { opacity: 0.5 !important; transition: opacity 0.2s; animation: none; }
     .context-card.card-dismissed:hover { opacity: 0.7; }
     .card-quick-dismiss {
-      position: absolute; top: 4px; left: 4px; right: auto; width: 18px; height: 18px;
+      position: absolute; top: 2px; right: 2px; left: auto; width: 18px; height: 18px;
       border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: none;
-      color: var(--text-tertiary); font-size: 11px; cursor: pointer;
+      color: var(--text-tertiary); font-size: 10px; cursor: pointer;
       display: none; align-items: center; justify-content: center;
-      transition: background 150ms ease, color 150ms ease; padding: 0; z-index: 5;
+      padding: 0; z-index: 5;
     }
-    .context-card:hover .card-quick-dismiss { display: flex; }
+    .context-card:hover .card-quick-dismiss,
+    .insight-strip:hover .card-quick-dismiss { display: flex; }
     .context-card.expanded .card-quick-dismiss { display: none !important; }
     .card-quick-dismiss:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
     @keyframes cardRipple {
@@ -851,7 +852,7 @@ if (window.__contextExtensionLoaded) {
       padding: 6px 10px; background: rgba(234, 179, 8, 0.04);
       border-left: 3px solid var(--type-insight); border-radius: 4px;
       margin: 4px 8px; cursor: pointer; transition: background 150ms ease;
-      user-select: none;
+      user-select: none; position: relative;
     }
     .insight-strip:hover { background: rgba(234, 179, 8, 0.08); }
     .insight-strip .insight-icon { font-size: 12px; flex-shrink: 0; }
@@ -2410,8 +2411,26 @@ if (window.__contextExtensionLoaded) {
       });
     });
 
+    // Dismiss button
+    const dismissBtn = document.createElement('button');
+    dismissBtn.className = 'card-quick-dismiss';
+    dismissBtn.textContent = '\u2715';
+    dismissBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      strip.style.transition = 'opacity 200ms, transform 200ms, max-height 200ms';
+      strip.style.opacity = '0';
+      strip.style.transform = 'translateX(20px)';
+      strip.style.maxHeight = '0';
+      strip.style.overflow = 'hidden';
+      strip.style.margin = '0';
+      strip.style.padding = '0';
+      setTimeout(() => strip.remove(), 200);
+      try { chrome.runtime.sendMessage({ type: 'CARD_DISMISS', term: strip.dataset.insightKey || '' }); } catch (err) {}
+    });
+    strip.appendChild(dismissBtn);
+
     strip.addEventListener('click', (e) => {
-      if (e.target.closest('a') || e.target.closest('.insight-copy-btn')) return;
+      if (e.target.closest('a') || e.target.closest('.insight-copy-btn') || e.target.closest('.card-quick-dismiss')) return;
       const timeEl = e.target.closest('.insight-time');
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       strip.classList.toggle('expanded');

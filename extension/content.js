@@ -860,7 +860,14 @@ if (window.__contextExtensionLoaded) {
       font-size: 8px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.05em; color: var(--type-insight); flex-shrink: 0;
     }
-    .insight-strip .insight-body { flex: 1; min-width: 0; }
+    .insight-strip .insight-body { flex: 1; min-width: 0; width: 100%; }
+    .insight-strip .card-actions-row {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+    }
+    .insight-strip .card-copy-btn {
+      font-size: 10px; color: var(--text-tertiary); background: none; border: none; cursor: pointer; padding: 0;
+    }
+    .insight-strip .card-copy-btn:hover { color: var(--accent); }
     .insight-strip .insight-text {
       font-size: 11px; color: var(--text-secondary); line-height: 1.3;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

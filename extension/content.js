@@ -2393,18 +2393,21 @@ if (window.__contextExtensionLoaded) {
       <div class="insight-body">
         <div class="insight-text">${escapeHtml(insightText)}</div>
         ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
-        <button class="insight-copy-btn">Copy text</button>
+        <div class="card-actions-row">
+          <button class="card-copy-btn">Copy text</button>
+          <div class="reaction-row"></div>
+        </div>
       </div>
       <span class="insight-time" data-seek="${vt.seconds}">${vt.display}</span>
     `;
 
-    strip.querySelector('.insight-copy-btn').addEventListener('click', (e) => {
+    strip.querySelector('.card-copy-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       const text = insight.insight || '';
       const det = insight.detail || '';
       const copyText = text + (det ? ' \u2014 ' + det : '');
       copyToClipboard(copyText).then(() => {
-        const btn = strip.querySelector('.insight-copy-btn');
+        const btn = strip.querySelector('.card-copy-btn');
         btn.textContent = 'Copied!';
         btn.classList.add('copied');
         setTimeout(() => { btn.textContent = 'Copy text'; btn.classList.remove('copied'); }, 1500);
@@ -2413,9 +2416,7 @@ if (window.__contextExtensionLoaded) {
 
     // Reaction buttons
     const insightReactionKey = (insight.insight || '').toLowerCase().trim();
-    const reactRow = document.createElement('div');
-    reactRow.className = 'reaction-row';
-    reactRow.style.marginTop = '6px';
+    const reactRow = strip.querySelector('.reaction-row');
 
     const reactionDefs = [
       { cls: 'reaction-known', icon: '\u2713', label: 'Knew this', reaction: 'known' },
@@ -2474,9 +2475,6 @@ if (window.__contextExtensionLoaded) {
 
       reactRow.appendChild(group);
     });
-
-    const insightBody = strip.querySelector('.insight-body');
-    if (insightBody) insightBody.appendChild(reactRow);
 
     // Dismiss button
     const dismissBtn = document.createElement('button');

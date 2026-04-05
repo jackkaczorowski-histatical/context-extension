@@ -2411,6 +2411,48 @@ if (window.__contextExtensionLoaded) {
       });
     });
 
+    // Reaction buttons
+    const insightReactionKey = (insight.insight || '').toLowerCase().trim();
+    const reactRow = document.createElement('div');
+    reactRow.style.cssText = 'display:flex;gap:8px;margin-top:6px;align-items:center;';
+    [{ label: '\u2713', reaction: 'known', title: 'Knew this' }, { label: '\u2605', reaction: 'new', title: 'New to me' }].forEach(({ label, reaction, title }) => {
+      const btn = document.createElement('button');
+      btn.className = 'reaction-btn reaction-' + reaction;
+      btn.style.cssText = 'background:none;border:1px solid var(--border-subtle);border-radius:50%;width:24px;height:24px;cursor:pointer;color:var(--text-tertiary);font-size:12px;display:flex;align-items:center;justify-content:center;';
+      btn.title = title;
+      btn.textContent = label;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasActive = btn.classList.contains('active');
+        reactRow.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('active'));
+        strip.classList.remove('reacted');
+        if (!wasActive) {
+          btn.classList.add('active');
+          strip.classList.add('reacted');
+        }
+        chrome.storage.local.get('cardReactions', (data) => {
+          const reactions = data.cardReactions || {};
+          if (wasActive) { delete reactions[insightReactionKey]; } else { reactions[insightReactionKey] = { reaction, timestamp: Date.now(), type: 'insight' }; }
+          chrome.storage.local.set({ cardReactions: reactions });
+        });
+        try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'card_reaction', properties: { term: insightReactionKey, reaction: wasActive ? 'removed' : reaction, entity_type: 'insight' } }); } catch (e) {}
+      });
+      reactRow.appendChild(btn);
+    });
+    const insightBody = strip.querySelector('.insight-body');
+    if (insightBody) insightBody.appendChild(reactRow);
+
+    // Restore reaction state
+    chrome.storage.local.get('cardReactions', (data) => {
+      const reactions = data.cardReactions || {};
+      if (reactions[insightReactionKey]) {
+        const r = reactions[insightReactionKey].reaction;
+        const activeBtn = reactRow.querySelector('.reaction-' + r);
+        if (activeBtn) activeBtn.classList.add('active');
+        strip.classList.add('reacted');
+      }
+    });
+
     // Dismiss button
     const dismissBtn = document.createElement('button');
     dismissBtn.className = 'card-quick-dismiss';
@@ -2706,10 +2748,7 @@ if (window.__contextExtensionLoaded) {
           ${typeBadge}
           <span class="card-time" data-seek="${vt.seconds}">${vt.display}</span>
           ${seenTag}
-          <span style="margin-left:auto;display:flex;gap:4px;align-items:center;">
-            <span class="card-chevron">&#x203A;</span>
-            <span class="card-dismiss-inline" title="Dismiss">\u2713</span>
-          </span>
+          <span class="card-chevron" style="margin-left:auto;">&#x203A;</span>
         </div>
         <div class="card-term">${termText}</div>
       </div>

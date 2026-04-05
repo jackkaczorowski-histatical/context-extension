@@ -2392,7 +2392,7 @@ if (window.__contextExtensionLoaded) {
       <span class="insight-category">INSIGHT</span>
       <div class="insight-body">
         <div class="insight-text">${escapeHtml(insightText)}</div>
-        ${detail ? `<div class="insight-detail">${detail}</div>` : ''}
+        ${detail ? '<div class="insight-detail">' + detail + '</div>' : ''}
         <div class="card-actions-row">
           <button class="card-copy-btn">Copy text</button>
         </div>
@@ -2412,10 +2412,6 @@ if (window.__contextExtensionLoaded) {
         setTimeout(() => { btn.textContent = 'Copy text'; btn.classList.remove('copied'); }, 1500);
       });
     });
-
-    // Reaction buttons via shared function
-    const insightReactionKey = (insight.insight || '').toLowerCase().trim();
-    addCardButtons(strip, insightReactionKey, { term: insight.insight, type: 'insight' });
 
     // Dismiss button
     const dismissBtn = document.createElement('button');
@@ -2441,6 +2437,9 @@ if (window.__contextExtensionLoaded) {
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       strip.classList.toggle('expanded');
     });
+
+    const insightReactionKey = (insight.insight || '').toLowerCase().trim();
+    addCardButtons(strip, insightReactionKey, { term: insight.insight, type: 'insight' }, strip.querySelector('.insight-body'));
 
     return strip;
   }

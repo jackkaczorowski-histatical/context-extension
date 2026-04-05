@@ -2413,6 +2413,52 @@ if (window.__contextExtensionLoaded) {
       });
     });
 
+    // Build reactions directly inside card-actions-row
+    const actionsRow = strip.querySelector('.card-actions-row');
+    if (actionsRow) {
+      const insightReactionKey = (insight.insight || '').toLowerCase().trim();
+
+      const knewBtn = document.createElement('button');
+      knewBtn.className = 'reaction-btn reaction-known';
+      knewBtn.textContent = '\u2713';
+      knewBtn.title = 'Knew this';
+      knewBtn.style.marginLeft = 'auto';
+
+      const newBtn = document.createElement('button');
+      newBtn.className = 'reaction-btn reaction-new';
+      newBtn.textContent = '\u2605';
+      newBtn.title = 'New to me';
+
+      function applyReaction(reaction) {
+        strip.classList.remove('reacted');
+        knewBtn.classList.remove('active');
+        newBtn.classList.remove('active');
+        if (reaction === 'known') { knewBtn.classList.add('active'); strip.classList.add('reacted'); }
+        if (reaction === 'new') { newBtn.classList.add('active'); strip.classList.add('reacted'); }
+      }
+
+      chrome.storage.local.get('cardReactions', (data) => {
+        const r = data.cardReactions || {};
+        if (r[insightReactionKey]) applyReaction(r[insightReactionKey].reaction);
+      });
+
+      [{ btn: knewBtn, reaction: 'known' }, { btn: newBtn, reaction: 'new' }].forEach(({ btn, reaction }) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasActive = btn.classList.contains('active');
+          chrome.storage.local.get('cardReactions', (data) => {
+            const reactions = data.cardReactions || {};
+            if (wasActive) { delete reactions[insightReactionKey]; applyReaction(null); }
+            else { reactions[insightReactionKey] = { reaction, timestamp: Date.now(), type: 'insight' }; applyReaction(reaction); }
+            chrome.storage.local.set({ cardReactions: reactions });
+          });
+        });
+      });
+
+      actionsRow.appendChild(knewBtn);
+      actionsRow.appendChild(newBtn);
+    }
+
     // Dismiss button
     const dismissBtn = document.createElement('button');
     dismissBtn.className = 'card-quick-dismiss';
@@ -2437,9 +2483,6 @@ if (window.__contextExtensionLoaded) {
       if (timeEl && timeEl.dataset.seek) { e.stopPropagation(); seekVideo(parseInt(timeEl.dataset.seek)); return; }
       strip.classList.toggle('expanded');
     });
-
-    const insightReactionKey = (insight.insight || '').toLowerCase().trim();
-    addCardButtons(strip, insightReactionKey, { term: insight.insight, type: 'insight' }, strip.querySelector('.insight-body'));
 
     return strip;
   }

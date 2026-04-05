@@ -2429,7 +2429,8 @@ if (window.__contextExtensionLoaded) {
       knewBtn.className = 'reaction-btn reaction-known';
       knewBtn.textContent = '\u2713';
       knewBtn.title = 'Knew this';
-      knewBtn.style.marginLeft = 'auto';
+
+
 
       const newBtn = document.createElement('button');
       newBtn.className = 'reaction-btn reaction-new';
@@ -2462,8 +2463,11 @@ if (window.__contextExtensionLoaded) {
         });
       });
 
-      actionsRow.appendChild(knewBtn);
-      actionsRow.appendChild(newBtn);
+      const reactionRow = document.createElement('div');
+      reactionRow.className = 'reaction-row';
+      reactionRow.appendChild(knewBtn);
+      reactionRow.appendChild(newBtn);
+      actionsRow.after(reactionRow);
     }
 
     // Dismiss button

@@ -624,7 +624,7 @@ if (window.__contextExtensionLoaded) {
     }
     .context-card:hover .card-quick-dismiss,
     .insight-strip:hover .card-quick-dismiss { display: flex; }
-    .context-card.expanded .card-quick-dismiss { display: none !important; }
+
     .card-quick-dismiss:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
     @keyframes cardRipple {
       0% { box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.5); }

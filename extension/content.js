@@ -733,7 +733,7 @@ if (window.__contextExtensionLoaded) {
     .stock-yahoo-link { font-size: 11px; color: #6366f1; text-decoration: underline; }
     .stock-yahoo-link:hover { color: #818cf8; }
     .card-actions-row {
-      display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: nowrap;
+      display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: nowrap; width: 100%;
     }
     .card-actions-row .card-wiki-link,
     .card-actions-row .card-tellmore,

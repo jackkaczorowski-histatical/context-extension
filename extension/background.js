@@ -297,6 +297,37 @@ async function incrementUsage(field, amount = 1) {
   const usage = data[key] || { minutes: 0, transcripts: 0, entities: 0, contextFetches: 0 };
   usage[field] = (usage[field] || 0) + amount;
   await chrome.storage.local.set({ [key]: usage });
+
+  // Piggyback usage cap on transcript processing (survives service worker restarts)
+  if (field === 'transcripts') {
+    chrome.storage.local.get(['usageToday', 'user', 'analytics', 'captureStartTime'], (capData) => {
+      const user = capData.user;
+      if (user && user.plan === 'pro') return;
+      const installDate = (capData.analytics || {}).installDate || Date.now();
+      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      let capUsage = capData.usageToday || { date: today, minutes: 0 };
+      if (capUsage.date !== today) capUsage = { date: today, minutes: 0 };
+
+      const sessionStart = capData.captureStartTime || Date.now();
+      const currentMinutes = Math.floor((Date.now() - sessionStart) / 60000);
+      capUsage.minutes = Math.max(capUsage.minutes, currentMinutes);
+
+      chrome.storage.local.set({ usageToday: capUsage });
+
+      if (capUsage.minutes === 25 && capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_WARNING', minutesLeft: 5 }).catch(() => {});
+      }
+      if (capUsage.minutes >= 30) {
+        const tabToNotify = capturingTabId;
+        if (tabToNotify) {
+          chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes: capUsage.minutes }).catch(() => {});
+        }
+        stopCapture();
+      }
+    });
+  }
 }
 
 function startUsageTimer() {
@@ -439,6 +470,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         });
       }
     });
+  }
+});
+
+// Save session and stop capture when capturing tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (tabId === capturingTabId) {
+    console.log('[BACKGROUND] Capturing tab closed, saving session and stopping capture');
+    stopCapture();
   }
 });
 
@@ -867,6 +906,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Add term to dismissed set so it won't be re-extracted this session
     const term = (message.term || '').toLowerCase().replace(/s$/, '');
     if (term) dismissedTerms.add(term);
+  } else if (message.type === 'VIDEO_PAUSED_LONG') {
+    if (!capturingTabId) return;
+    console.log('[BACKGROUND] Video paused for 30s, saving session snapshot');
+    chrome.storage.local.get(['sessionHistory', 'pastSessions', 'activeTabUrl', 'capturingTabTitle', 'knowledgeBase'], (data) => {
+      const sessionHist = data.sessionHistory || [];
+      if (sessionHist.length === 0) return;
+
+      // Save KB snapshot
+      const kb = data.knowledgeBase || {};
+      sessionHist.forEach(item => {
+        if (!item.term || item.type === 'insight' || item.type === 'video-divider') return;
+        const key = item.term.toLowerCase().trim();
+        if (kb[key]) {
+          kb[key].lastSeen = Date.now();
+          kb[key].timesSeen = (kb[key].timesSeen || 0) + 1;
+        } else {
+          kb[key] = { term: item.term, type: item.type, description: item.description || '', firstSeen: Date.now(), lastSeen: Date.now(), timesSeen: 1 };
+        }
+      });
+      chrome.storage.local.set({ knowledgeBase: kb });
+
+      // Save pastSessions snapshot (with dedup check)
+      const pastSessions = data.pastSessions || [];
+      const recentlySaved = pastSessions.length > 0 && (Date.now() - new Date(pastSessions[0].date).getTime()) < 60000;
+      if (!recentlySaved) {
+        const title = data.capturingTabTitle || capturingTabTitle || 'Untitled';
+        pastSessions.unshift({
+          id: Date.now(),
+          title: title,
+          url: data.activeTabUrl || '',
+          date: new Date().toISOString(),
+          entityCount: sessionHist.filter(i => i.term && i.type !== 'video-divider' && i.type !== 'insight').length,
+          insightCount: sessionHist.filter(i => i.type === 'insight').length,
+          entities: sessionHist.filter(i => i.term && i.type !== 'video-divider' && i.type !== 'insight').slice(0, 50),
+          insights: sessionHist.filter(i => i.type === 'insight').slice(0, 30),
+          timestamp: Date.now()
+        });
+        if (pastSessions.length > 20) pastSessions.length = 20;
+        chrome.storage.local.set({ pastSessions });
+        console.log('[BACKGROUND] Session snapshot saved on pause');
+      }
+    });
   }
 });
 
@@ -916,6 +997,7 @@ async function startCapture() {
   }
   restartAttempted = false;
   captureStartTime = Date.now();
+  chrome.storage.local.set({ captureStartTime });
   startUsageTimer();
   try {
     // Close any existing offscreen document before proceeding
@@ -1041,14 +1123,16 @@ async function stopCapture() {
 
   // Fallback: if service worker restarted and lost in-memory captureStartTime, read from storage
   if (durationSec === 0) {
-    const sessionStartData = await chrome.storage.local.get('sessionStart');
-    if (sessionStartData.sessionStart) {
-      durationSec = Math.round((Date.now() - sessionStartData.sessionStart) / 1000);
+    const fallbackData = await chrome.storage.local.get(['captureStartTime', 'sessionStart']);
+    const startTs = fallbackData.captureStartTime || fallbackData.sessionStart;
+    if (startTs) {
+      durationSec = Math.round((Date.now() - startTs) / 1000);
     }
   }
 
   trackEvent('capture_stop', { duration_seconds: durationSec, entities_count: sessionEntities.length });
   captureStartTime = null;
+  chrome.storage.local.remove('captureStartTime');
 
   capturingTabId = null;
 

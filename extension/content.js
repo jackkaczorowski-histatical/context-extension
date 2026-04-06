@@ -5930,6 +5930,25 @@ if (window.__contextExtensionLoaded) {
   document.addEventListener('yt-navigate-finish', handleUrlChange);
   window.addEventListener('popstate', handleUrlChange);
 
+  // --- Video pause detector: snapshot session after 30s paused ---
+  let pauseTimer = null;
+  function setupPauseDetector() {
+    const video = document.querySelector('video');
+    if (!video || video.__ctxPauseDetector) return;
+    video.__ctxPauseDetector = true;
+    video.addEventListener('pause', () => {
+      if (pauseTimer) clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(() => {
+        try { chrome.runtime.sendMessage({ type: 'VIDEO_PAUSED_LONG' }); } catch (e) {}
+      }, 30000);
+    });
+    video.addEventListener('play', () => {
+      if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
+    });
+  }
+  setupPauseDetector();
+  document.addEventListener('yt-navigate-finish', () => setTimeout(setupPauseDetector, 1000));
+
   // --- Toggle sidebar helper ---
   function toggleSidebar() {
     ensureSidebar();

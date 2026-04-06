@@ -337,6 +337,7 @@ function startUsageTimer() {
 
       const usage = data[usageKey] || { minutes: 0 };
       const minutes = usage.minutes || 0;
+      console.log('[BACKGROUND] Usage cap check: ' + minutes + ' minutes today');
 
       if (capturingTabId) {
         chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_UPDATE', minutes: minutes, limit: 30 }).catch(() => {});

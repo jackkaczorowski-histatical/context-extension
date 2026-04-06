@@ -1333,6 +1333,13 @@ if (window.__contextExtensionLoaded) {
       text-decoration: underline; cursor: pointer; margin-bottom: 16px;
     }
     .ctx-usage-limit-link:hover { color: #2dd4bf; }
+    .ctx-usage-limit-upgrade {
+      background: var(--accent); color: white; border: none; border-radius: 8px;
+      padding: 10px 24px; font-size: 13px; font-weight: 600; cursor: pointer;
+      margin-bottom: 12px; display: block; width: 100%; font-family: inherit;
+      transition: background 150ms ease;
+    }
+    .ctx-usage-limit-upgrade:hover { background: #0d9488; }
     .ctx-usage-limit-dismiss {
       background: none; border: 1px solid rgba(255,255,255,0.1); color: #64748b;
       border-radius: 6px; padding: 8px 20px; font-size: 12px; cursor: pointer;
@@ -4667,7 +4674,11 @@ if (window.__contextExtensionLoaded) {
     usageFooter.style.display = 'none';
     sidebar.appendChild(usageFooter);
     // Load initial usage
-    chrome.storage.local.get('usageToday', (data) => {
+    chrome.storage.local.get(['usageToday', 'user', 'analytics'], (data) => {
+      const user = data.user;
+      if (user && user.plan === 'pro') return; // Pro users — no footer
+      const installDate = (data.analytics || {}).installDate || Date.now();
+      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return; // Trial — no footer
       const today = new Date().toISOString().split('T')[0];
       const usage = data.usageToday || { date: today, minutes: 0 };
       if (usage.date === today && usage.minutes > 0) {
@@ -6087,11 +6098,11 @@ if (window.__contextExtensionLoaded) {
         const m = Math.floor((diff % 3600000) / 60000);
         return 'Resets in ' + h + 'h ' + m + 'm';
       }
-      overlay.innerHTML = '<div class="ctx-usage-limit-title">Daily limit reached</div>' +
-        '<div class="ctx-usage-limit-meter">' + (msg.minutes || 30) + '/30 minutes used today</div>' +
+      overlay.innerHTML = '<div class="ctx-usage-limit-title">Free limit reached</div>' +
+        '<div class="ctx-usage-limit-meter">' + (msg.minutes || 30) + ' minutes used today</div>' +
         '<div class="ctx-usage-limit-body">You\'ve used your 30 free minutes for today.</div>' +
         '<div class="ctx-usage-countdown">' + calcResetText() + '</div>' +
-        '<a class="ctx-usage-limit-link" href="https://context-listener.com" target="_blank">Upgrade for unlimited</a>' +
+        '<button class="ctx-usage-limit-upgrade">Upgrade to Pro \u2014 $9/mo</button>' +
         '<button class="ctx-usage-limit-dismiss">Dismiss</button>';
       // Live-tick the countdown every 60s
       const countdownEl = overlay.querySelector('.ctx-usage-countdown');
@@ -6099,6 +6110,11 @@ if (window.__contextExtensionLoaded) {
         if (!overlay.isConnected) { clearInterval(countdownInterval); return; }
         countdownEl.textContent = calcResetText();
       }, 60000);
+      overlay.querySelector('.ctx-usage-limit-upgrade').addEventListener('click', () => {
+        // Billing not built yet — show coming soon feedback
+        const upgradeBtn = overlay.querySelector('.ctx-usage-limit-upgrade');
+        if (upgradeBtn) { upgradeBtn.textContent = 'Coming soon!'; upgradeBtn.disabled = true; }
+      });
       overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => {
         clearInterval(countdownInterval);
         overlay.remove();

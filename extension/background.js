@@ -304,8 +304,13 @@ function startUsageTimer() {
   usageTimer = setInterval(() => {
     if (isPaused) return;
     incrementUsage('minutes');
-    // Daily cap check
-    chrome.storage.local.get('usageToday', (data) => {
+    // Daily cap check — exempt pro users and trial users
+    chrome.storage.local.get(['usageToday', 'user', 'analytics'], (data) => {
+      const user = data.user;
+      if (user && user.plan === 'pro') return; // Pro users have no limit
+      const installDate = (data.analytics || {}).installDate || Date.now();
+      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return; // 3-day trial
+
       const today = new Date().toISOString().split('T')[0];
       let usage = data.usageToday || { date: today, minutes: 0 };
       if (usage.date !== today) usage = { date: today, minutes: 0 };
@@ -317,10 +322,12 @@ function startUsageTimer() {
       }
       if (usage.minutes >= 30) {
         console.log('[BACKGROUND] Daily usage limit reached:', usage.minutes, 'minutes');
-        stopCapture();
-        if (capturingTabId) {
-          chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_LIMIT_REACHED', minutes: usage.minutes }).catch(() => {});
+        // Send limit message before stopping (capturingTabId is still valid)
+        const tabToNotify = capturingTabId;
+        if (tabToNotify) {
+          chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes: usage.minutes }).catch(() => {});
         }
+        stopCapture();
       }
     });
   }, 60000);
@@ -649,17 +656,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ tabId: sender.tab?.id });
     return true;
   } else if (message.type === 'TOGGLE_CAPTURE') {
-    chrome.storage.local.get(['capturing', 'usageToday'], async (data) => {
+    chrome.storage.local.get(['capturing', 'usageToday', 'user', 'analytics'], async (data) => {
       if (data.capturing) {
         await stopCapture();
         if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: false });
       } else {
-        // Check daily cap before starting
-        const today = new Date().toISOString().split('T')[0];
-        const usage = data.usageToday || { date: today, minutes: 0 };
-        if (usage.date === today && usage.minutes >= 30) {
-          if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'USAGE_LIMIT_REACHED', minutes: usage.minutes });
-          return;
+        // Check daily cap before starting — exempt pro users and trial users
+        const user = data.user;
+        const isPro = user && user.plan === 'pro';
+        const installDate = (data.analytics || {}).installDate || Date.now();
+        const inTrial = (Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3;
+        if (!isPro && !inTrial) {
+          const today = new Date().toISOString().split('T')[0];
+          const usage = data.usageToday || { date: today, minutes: 0 };
+          if (usage.date === today && usage.minutes >= 30) {
+            if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'USAGE_LIMIT_REACHED', minutes: usage.minutes });
+            return;
+          }
         }
         await startCapture();
         if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: true });

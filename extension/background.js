@@ -443,6 +443,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const capData = await chrome.storage.local.get('capturingTabId');
     const activeTabId = capturingTabId || capData.capturingTabId;
     if (!activeTabId) return;
+    await incrementUsage('minutes');
     const usageKey = getUsageKey();
     chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
       const user = data.user;

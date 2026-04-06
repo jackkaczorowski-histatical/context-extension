@@ -695,12 +695,12 @@ if (window.__contextExtensionLoaded) {
       display: flex; align-items: center; gap: 6px;
     }
     .card-type {
-      font-size: 8px; font-weight: 700; letter-spacing: 0.05em;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
       text-transform: uppercase; flex-shrink: 0;
       padding: 1px 5px; border-radius: 4px;
     }
     .card-term {
-      font-size: 14px; font-weight: 600; color: var(--text-primary);
+      font-size: 15px; font-weight: 600; color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .context-card.expanded .card-term {
@@ -751,9 +751,6 @@ if (window.__contextExtensionLoaded) {
       background: var(--bg-surface); box-shadow: inset 2px 0 8px rgba(34, 197, 94, 0.1);
     }
     .context-card.stock-card:hover { background: var(--bg-surface-hover); }
-    .stock-ticker-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-    .stock-ticker { font-size: 18px; font-weight: 700; color: var(--text-primary); }
-    .stock-company { font-size: 11px; color: var(--text-secondary); }
     .stock-price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
     .stock-price { font-size: 20px; font-weight: 700; color: var(--text-primary); }
     .stock-change { font-size: 13px; font-weight: 600; }

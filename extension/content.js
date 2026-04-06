@@ -861,13 +861,6 @@ if (window.__contextExtensionLoaded) {
       letter-spacing: 0.05em; color: var(--type-insight); flex-shrink: 0;
     }
     .insight-strip .insight-body { flex: 1; min-width: 0; width: 100%; }
-    .insight-strip .card-actions-row {
-      display: flex; align-items: center; gap: 8px; width: 100%;
-    }
-    .insight-strip .card-copy-btn {
-      font-size: 10px; color: var(--text-tertiary); background: none; border: none; cursor: pointer; padding: 0;
-    }
-    .insight-strip .card-copy-btn:hover { color: var(--accent); }
     .insight-strip .insight-text {
       font-size: 11px; color: var(--text-secondary); line-height: 1.3;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -890,6 +883,8 @@ if (window.__contextExtensionLoaded) {
       margin-top: 4px; font-family: inherit; transition: background 0.15s, color 0.15s;
     }
     .insight-strip.expanded .insight-copy-btn { display: inline-block; }
+    .insight-strip:not(.expanded) .reaction-row { display: none; }
+    .insight-strip:not(.expanded) .card-actions-row { display: none; }
     .insight-strip .insight-copy-btn:hover { background: rgba(99,102,241,0.2); }
     .insight-strip .insight-copy-btn.copied { color: #00e676; background: rgba(0,230,118,0.1); }
     .feedback-msg { font-size: 11px; color: var(--text-tertiary); padding: 4px 0; text-align: center; }
@@ -2467,7 +2462,7 @@ if (window.__contextExtensionLoaded) {
       reactionRow.className = 'reaction-row';
       reactionRow.appendChild(knewBtn);
       reactionRow.appendChild(newBtn);
-      actionsRow.after(reactionRow);
+      actionsRow.appendChild(reactionRow);
     }
 
     // Dismiss button

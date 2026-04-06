@@ -320,6 +320,9 @@ function startUsageTimer() {
       if (capturingTabId) {
         chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_UPDATE', minutes: usage.minutes, limit: 30 }).catch(() => {});
       }
+      if (usage.minutes === 25 && capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_WARNING', minutesLeft: 5 }).catch(() => {});
+      }
       if (usage.minutes >= 30) {
         console.log('[BACKGROUND] Daily usage limit reached:', usage.minutes, 'minutes');
         // Send limit message before stopping (capturingTabId is still valid)

@@ -1354,6 +1354,18 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-usage-limit-body { color: #64748b; }
     .light-theme .ctx-usage-limit-dismiss { border-color: rgba(0,0,0,0.1); color: #9a9ab0; }
     .light-theme .ctx-usage-limit-dismiss:hover { color: #333; border-color: rgba(0,0,0,0.2); }
+    /* ─── Usage warning banner ─── */
+    .ctx-usage-warning {
+      padding: 6px 12px;
+      background: rgba(234, 179, 8, 0.1);
+      border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+      font-size: 11px;
+      color: #eab308;
+      text-align: center;
+    }
+    .ctx-usage-warning .upgrade-link { cursor: pointer; text-decoration: underline; }
+    .ctx-usage-warning .upgrade-link:hover { color: #facc15; }
+    .light-theme .ctx-usage-warning { background: rgba(234, 179, 8, 0.08); }
 
     /* ─── Usage footer indicator ─── */
     .ctx-usage-footer {
@@ -4910,6 +4922,9 @@ if (window.__contextExtensionLoaded) {
         cards.innerHTML = '';
         cards.style.display = 'none';
       }
+      // Remove usage warning banner
+      const usageWarning = shadowRoot.querySelector('.ctx-usage-warning');
+      if (usageWarning) usageWarning.remove();
       const empty = shadowRoot.getElementById('empty-state');
       if (empty) {
         empty.style.display = '';
@@ -6085,6 +6100,18 @@ if (window.__contextExtensionLoaded) {
         footer.textContent = (msg.minutes || 0) + '/30 min';
         footer.style.display = '';
       }
+    } else if (msg.type === 'USAGE_WARNING') {
+      if (!shadowRoot) return;
+      if (shadowRoot.querySelector('.ctx-usage-warning')) return; // already showing
+      const cards = shadowRoot.getElementById('cards');
+      if (!cards) return;
+      const banner = document.createElement('div');
+      banner.className = 'ctx-usage-warning';
+      banner.innerHTML = (msg.minutesLeft || 5) + ' minutes remaining today. <span class="upgrade-link">Upgrade for unlimited \u2192</span>';
+      banner.querySelector('.upgrade-link').addEventListener('click', () => {
+        banner.textContent = 'Pro plan coming soon!';
+      });
+      cards.parentNode.insertBefore(banner, cards);
     } else if (msg.type === 'USAGE_LIMIT_REACHED') {
       if (!shadowRoot) return;
       // Update listen button to idle state

@@ -77,7 +77,6 @@ let sessionEntities = [];
 let sessionInsights = [];
 let sessionTranscript = '';
 let isPaused = false;
-let usageTimer = null;
 let lastTranscriptSave = 0;
 let bufferStartTime = 0;
 let firstFlush = true;
@@ -323,45 +322,13 @@ async function incrementUsage(field, amount = 1) {
 }
 
 function startUsageTimer() {
-  if (usageTimer) return;
-  usageTimer = setInterval(() => {
-    if (isPaused) return;
-    incrementUsage('minutes');
-    // Daily cap check — read from the same usage_YYYY-MM-DD key that incrementUsage writes
-    const usageKey = getUsageKey();
-    chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
-      const user = data.user;
-      if (user && user.plan === 'pro') return;
-      const installDate = (data.analytics || {}).installDate || Date.now();
-      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
-
-      const usage = data[usageKey] || { minutes: 0 };
-      const minutes = usage.minutes || 0;
-      console.log('[BACKGROUND] Usage cap check: ' + minutes + ' minutes today');
-
-      if (capturingTabId) {
-        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_UPDATE', minutes: minutes, limit: 30 }).catch(() => {});
-      }
-      if (minutes === 25 && capturingTabId) {
-        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_WARNING', minutesLeft: 5 }).catch(() => {});
-      }
-      if (minutes >= 30) {
-        console.log('[BACKGROUND] Daily usage limit reached:', minutes, 'minutes');
-        const tabToNotify = capturingTabId;
-        if (tabToNotify) {
-          chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes: minutes }).catch(() => {});
-        }
-        stopCapture();
-      }
-    });
-  }, 60000);
+  chrome.alarms.create('usageCapCheck', { periodInMinutes: 1 });
+  console.log('[BACKGROUND] Usage cap alarm started');
 }
 
 function stopUsageTimer() {
-  if (usageTimer) {
-    clearInterval(usageTimer);
-    usageTimer = null;
-  }
+  chrome.alarms.clear('usageCapCheck');
+  console.log('[BACKGROUND] Usage cap alarm stopped');
 }
 
 const SUPPORTED_PLATFORMS = ['youtube.com', 'youtu.be', 'open.spotify.com', 'udemy.com/course', 'podcasts.google.com', 'soundcloud.com', 'anchor.fm', 'buzzsprout.com'];
@@ -468,6 +435,34 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   if (tabId === capturingTabId) {
     console.log('[BACKGROUND] Capturing tab closed, saving session and stopping capture');
     stopCapture();
+  }
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'usageCapCheck') {
+    if (!capturingTabId) return;
+    const usageKey = getUsageKey();
+    chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
+      const user = data.user;
+      if (user && user.plan === 'pro') return;
+      const installDate = (data.analytics || {}).installDate || Date.now();
+      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
+
+      const usage = data[usageKey] || { minutes: 0 };
+      const minutes = usage.minutes || 0;
+      incrementUsage('minutes', 1);
+
+      if (minutes === 25 && capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_WARNING', minutesLeft: 5 }).catch(() => {});
+      }
+      if (minutes >= 30) {
+        const tabToNotify = capturingTabId;
+        if (tabToNotify) {
+          chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes }).catch(() => {});
+        }
+        stopCapture();
+      }
+    });
   }
 });
 

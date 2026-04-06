@@ -1477,19 +1477,11 @@ async function processNextTranscript() {
         if (entity.type === 'stock') {
           if (!entity.ticker) return entity;
           try {
-            const stockController = new AbortController();
-            const stockTimeout = setTimeout(() => stockController.abort(), 10000);
-            let stockRes;
-            try {
-              stockRes = await fetch(`${API_BASE}/stock`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticker: entity.ticker }),
-                signal: stockController.signal
-              });
-            } finally {
-              clearTimeout(stockTimeout);
-            }
+            const stockRes = await fetch(`${API_BASE}/stock`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ticker: entity.ticker })
+            });
             if (stockRes.ok) {
               const stockData = await stockRes.json();
               console.log('[BACKGROUND] Pack stock enrichment for', entity.ticker, ':', JSON.stringify(stockData));

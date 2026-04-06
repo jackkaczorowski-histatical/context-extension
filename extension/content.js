@@ -3608,12 +3608,20 @@ if (window.__contextExtensionLoaded) {
             '<div class="suggested-label">Try it on one of these:</div>' +
             '<div class="suggested-list">' +
             suggestedVideos.map(v =>
-              '<a class="suggested-item" href="' + escapeHtml(v.url) + '" target="_top">' +
+              '<div class="suggested-item" data-url="' + escapeHtml(v.url) + '">' +
               '<span class="suggested-category">' + escapeHtml(v.category) + '</span>' +
               '<span class="suggested-title">' + escapeHtml(v.title) + '</span>' +
-              '</a>'
+              '</div>'
             ).join('') +
             '</div>';
+          suggestedDiv.querySelectorAll('.suggested-item').forEach(item => {
+            item.addEventListener('click', () => {
+              const url = item.dataset.url;
+              chrome.storage.local.set({ reopenSidebar: true }, () => {
+                window.location.href = url;
+              });
+            });
+          });
           suggestedDiv.style.display = '';
         }
         return;
@@ -4828,6 +4836,14 @@ if (window.__contextExtensionLoaded) {
         }
         console.log('[CONTENT] Auto-reopened sidebar after refresh (capturing tab)');
       }
+
+      // Reopen sidebar after suggested video navigation
+      chrome.storage.local.get('reopenSidebar', (rd) => {
+        if (rd.reopenSidebar) {
+          chrome.storage.local.remove('reopenSidebar');
+          openSidebar();
+        }
+      });
 
       // Sync floating widget with initial state
       updateFloatingWidget(!!data.capturing);

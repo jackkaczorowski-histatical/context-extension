@@ -22,6 +22,23 @@ const INDEX_TO_ETF = {
   'russell': { ticker: 'IWM', name: 'iShares Russell 2000 ETF' }
 };
 
+async function resolveTickerFromName(name) {
+  try {
+    const resp = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(name)}&quotesCount=1&newsCount=0`);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const quote = data.quotes && data.quotes[0];
+    if (quote && quote.symbol) {
+      console.log('[BACKGROUND] Resolved ticker:', name, '→', quote.symbol);
+      return quote.symbol;
+    }
+    return null;
+  } catch (e) {
+    console.log('[BACKGROUND] Ticker resolution failed for:', name);
+    return null;
+  }
+}
+
 async function fetchWikiThumbnail(term) {
   try {
     const encoded = encodeURIComponent(term.replace(/ /g, '_'));
@@ -1445,11 +1462,20 @@ async function processNextTranscript() {
         }
       });
 
+      // Resolve tickers for stock entities that don't have one
+      for (const entity of enrichedPackMatches) {
+        if (entity.type === 'stock' && !entity.ticker) {
+          const resolved = await resolveTickerFromName(entity.term || entity.name);
+          if (resolved) {
+            entity.ticker = resolved;
+          }
+        }
+      }
+
       // Enrich stock entities from pack cache with live price data
       enrichedPackMatches = await Promise.all(enrichedPackMatches.map(async (entity) => {
         if (entity.type === 'stock') {
-          const lookupTicker = entity.ticker || entity.term || entity.name;
-          if (!lookupTicker) return entity;
+          if (!entity.ticker) return entity;
           try {
             const stockController = new AbortController();
             const stockTimeout = setTimeout(() => stockController.abort(), 10000);
@@ -1458,7 +1484,7 @@ async function processNextTranscript() {
               stockRes = await fetch(`${API_BASE}/stock`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticker: lookupTicker }),
+                body: JSON.stringify({ ticker: entity.ticker }),
                 signal: stockController.signal
               });
             } finally {
@@ -1466,13 +1492,13 @@ async function processNextTranscript() {
             }
             if (stockRes.ok) {
               const stockData = await stockRes.json();
-              console.log('[BACKGROUND] Pack stock enrichment for', lookupTicker, ':', JSON.stringify(stockData));
+              console.log('[BACKGROUND] Pack stock enrichment for', entity.ticker, ':', JSON.stringify(stockData));
               if (stockData.price != null) {
                 return { ...entity, ...stockData, companyName: stockData.name || entity.name || '' };
               }
             }
           } catch (e) {
-            console.error('[BACKGROUND] Pack stock fetch error for', lookupTicker, ':', e.message || e);
+            console.error('[BACKGROUND] Pack stock fetch error for', entity.ticker, ':', e.message || e);
           }
         }
         return entity;
@@ -1746,12 +1772,21 @@ async function processNextTranscript() {
       }
     });
 
+    // Resolve tickers for stock entities that don't have one
+    for (const entity of filteredEntities) {
+      if (entity.type === 'stock' && !entity.ticker) {
+        const resolved = await resolveTickerFromName(entity.term || entity.name);
+        if (resolved) {
+          entity.ticker = resolved;
+        }
+      }
+    }
+
     // Enrich entities — stocks get price data, others pass through as-is
     const enrichedEntities = await Promise.all(
       filteredEntities.map(async (entity) => {
         if (entity.type === 'stock') {
-          const lookupTicker = entity.ticker || entity.term || entity.name;
-          if (!lookupTicker) return entity;
+          if (!entity.ticker) return entity;
           try {
             const stockController = new AbortController();
             const stockTimeout = setTimeout(() => stockController.abort(), 10000);
@@ -1760,7 +1795,7 @@ async function processNextTranscript() {
               stockRes = await fetch(`${API_BASE}/stock`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticker: lookupTicker }),
+                body: JSON.stringify({ ticker: entity.ticker }),
                 signal: stockController.signal
               });
             } finally {

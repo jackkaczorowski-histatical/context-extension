@@ -369,6 +369,16 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     reinjectContentScript(tabId);
   }
 
+  // Show ready badge on supported pages when not capturing
+  if (changeInfo.status === 'complete' && tab.url && !capturingTabId) {
+    if (isSupportedUrl(tab.url)) {
+      chrome.action.setBadgeText({ text: '●', tabId });
+      chrome.action.setBadgeBackgroundColor({ color: '#14b8a6', tabId });
+    } else {
+      chrome.action.setBadgeText({ text: '', tabId });
+    }
+  }
+
   // Detect video switch via URL change (not title — titles are too noisy)
   if (tabId === capturingTabId && changeInfo.url) {
     const newUrl = changeInfo.url;

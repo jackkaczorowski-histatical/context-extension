@@ -628,20 +628,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log('[BACKGROUND] KB saved before clear, total terms:', Object.keys(kb).length);
       }
 
-      // 2. Save session snapshot to pastSessions
+      // 2. Save session snapshot to pastSessions (skip if stopCapture already saved it)
       const pastSessions = data.pastSessions || [];
-      if (sessionHist.length > 0) {
+      const recentlySaved = pastSessions.length > 0 &&
+        (Date.now() - new Date(pastSessions[0].date).getTime()) < 60000;
+      if (sessionHist.length > 0 && !recentlySaved) {
         pastSessions.unshift({
           id: Date.now(),
           title: data.capturingTabTitle || capturingTabTitle || 'Untitled',
-          url: '',
+          url: data.activeTabUrl || '',
           date: new Date().toISOString(),
-          entityCount: sessionHist.length,
+          entityCount: sessionHist.filter(i => i.term && i.type !== 'video-divider' && i.type !== 'insight').length,
+          insightCount: sessionHist.filter(i => i.type === 'insight').length,
           entities: sessionHist.filter(i => i.term && i.type !== 'video-divider' && i.type !== 'insight').slice(0, 50),
-          insights: sessionHist.filter(i => i.type === 'insight').slice(0, 30)
+          insights: sessionHist.filter(i => i.type === 'insight').slice(0, 30),
+          timestamp: Date.now()
         });
         if (pastSessions.length > 20) pastSessions.length = 20;
-        console.log('[BACKGROUND] Session snapshot saved, total past sessions:', pastSessions.length);
+        console.log('[BACKGROUND] Session snapshot saved on clear, total past sessions:', pastSessions.length);
       }
 
       // 2b. Send session data to Supabase if user consented
@@ -1097,6 +1101,32 @@ async function stopCapture() {
 
     chrome.storage.local.set({ knowledgeBase: kb });
     console.log('[BACKGROUND] Knowledge base updated on stop, total:', Object.keys(kb).length);
+  });
+
+  // Save session snapshot to pastSessions on stop (not just on clear)
+  chrome.storage.local.get(['sessionHistory', 'pastSessions', 'activeTabUrl', 'capturingTabTitle'], (data) => {
+    const sessionHist = data.sessionHistory || [];
+    if (sessionHist.length === 0) return;
+
+    const pastSessions = data.pastSessions || [];
+    const title = data.capturingTabTitle || capturingTabTitle || 'Untitled';
+
+    pastSessions.unshift({
+      id: Date.now(),
+      title: title,
+      url: data.activeTabUrl || '',
+      date: new Date().toISOString(),
+      entityCount: sessionHist.filter(i => i.term && i.type !== 'video-divider' && i.type !== 'insight').length,
+      insightCount: sessionHist.filter(i => i.type === 'insight').length,
+      entities: sessionHist.filter(i => i.term && i.type !== 'video-divider' && i.type !== 'insight').slice(0, 50),
+      insights: sessionHist.filter(i => i.type === 'insight').slice(0, 30),
+      timestamp: Date.now()
+    });
+
+    if (pastSessions.length > 20) pastSessions.length = 20;
+
+    chrome.storage.local.set({ pastSessions });
+    console.log('[BACKGROUND] Session saved to history on stop, total:', pastSessions.length);
   });
 
   // Compute session stats before clearing in-memory data

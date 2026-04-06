@@ -1037,7 +1037,16 @@ async function stopCapture() {
   if (isStoppingCapture) return;
   isStoppingCapture = true;
 
-  const durationSec = captureStartTime ? Math.round((Date.now() - captureStartTime) / 1000) : 0;
+  let durationSec = captureStartTime ? Math.round((Date.now() - captureStartTime) / 1000) : 0;
+
+  // Fallback: if service worker restarted and lost in-memory captureStartTime, read from storage
+  if (durationSec === 0) {
+    const sessionStartData = await chrome.storage.local.get('sessionStart');
+    if (sessionStartData.sessionStart) {
+      durationSec = Math.round((Date.now() - sessionStartData.sessionStart) / 1000);
+    }
+  }
+
   trackEvent('capture_stop', { duration_seconds: durationSec, entities_count: sessionEntities.length });
   captureStartTime = null;
 

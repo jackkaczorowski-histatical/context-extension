@@ -1,6 +1,6 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/privacy", "destination": "/api/privacy" }
+    { "source": "/privacy", "destination": "/privacy.html" }
   ]
 }

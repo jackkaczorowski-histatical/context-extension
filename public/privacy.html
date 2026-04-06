@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Context — Privacy Policy</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 680px; margin: 0 auto; padding: 40px 20px; color: #1a1a2e; line-height: 1.7; }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    h2 { font-size: 18px; margin-top: 32px; }
+    p { font-size: 15px; }
+    .updated { font-size: 13px; color: #666; margin-bottom: 32px; }
+  </style>
+</head>
+<body>
+  <h1>Context — Privacy Policy</h1>
+  <p class="updated">Last updated: April 2026</p>
+
+  <h2>What Context does</h2>
+  <p>Context is a Chrome extension that captures audio from your browser tab, transcribes it in real time, and extracts key terms, people, concepts, and insights to display in a sidebar.</p>
+
+  <h2>Audio data</h2>
+  <p>Your tab audio is streamed to Deepgram (a third-party transcription service) for real-time speech-to-text conversion. Audio is processed in real time and is never stored on any server. Deepgram's privacy policy is available at deepgram.com/privacy.</p>
+
+  <h2>Transcript data</h2>
+  <p>Transcribed text is sent to Anthropic's Claude API for entity and insight extraction. Transcripts are processed in real time and are not stored on Anthropic's servers beyond the API request lifecycle. Anthropic's privacy policy is available at anthropic.com/privacy.</p>
+
+  <h2>Data stored locally</h2>
+  <p>The following data is stored in your browser's local storage (chrome.storage.local) and never leaves your device:</p>
+  <ul>
+    <li>Extracted entities and insights from your sessions</li>
+    <li>Your knowledge base (accumulated terms across sessions)</li>
+    <li>Session history and past session metadata</li>
+    <li>Your preferences and settings</li>
+    <li>Usage statistics (session count, duration)</li>
+  </ul>
+  <p>You can clear all locally stored data at any time using the "Clear" button in the extension sidebar.</p>
+
+  <h2>Account data</h2>
+  <p>If you sign in with Google, we store your email address and name locally to personalize your experience and sync preferences. We do not access your Google data beyond basic profile information (email, name, profile picture).</p>
+
+  <h2>Data we do NOT collect</h2>
+  <ul>
+    <li>We do not store your audio recordings</li>
+    <li>We do not store your full transcripts on any server</li>
+    <li>We do not sell or share your data with third parties</li>
+    <li>We do not track your browsing history</li>
+    <li>We do not display ads</li>
+  </ul>
+
+  <h2>Anonymous analytics</h2>
+  <p>If you opt in to "Help improve Context" in settings, we collect anonymous usage events (session start/stop, feature usage counts) to improve the product. This data contains no personal information, no transcript content, and no entity data. You can opt out at any time in Settings.</p>
+
+  <h2>Third-party services</h2>
+  <ul>
+    <li><strong>Deepgram</strong> — real-time audio transcription</li>
+    <li><strong>Anthropic (Claude)</strong> — entity and insight extraction</li>
+    <li><strong>Supabase</strong> — anonymous event logging (opt-in only)</li>
+    <li><strong>Wikipedia API</strong> — thumbnail images for entities</li>
+  </ul>
+
+  <h2>Permissions explained</h2>
+  <ul>
+    <li><strong>tabCapture</strong> — captures audio from the active tab for transcription</li>
+    <li><strong>activeTab</strong> — injects the sidebar into the current page</li>
+    <li><strong>scripting</strong> — injects the content script that renders the sidebar</li>
+    <li><strong>storage</strong> — stores your knowledge base, settings, and session data locally</li>
+    <li><strong>offscreen</strong> — required to process audio capture in Chrome's Manifest V3</li>
+    <li><strong>identity</strong> — optional Google sign-in for preference sync</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <p>Questions about this privacy policy? Email jack@contextlistener.com</p>
+</body>
+</html>

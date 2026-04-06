@@ -4696,16 +4696,16 @@ if (window.__contextExtensionLoaded) {
     usageFooter.id = 'ctx-usage-footer';
     usageFooter.style.display = 'none';
     sidebar.appendChild(usageFooter);
-    // Load initial usage
-    chrome.storage.local.get(['usageToday', 'user', 'analytics'], (data) => {
+    // Load initial usage from date-based key
+    const usageKey = 'usage_' + new Date().toISOString().split('T')[0];
+    chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
       const user = data.user;
       if (user && user.plan === 'pro') return; // Pro users — no footer
       const installDate = (data.analytics || {}).installDate || Date.now();
       if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return; // Trial — no footer
-      const today = new Date().toISOString().split('T')[0];
-      const usage = data.usageToday || { date: today, minutes: 0 };
-      if (usage.date === today && usage.minutes > 0) {
-        usageFooter.textContent = usage.minutes + '/30 min';
+      const minutes = (data[usageKey] || {}).minutes || 0;
+      if (minutes > 0) {
+        usageFooter.textContent = minutes + '/30 min';
         usageFooter.style.display = '';
       }
     });

@@ -95,6 +95,7 @@ let knowledgeState = {};
 let topicAffinities = {};
 let entityPackCache = {}; // { normalizedTerm: entityObject } — loaded from pack
 let dismissedTerms = new Set(); // terms dismissed by user this session
+let lastSessionCardsExpanded = 0; // updated by SESSION_METRICS from content.js
 
 function trackEvent(eventName, properties = {}) {
   chrome.storage.local.get(['installId', 'user'], (data) => {
@@ -517,6 +518,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'CONTEXT_FETCH') {
     incrementUsage('contextFetches');
     trackEvent('tell_me_more', { term: message.term || '' });
+    // Track tell-me-more in local analytics
+    chrome.storage.local.get('analytics', (data) => {
+      const analytics = data.analytics || {};
+      analytics.totalTellMeMore = (analytics.totalTellMeMore || 0) + 1;
+      chrome.storage.local.set({ analytics });
+    });
     const tmKey = (message.term || '').toLowerCase().trim();
     if (knowledgeState[tmKey]) {
       knowledgeState[tmKey].timesTellMeMore++;
@@ -736,9 +743,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'SESSION_METRICS') {
     console.log(`[BACKGROUND] Session metrics — rendered: ${message.cardsRendered}, expanded: ${message.cardsExpanded}, rate: ${message.expansionRate}`);
     trackEvent('session_metrics', { cardsRendered: message.cardsRendered, cardsExpanded: message.cardsExpanded, expansionRate: message.expansionRate });
+    lastSessionCardsExpanded = message.cardsExpanded || 0;
     updateTopicAffinities();
   } else if (message.type === 'TRACK_EVENT') {
     trackEvent(message.eventName, message.properties || {});
+    // Track exports in local analytics
+    if (message.eventName === 'export') {
+      chrome.storage.local.get('analytics', (data) => {
+        const analytics = data.analytics || {};
+        analytics.totalExports = (analytics.totalExports || 0) + 1;
+        // Mark latest session as exported
+        if (analytics.sessionHistory && analytics.sessionHistory.length > 0) {
+          analytics.sessionHistory[analytics.sessionHistory.length - 1].exported = true;
+        }
+        chrome.storage.local.set({ analytics });
+      });
+    }
     // Update knowledge state for card reactions and tell-me-more
     if (message.eventName === 'card_reaction' && message.properties) {
       const rKey = (message.properties.term || '').toLowerCase().trim();
@@ -1002,6 +1022,10 @@ async function stopCapture() {
     console.error('[BACKGROUND] Session count error:', e.message || e);
   }
 
+  // Snapshot values for analytics before they're cleared
+  const analyticsEntityCount = sessionTotal;
+  const analyticsInsightCount = sessionInsights.length;
+
   // Save to knowledge base on stop (not just on clear)
   chrome.storage.local.get(['sessionHistory', 'knowledgeBase'], (data) => {
     const history = data.sessionHistory || [];
@@ -1083,6 +1107,54 @@ async function stopCapture() {
   chrome.action.setBadgeText({ text: '' });
   console.log('[BACKGROUND] Capture stopped');
   isStoppingCapture = false;
+
+  // Update local analytics after a short delay so content.js SESSION_METRICS arrives first
+  setTimeout(() => {
+    chrome.storage.local.get('analytics', (data) => {
+      const analytics = data.analytics || {
+        installDate: Date.now(),
+        totalSessions: 0,
+        totalEntities: 0,
+        totalInsights: 0,
+        activated: false,
+        activationDate: null,
+        sessionsOver5Min: 0,
+        totalExports: 0,
+        totalTellMeMore: 0,
+        sessionHistory: []
+      };
+
+      analytics.totalSessions++;
+      analytics.totalEntities += analyticsEntityCount;
+      analytics.totalInsights += analyticsInsightCount;
+
+      if (durationSec >= 300) {
+        analytics.sessionsOver5Min++;
+      }
+
+      // Activation: 5+ minute session with 2+ cards expanded
+      if (!analytics.activated && durationSec >= 300 && lastSessionCardsExpanded >= 2) {
+        analytics.activated = true;
+        analytics.activationDate = Date.now();
+        console.log('[BACKGROUND] User ACTIVATED!');
+      }
+
+      // Session log (keep last 30)
+      analytics.sessionHistory.push({
+        date: Date.now(),
+        duration: durationSec,
+        entities: analyticsEntityCount,
+        cardsExpanded: lastSessionCardsExpanded,
+        exported: false
+      });
+      if (analytics.sessionHistory.length > 30) {
+        analytics.sessionHistory = analytics.sessionHistory.slice(-30);
+      }
+
+      chrome.storage.local.set({ analytics });
+      lastSessionCardsExpanded = 0;
+    });
+  }, 1000);
 }
 
 async function processNextTranscript() {

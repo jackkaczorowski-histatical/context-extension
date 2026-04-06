@@ -3617,7 +3617,7 @@ if (window.__contextExtensionLoaded) {
           suggestedDiv.querySelectorAll('.suggested-item').forEach(item => {
             item.addEventListener('click', () => {
               const url = item.dataset.url;
-              chrome.storage.local.set({ reopenSidebar: true }, () => {
+              chrome.storage.local.set({ reopenSidebar: true, autoStartCapture: true }, () => {
                 window.location.href = url;
               });
             });
@@ -4838,10 +4838,16 @@ if (window.__contextExtensionLoaded) {
       }
 
       // Reopen sidebar after suggested video navigation
-      chrome.storage.local.get('reopenSidebar', (rd) => {
+      chrome.storage.local.get(['reopenSidebar', 'autoStartCapture'], (rd) => {
         if (rd.reopenSidebar) {
           chrome.storage.local.remove('reopenSidebar');
           openSidebar();
+        }
+        if (rd.autoStartCapture) {
+          chrome.storage.local.remove('autoStartCapture');
+          setTimeout(() => {
+            chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+          }, 2000);
         }
       });
 

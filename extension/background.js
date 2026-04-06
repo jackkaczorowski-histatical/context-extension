@@ -12,6 +12,16 @@ const GENERIC_TERMS = new Set([
   'europe', 'asia', 'africa', 'america'
 ]);
 
+const INDEX_TO_ETF = {
+  's&p': { ticker: 'SPY', name: 'SPDR S&P 500 ETF' },
+  's&p 500': { ticker: 'SPY', name: 'SPDR S&P 500 ETF' },
+  'nasdaq': { ticker: 'QQQ', name: 'Invesco QQQ Trust' },
+  'dow': { ticker: 'DIA', name: 'SPDR Dow Jones ETF' },
+  'dow jones': { ticker: 'DIA', name: 'SPDR Dow Jones ETF' },
+  'russell 2000': { ticker: 'IWM', name: 'iShares Russell 2000 ETF' },
+  'russell': { ticker: 'IWM', name: 'iShares Russell 2000 ETF' }
+};
+
 async function fetchWikiThumbnail(term) {
   try {
     const encoded = encodeURIComponent(term.replace(/ /g, '_'));
@@ -1425,6 +1435,16 @@ async function processNextTranscript() {
         };
       });
 
+      // Convert index/ETF entities to stock type for price enrichment
+      enrichedPackMatches.forEach(entity => {
+        const etfMatch = INDEX_TO_ETF[(entity.term || '').toLowerCase()];
+        if (etfMatch) {
+          entity.type = 'stock';
+          entity.ticker = etfMatch.ticker;
+          entity.companyName = etfMatch.name;
+        }
+      });
+
       // Enrich stock entities from pack cache with live price data
       enrichedPackMatches = await Promise.all(enrichedPackMatches.map(async (entity) => {
         if (entity.type === 'stock') {
@@ -1716,7 +1736,17 @@ async function processNextTranscript() {
       return;
     }
 
-    // Step 2: Enrich entities — stocks get price data, others pass through as-is
+    // Step 2: Convert index/ETF entities to stock type for price enrichment
+    filteredEntities.forEach(entity => {
+      const etfMatch = INDEX_TO_ETF[(entity.term || '').toLowerCase()];
+      if (etfMatch) {
+        entity.type = 'stock';
+        entity.ticker = etfMatch.ticker;
+        entity.companyName = etfMatch.name;
+      }
+    });
+
+    // Enrich entities — stocks get price data, others pass through as-is
     const enrichedEntities = await Promise.all(
       filteredEntities.map(async (entity) => {
         if (entity.type === 'stock') {

@@ -848,45 +848,37 @@ if (window.__contextExtensionLoaded) {
     .context-card.salience-background .card-term { font-size: 11px; }
     .context-card.salience-background .card-type { font-size: 7px; }
     .insight-strip {
-      display: flex; align-items: center; gap: 6px;
-      padding: 6px 10px; background: rgba(234, 179, 8, 0.04);
-      border-left: 3px solid var(--type-insight); border-radius: 4px;
-      margin: 4px 8px; cursor: pointer; transition: background 150ms ease;
-      user-select: none; position: relative;
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 6px 12px; border-left: 2px solid rgba(234, 179, 8, 0.5);
+      border-radius: 0; margin: 2px 0; background: rgba(234, 179, 8, 0.03);
+      cursor: pointer; position: relative; overflow: visible;
+      transition: background 150ms ease;
     }
-    .insight-strip:hover { background: rgba(234, 179, 8, 0.08); }
-    .insight-strip .insight-icon { font-size: 12px; flex-shrink: 0; }
+    .insight-strip:hover { background: rgba(234, 179, 8, 0.06); }
     .insight-strip .insight-category {
       font-size: 8px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--type-insight); flex-shrink: 0;
+      letter-spacing: 0.05em; color: #eab308; flex-shrink: 0; margin-top: 2px;
     }
-    .insight-strip .insight-body { flex: 1; min-width: 0; width: 100%; }
+    .insight-strip .insight-body { flex: 1; min-width: 0; }
     .insight-strip .insight-text {
-      font-size: 11px; color: var(--text-secondary); line-height: 1.3;
+      font-size: 11px; color: #b0b0c8; line-height: 1.3;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .insight-strip .insight-time {
-      font-size: 10px; color: var(--text-tertiary); flex-shrink: 0; margin-left: auto;
-      cursor: pointer;
-    }
-    .insight-strip .insight-time:hover { text-decoration: underline; }
     .insight-strip.expanded .insight-text {
       white-space: normal; overflow: visible;
     }
     .insight-strip .insight-detail {
-      display: none; font-size: 11px; color: #a0a0c0; margin-top: 4px; line-height: 1.4;
+      display: none; font-size: 11px; color: #9090a8; margin-top: 4px; line-height: 1.3;
     }
     .insight-strip.expanded .insight-detail { display: block; }
-    .insight-strip .insight-copy-btn {
-      display: none; font-size: 10px; color: #6366f1; background: rgba(99,102,241,0.1);
-      border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer;
-      margin-top: 4px; font-family: inherit; transition: background 0.15s, color 0.15s;
+    .insight-strip .insight-time {
+      font-size: 10px; color: #3a3a5a; flex-shrink: 0; margin-top: 2px;
     }
-    .insight-strip.expanded .insight-copy-btn { display: inline-block; }
-    .insight-strip:not(.expanded) .reaction-row { display: none; }
     .insight-strip:not(.expanded) .card-actions-row { display: none; }
-    .insight-strip .insight-copy-btn:hover { background: rgba(99,102,241,0.2); }
-    .insight-strip .insight-copy-btn.copied { color: #00e676; background: rgba(0,230,118,0.1); }
+    .insight-strip:not(.expanded) .reaction-row { display: none; }
+    .insight-strip .card-actions-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%;
+    }
     .feedback-msg { font-size: 11px; color: var(--text-tertiary); padding: 4px 0; text-align: center; }
     /* ─── KB matches ─── */
     #kb-matches-wrapper {
@@ -1063,10 +1055,9 @@ if (window.__contextExtensionLoaded) {
     .light-theme .card-dismiss-inline { border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.3); }
     .light-theme .card-dismiss-inline:hover { border-color: rgba(5,150,105,0.5); color: #059669; background: rgba(5,150,105,0.1); }
     .light-theme .context-card.card-dismissed .card-dismiss-inline { border-color: rgba(5,150,105,0.6); color: #fff; background: #059669; }
-    .light-theme .insight-strip { background: rgba(245,158,11,0.05); }
-    .light-theme .insight-strip:hover { background: rgba(245,158,11,0.1); }
-    .light-theme .insight-strip .insight-text { color: #64748b; }
-    .light-theme .insight-strip .insight-detail { color: #5a5a7a; }
+    .light-theme .insight-strip { background: rgba(234, 179, 8, 0.05); border-left-color: rgba(234, 179, 8, 0.6); }
+    .light-theme .insight-strip .insight-text { color: #4a4a60; }
+    .light-theme .insight-strip .insight-detail { color: #6a6a80; }
     .light-theme .feedback-msg { color: #9a9ab0; }
     .light-theme #ctx-listen-btn { background: #059669; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     .light-theme #ctx-listen-btn:hover { background: #047857; }

@@ -1142,6 +1142,9 @@ if (window.__contextExtensionLoaded) {
     .ctx-session-summary-stats {
       font-size: 11px; color: #9a9ab0; line-height: 1.6;
     }
+    .ctx-session-summary-export-prompt {
+      font-size: 12px; color: var(--accent); margin-top: 10px; line-height: 1.5;
+    }
     .ctx-session-summary-actions { display: flex; gap: 8px; margin-top: 12px; }
     .ctx-session-summary-export {
       background: rgba(90,90,255,0.15); color: #a0a0ff; border: none;
@@ -5584,7 +5587,7 @@ if (window.__contextExtensionLoaded) {
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
       isActiveTab((active) => {
         if (!active) return;
-        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions', 'sessionQA', 'sessionStats', 'sessionCount'], (data) => {
+        chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions', 'sessionQA', 'sessionStats', 'sessionCount', 'analytics'], (data) => {
           const history = data.sessionHistory || [];
           const kb = data.knowledgeBase || {};
           const title = data.capturingTabTitle || document.title || 'Untitled Video';
@@ -5592,6 +5595,7 @@ if (window.__contextExtensionLoaded) {
           const summaryQA = data.sessionQA || [];
           const stats = data.sessionStats || {};
           const sessionCount = data.sessionCount || 1;
+          const analyticsData = data.analytics || {};
 
           const totalEntities = stats.totalEntities || history.filter(h => h.term && h.type !== 'insight').length;
           const totalInsights = stats.totalInsights || history.filter(h => h.type === 'insight').length;
@@ -5622,13 +5626,17 @@ if (window.__contextExtensionLoaded) {
 
           const summaryEl = document.createElement('div');
           summaryEl.className = 'ctx-session-summary';
+          const isFirstSession = (analyticsData.totalSessions || 0) <= 1;
+          const showExportPrompt = isFirstSession && totalEntities >= 5;
+
           summaryEl.innerHTML = `
             <div class="ctx-session-summary-header">Session Complete \u2713</div>
             <div class="ctx-session-summary-headline"><strong>${totalEntities} terms</strong> \u00B7 <strong>${totalInsights} insights</strong> \u00B7 Dominant topic: <strong>${escapeHtml(dominantLabel)}</strong></div>
             ${topicLine ? `<div class="ctx-session-summary-topics">${escapeHtml(topicLine)}</div>` : ''}
             <div class="ctx-session-summary-kb">Your knowledge base: ${kbSize} total terms across ${sessionCount} session${sessionCount !== 1 ? 's' : ''}</div>
+            ${showExportPrompt ? `<div class="ctx-session-summary-export-prompt">You just learned ${totalEntities} new terms. Save them as a study guide?</div>` : ''}
             <div class="ctx-session-summary-actions">
-              <button class="ctx-session-summary-export">Export Study Guide</button>
+              <button class="ctx-session-summary-export">${showExportPrompt ? '\u2B07 Export Study Guide' : 'Export Study Guide'}</button>
               <button class="ctx-session-summary-viewkb">View Knowledge Base</button>
             </div>
             <button class="ctx-session-summary-dismiss">Dismiss</button>

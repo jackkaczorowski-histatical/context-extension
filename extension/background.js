@@ -438,9 +438,11 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   }
 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'usageCapCheck') {
-    if (!capturingTabId) return;
+    const capData = await chrome.storage.local.get('capturingTabId');
+    const activeTabId = capturingTabId || capData.capturingTabId;
+    if (!activeTabId) return;
     const usageKey = getUsageKey();
     chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
       const user = data.user;
@@ -452,15 +454,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       const minutes = usage.minutes || 0;
       console.log('[BACKGROUND] Usage cap check: ' + minutes + ' minutes today');
 
-      if (capturingTabId) {
-        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_UPDATE', minutes: minutes, limit: 30 }).catch(() => {});
+      if (activeTabId) {
+        chrome.tabs.sendMessage(activeTabId, { type: 'USAGE_UPDATE', minutes: minutes, limit: 30 }).catch(() => {});
       }
-      if (minutes >= 25 && capturingTabId) {
-        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_WARNING', minutesLeft: 30 - minutes }).catch(() => {});
+      if (minutes >= 25 && activeTabId) {
+        chrome.tabs.sendMessage(activeTabId, { type: 'USAGE_WARNING', minutesLeft: 30 - minutes }).catch(() => {});
       }
       if (minutes >= 30) {
         console.log('[BACKGROUND] Daily usage limit reached:', minutes, 'minutes');
-        const tabToNotify = capturingTabId;
+        const tabToNotify = activeTabId;
         if (tabToNotify) {
           chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes: minutes }).catch(() => {});
         }
@@ -1017,6 +1019,7 @@ async function startCapture() {
     }
 
     capturingTabId = tab.id;
+    chrome.storage.local.set({ capturingTabId: capturingTabId });
     capturingTabTitle = tab.title || '';
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
     trackEvent('capture_start', { url: tab.url || '', title: capturingTabTitle });
@@ -1124,6 +1127,7 @@ async function stopCapture() {
   chrome.storage.local.remove('captureStartTime');
 
   capturingTabId = null;
+  chrome.storage.local.remove('capturingTabId');
 
   try {
     chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
@@ -1243,6 +1247,7 @@ async function stopCapture() {
   await new Promise(resolve => setTimeout(resolve, 500));
 
   capturingTabId = null;
+  chrome.storage.local.remove('capturingTabId');
   capturingTabTitle = null;
   pendingStreamId = null;
   sessionId = null;

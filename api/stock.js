@@ -41,6 +41,22 @@ async function fetchChart1D(ticker) {
   return meta;
 }
 
+async function resolveTickerFromName(name) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(name)}&quotesCount=1&newsCount=0`;
+    const response = await fetch(url, { headers: UA });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const quote = data?.quotes?.[0];
+    if (quote && quote.symbol && quote.quoteType === 'EQUITY') {
+      return quote.symbol;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const { rateLimit } = require('./_rateLimit');
 
 module.exports = async function handler(req, res) {
@@ -70,7 +86,26 @@ module.exports = async function handler(req, res) {
     console.error('[STOCK API] parallel fetch failed for', symbol, ':', err.message);
   }
 
-  const meta = meta1D || meta1Y;
+  let meta = meta1D || meta1Y;
+  let resolvedSymbol = symbol;
+
+  // If direct lookup failed, try resolving as a company name
+  if (!meta) {
+    const resolved = await resolveTickerFromName(ticker);
+    if (resolved) {
+      console.log('[STOCK API] Resolved name', ticker, '→', resolved);
+      resolvedSymbol = resolved;
+      try {
+        [meta1Y, meta1D] = await Promise.all([
+          fetchChart1Y(resolved).catch(() => null),
+          fetchChart1D(resolved).catch(() => null),
+        ]);
+        meta = meta1D || meta1Y;
+      } catch (err) {
+        console.error('[STOCK API] retry fetch failed for', resolved, ':', err.message);
+      }
+    }
+  }
   if (!meta) {
     return res.status(404).json({ error: "not found" });
   }
@@ -92,8 +127,8 @@ module.exports = async function handler(req, res) {
   const volumeRaw = meta.regularMarketVolume ?? null;
 
   let result = {
-    ticker: meta.symbol || symbol,
-    name: meta.shortName || meta.symbol || symbol,
+    ticker: meta.symbol || resolvedSymbol,
+    name: meta.shortName || meta.symbol || resolvedSymbol,
     price: price ?? null,
     change,
     changePercent,

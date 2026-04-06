@@ -1427,7 +1427,9 @@ async function processNextTranscript() {
 
       // Enrich stock entities from pack cache with live price data
       enrichedPackMatches = await Promise.all(enrichedPackMatches.map(async (entity) => {
-        if (entity.type === 'stock' && entity.ticker) {
+        if (entity.type === 'stock') {
+          const lookupTicker = entity.ticker || entity.term || entity.name;
+          if (!lookupTicker) return entity;
           try {
             const stockController = new AbortController();
             const stockTimeout = setTimeout(() => stockController.abort(), 10000);
@@ -1436,7 +1438,7 @@ async function processNextTranscript() {
               stockRes = await fetch(`${API_BASE}/stock`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticker: entity.ticker }),
+                body: JSON.stringify({ ticker: lookupTicker }),
                 signal: stockController.signal
               });
             } finally {
@@ -1444,13 +1446,13 @@ async function processNextTranscript() {
             }
             if (stockRes.ok) {
               const stockData = await stockRes.json();
-              console.log('[BACKGROUND] Pack stock enrichment for', entity.ticker, ':', JSON.stringify(stockData));
+              console.log('[BACKGROUND] Pack stock enrichment for', lookupTicker, ':', JSON.stringify(stockData));
               if (stockData.price != null) {
                 return { ...entity, ...stockData, companyName: stockData.name || entity.name || '' };
               }
             }
           } catch (e) {
-            console.error('[BACKGROUND] Pack stock fetch error for', entity.ticker, ':', e.message || e);
+            console.error('[BACKGROUND] Pack stock fetch error for', lookupTicker, ':', e.message || e);
           }
         }
         return entity;
@@ -1717,7 +1719,9 @@ async function processNextTranscript() {
     // Step 2: Enrich entities — stocks get price data, others pass through as-is
     const enrichedEntities = await Promise.all(
       filteredEntities.map(async (entity) => {
-        if (entity.type === 'stock' && entity.ticker) {
+        if (entity.type === 'stock') {
+          const lookupTicker = entity.ticker || entity.term || entity.name;
+          if (!lookupTicker) return entity;
           try {
             const stockController = new AbortController();
             const stockTimeout = setTimeout(() => stockController.abort(), 10000);
@@ -1726,7 +1730,7 @@ async function processNextTranscript() {
               stockRes = await fetch(`${API_BASE}/stock`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticker: entity.ticker }),
+                body: JSON.stringify({ ticker: lookupTicker }),
                 signal: stockController.signal
               });
             } finally {

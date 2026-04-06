@@ -545,6 +545,48 @@ if (window.__contextExtensionLoaded) {
     }
     .start-btn-large:hover { background: #0d9488; }
     .light-theme .start-btn-large { color: #fff; }
+    /* ─── Suggested videos ─── */
+    .suggested-section {
+      padding: 16px;
+    }
+    .suggested-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      margin-bottom: 8px;
+    }
+    .suggested-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .suggested-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-surface);
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 150ms ease;
+      cursor: pointer;
+    }
+    .suggested-item:hover {
+      background: var(--bg-surface-hover);
+    }
+    .suggested-category {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .suggested-title {
+      font-size: 12px;
+      color: var(--text-primary);
+    }
     .ctx-usage-countdown {
       font-size: 12px; color: var(--text-secondary); margin-top: 8px;
     }
@@ -3481,6 +3523,7 @@ if (window.__contextExtensionLoaded) {
         <div id="empty-kb-matches"></div>
       </div>
       <div class="empty-state-returning" style="display:none;"></div>
+      <div class="suggested-section" style="display:none;"></div>
     `;
 
     // KB matches toggle header
@@ -3526,6 +3569,31 @@ if (window.__contextExtensionLoaded) {
     chrome.storage.local.get(['capturing', 'pastSessions'], (data) => {
       if (data.capturing) return;
       const sessions = data.pastSessions || [];
+
+      // First-time user on YouTube: show suggested videos
+      if (sessions.length === 0 && isYouTubeSite) {
+        const suggestedDiv = emptyState.querySelector('.suggested-section');
+        if (suggestedDiv) {
+          const suggestedVideos = [
+            { title: 'History of France (8 min)', url: 'https://www.youtube.com/watch?v=I_vNNKzwVq4', category: 'History' },
+            { title: 'How The Economic Machine Works (30 min)', url: 'https://www.youtube.com/watch?v=PHe0bXAIuk0', category: 'Finance' },
+            { title: 'The Most Misunderstood Concept in Physics (27 min)', url: 'https://www.youtube.com/watch?v=DxL2HoqLbyA', category: 'Science' }
+          ];
+          suggestedDiv.innerHTML =
+            '<div class="suggested-label">Try it on one of these:</div>' +
+            '<div class="suggested-list">' +
+            suggestedVideos.map(v =>
+              '<a class="suggested-item" href="' + escapeHtml(v.url) + '" target="_top">' +
+              '<span class="suggested-category">' + escapeHtml(v.category) + '</span>' +
+              '<span class="suggested-title">' + escapeHtml(v.title) + '</span>' +
+              '</a>'
+            ).join('') +
+            '</div>';
+          suggestedDiv.style.display = '';
+        }
+        return;
+      }
+
       if (sessions.length === 0) return;
       const last = sessions[0];
       const returningDiv = emptyState.querySelector('.empty-state-returning');
@@ -3544,6 +3612,9 @@ if (window.__contextExtensionLoaded) {
       if (emptyTextEl) emptyTextEl.style.display = 'none';
       const kbWrapper = emptyState.querySelector('#kb-matches-wrapper');
       if (kbWrapper) kbWrapper.style.display = 'none';
+      // Also hide suggested section for returning users
+      const suggestedDiv = emptyState.querySelector('.suggested-section');
+      if (suggestedDiv) suggestedDiv.style.display = 'none';
       returningDiv.querySelector('.start-btn-large').addEventListener('click', () => {
         chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
         returningDiv.style.display = 'none';

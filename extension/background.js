@@ -372,6 +372,23 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     reinjectContentScript(tabId);
   }
 
+  // Reopen sidebar / auto-start capture after suggested video navigation
+  if (changeInfo.status === 'complete') {
+    chrome.storage.local.get(['reopenSidebar', 'autoStartCapture'], (data) => {
+      if (data.reopenSidebar) {
+        chrome.storage.local.remove('reopenSidebar');
+        chrome.tabs.sendMessage(tabId, { type: 'OPEN_SIDEBAR' }).catch(() => {});
+      }
+      if (data.autoStartCapture) {
+        chrome.storage.local.remove('autoStartCapture');
+        setTimeout(() => {
+          chrome.tabs.sendMessage(tabId, { type: 'OPEN_SIDEBAR' }).catch(() => {});
+          setTimeout(() => startCapture(), 1500);
+        }, 500);
+      }
+    });
+  }
+
   // Show ready badge on supported pages when not capturing
   if (changeInfo.status === 'complete' && tab.url && !capturingTabId) {
     if (isSupportedUrl(tab.url)) {

@@ -4837,19 +4837,6 @@ if (window.__contextExtensionLoaded) {
         console.log('[CONTENT] Auto-reopened sidebar after refresh (capturing tab)');
       }
 
-      // Reopen sidebar after suggested video navigation
-      chrome.storage.local.get(['reopenSidebar', 'autoStartCapture'], (rd) => {
-        if (rd.reopenSidebar) {
-          chrome.storage.local.remove('reopenSidebar');
-          openSidebar();
-        }
-        if (rd.autoStartCapture) {
-          chrome.storage.local.remove('autoStartCapture');
-          setTimeout(() => {
-            chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
-          }, 2000);
-        }
-      });
 
       // Sync floating widget with initial state
       updateFloatingWidget(!!data.capturing);
@@ -6009,7 +5996,10 @@ if (window.__contextExtensionLoaded) {
       sendResponse({ ok: true });
       return true;
     }
-    if (msg.type === 'TOGGLE_SIDEBAR') {
+    if (msg.type === 'OPEN_SIDEBAR') {
+      ensureSidebar();
+      openSidebar();
+    } else if (msg.type === 'TOGGLE_SIDEBAR') {
       toggleSidebar();
     } else if (msg.type === 'CAPTURE_STATE') {
       const btn = shadowRoot?.getElementById('ctx-listen-btn');

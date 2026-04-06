@@ -302,7 +302,7 @@ async function incrementUsage(field, amount = 1) {
     chrome.storage.local.get([key, 'user', 'analytics'], (capData) => {
       const user = capData.user;
       if (user && user.plan === 'pro') return;
-      const installDate = (capData.analytics || {}).installDate || Date.now();
+      const installDate = (capData.analytics || {}).installDate || 0;
       if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
 
       const minutes = (capData[key] || {}).minutes || 0;
@@ -447,7 +447,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
       const user = data.user;
       if (user && user.plan === 'pro') return;
-      const installDate = (data.analytics || {}).installDate || Date.now();
+      const installDate = (data.analytics || {}).installDate || 0;
       if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
 
       const usage = data[usageKey] || { minutes: 0 };
@@ -729,7 +729,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Check daily cap before starting — exempt pro users and trial users
         const user = data.user;
         const isPro = user && user.plan === 'pro';
-        const installDate = (data.analytics || {}).installDate || Date.now();
+        const installDate = (data.analytics || {}).installDate || 0;
         const inTrial = (Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3;
         if (!isPro && !inTrial) {
           const minutes = (data[toggleUsageKey] || {}).minutes || 0;
@@ -1227,7 +1227,7 @@ async function stopCapture() {
         const history = data.sessionHistory || [];
         const entities = history
           .filter(h => h.term && h.type !== 'insight' && h.type !== 'video-divider')
-          .map(h => ({ term: h.term, type: h.type || 'other', description: h.description || '', salience: 'highlight', thumbnail: h.thumbnail || null }))
+          .map(h => ({ term: h.term, type: h.type || 'other', description: h.description || '', ticker: h.ticker || null, salience: 'highlight', thumbnail: h.thumbnail || null }))
           .slice(0, 50);
         const insights = history
           .filter(h => h.type === 'insight')
@@ -1412,9 +1412,9 @@ async function processNextTranscript() {
 
     if (packMatches.length > 0) {
       console.log('[BACKGROUND] Pack cache hits:', packMatches.map(e => e.term).join(', '));
-      // Save pack matches to storage immediately — cards appear instantly
+      // Save pack matches to storage — enrich stock entities with live price data first
       // Add familiarity data
-      const enrichedPackMatches = packMatches.map(e => {
+      let enrichedPackMatches = packMatches.map(e => {
         const ks = knowledgeState[(e.term || '').toLowerCase().trim()];
         return {
           ...e,
@@ -1423,6 +1423,37 @@ async function processNextTranscript() {
           timestamp: Date.now()
         };
       });
+
+      // Enrich stock entities from pack cache with live price data
+      enrichedPackMatches = await Promise.all(enrichedPackMatches.map(async (entity) => {
+        if (entity.type === 'stock' && entity.ticker) {
+          try {
+            const stockController = new AbortController();
+            const stockTimeout = setTimeout(() => stockController.abort(), 10000);
+            let stockRes;
+            try {
+              stockRes = await fetch(`${API_BASE}/stock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: entity.ticker }),
+                signal: stockController.signal
+              });
+            } finally {
+              clearTimeout(stockTimeout);
+            }
+            if (stockRes.ok) {
+              const stockData = await stockRes.json();
+              console.log('[BACKGROUND] Pack stock enrichment for', entity.ticker, ':', JSON.stringify(stockData));
+              if (stockData.price != null) {
+                return { ...entity, ...stockData, companyName: stockData.name || entity.name || '' };
+              }
+            }
+          } catch (e) {
+            console.error('[BACKGROUND] Pack stock fetch error for', entity.ticker, ':', e.message || e);
+          }
+        }
+        return entity;
+      }));
 
       updateKnowledgeState(enrichedPackMatches);
 
@@ -1433,6 +1464,7 @@ async function processNextTranscript() {
             term: entity.term,
             type: entity.type,
             description: entity.description,
+            ticker: entity.ticker || null,
             salience: entity.salience || 'highlight',
             followUps: entity.followUps || [],
             familiarity: entity.familiarity,
@@ -1775,7 +1807,7 @@ async function processNextTranscript() {
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
       if (term) {
-        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', elapsedSeconds });
+        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', ticker: e.ticker || null, elapsedSeconds });
       }
     });
     dedupedInsights.forEach(i => {

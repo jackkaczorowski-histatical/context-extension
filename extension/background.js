@@ -450,15 +450,19 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
       const usage = data[usageKey] || { minutes: 0 };
       const minutes = usage.minutes || 0;
-      incrementUsage('minutes', 1);
+      console.log('[BACKGROUND] Usage cap check: ' + minutes + ' minutes today');
 
-      if (minutes === 25 && capturingTabId) {
-        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_WARNING', minutesLeft: 5 }).catch(() => {});
+      if (capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_UPDATE', minutes: minutes, limit: 30 }).catch(() => {});
+      }
+      if (minutes >= 25 && capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'USAGE_WARNING', minutesLeft: 30 - minutes }).catch(() => {});
       }
       if (minutes >= 30) {
+        console.log('[BACKGROUND] Daily usage limit reached:', minutes, 'minutes');
         const tabToNotify = capturingTabId;
         if (tabToNotify) {
-          chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes }).catch(() => {});
+          chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes: minutes }).catch(() => {});
         }
         stopCapture();
       }
@@ -1729,7 +1733,7 @@ async function processNextTranscript() {
                 if (cached && (Date.now() - cached.cachedAt) < 24 * 60 * 60 * 1000) {
                   console.log('[BACKGROUND] Using cached stock data for', entity.ticker);
                   const { cachedAt, ...cachedStockData } = cached;
-                  return { ...entity, ...cachedStockData };
+                  return { ...entity, ...cachedStockData, companyName: cachedStockData.name || entity.name || '' };
                 }
                 console.warn('[BACKGROUND] Stock API returned no price for', entity.ticker, 'after retry, no valid cache — rendering as organization card');
                 const fallback = { ...entity, description: entity.description || stockData.description || '' };
@@ -1743,7 +1747,9 @@ async function processNextTranscript() {
               const stockCache = cacheGet.stockCache || {};
               stockCache[entity.ticker] = { ...stockData, cachedAt: Date.now() };
               chrome.storage.local.set({ stockCache: stockCache });
-              return { ...entity, ...stockData };
+              const enriched = { ...entity, ...stockData, companyName: stockData.name || entity.name || '' };
+              console.log('[BACKGROUND] Enriched stock entity:', entity.ticker, 'price:', enriched.price, 'change:', enriched.change, 'changePercent:', enriched.changePercent);
+              return enriched;
             } else {
               console.error('[BACKGROUND] Stock API HTTP error for', entity.ticker, ':', stockRes.status);
             }

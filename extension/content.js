@@ -2553,6 +2553,7 @@ if (window.__contextExtensionLoaded) {
 
   function createStockCard(entity) {
     console.log('[CONTENT] Stock card data:', JSON.stringify(entity));
+    console.log('[CONTENT] Stock price fields — price:', entity.price, 'change:', entity.change, 'changePercent:', entity.changePercent);
 
     // If entity has no ticker AND no price, don't render an empty stock card
     if (!entity.ticker && entity.price == null) {
@@ -2561,7 +2562,7 @@ if (window.__contextExtensionLoaded) {
     }
 
     const card = document.createElement('div');
-    card.className = 'context-card stock-card expanded';
+    card.className = 'context-card stock-card';
     card.dataset.term = entity.ticker || entity.name || '';
     card.dataset.entityType = 'stock';
     card.setAttribute('tabindex', '0');
@@ -5365,7 +5366,7 @@ if (window.__contextExtensionLoaded) {
     // Insert time divider if enough time has passed
     maybeInsertTimeDivider(cards);
 
-    let autoExpandCount = 0;
+
     scored.forEach(entity => {
       const vcType = entity.type === 'stock' ? 'stock' : 'entity';
       const vc = { data: entity, height: HEIGHT_COLLAPSED, measuredHeight: 0, type: vcType, el: null, dismissed: false, highlighted: false };
@@ -5381,16 +5382,6 @@ if (window.__contextExtensionLoaded) {
         // High-relevance visual indicator
         if (entity._score > 0.75) {
           card.classList.add('high-relevance');
-        }
-
-        // Auto-expand highest-score cards (max 2 per batch)
-        if (entity._score > 0.85 && autoExpandCount < 2) {
-          card.classList.add('expanded');
-          card.dataset.expandedAt = Date.now().toString();
-          card.dataset.wasExpanded = 'true';
-          cardsExpandedThisSession++;
-          autoExpandCount++;
-          vc.height = HEIGHT_EXPANDED;
         }
 
         cards.appendChild(card);

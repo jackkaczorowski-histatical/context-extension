@@ -68,6 +68,9 @@ if (window.__contextExtensionLoaded) {
   let statusHideTimer = null;
   let missedNewCards = 0;
   let lastDividerTime = 0;
+  let loadingTimeout5 = null;
+  let loadingTimeout15 = null;
+  let loadingTimeout30 = null;
 
   // Virtual scrolling state
   const VIRTUAL_THRESHOLD = 50;
@@ -4839,6 +4842,9 @@ if (window.__contextExtensionLoaded) {
   function showCardsHideEmpty() {
     if (hasCards || !shadowRoot) return;
     hasCards = true;
+    // Clear progressive loading timeouts — first card has arrived
+    clearTimeout(loadingTimeout5); clearTimeout(loadingTimeout15); clearTimeout(loadingTimeout30);
+    loadingTimeout5 = loadingTimeout15 = loadingTimeout30 = null;
     const empty = shadowRoot.getElementById('empty-state');
     const cards = shadowRoot.getElementById('cards');
     // Fade out transcript ticker
@@ -4895,7 +4901,7 @@ if (window.__contextExtensionLoaded) {
         empty.style.display = '';
         empty.style.opacity = '1';
         const emptyText = empty.querySelector('.ctx-empty-text');
-        if (emptyText) emptyText.style.display = '';
+        if (emptyText) { emptyText.style.display = ''; emptyText.textContent = 'Listening for context...'; }
         const ticker = empty.querySelector('.transcript-ticker');
         if (ticker) ticker.classList.add('hidden');
         const waveform = empty.querySelector('.ctx-waveform');
@@ -5531,6 +5537,26 @@ if (window.__contextExtensionLoaded) {
             }
           }
         }
+        // Progressive loading messages while waiting for first card
+        clearTimeout(loadingTimeout5); clearTimeout(loadingTimeout15); clearTimeout(loadingTimeout30);
+        loadingTimeout5 = setTimeout(() => {
+          if (!hasCards) {
+            const et = shadowRoot?.querySelector('.ctx-empty-text');
+            if (et && et.style.display !== 'none') et.textContent = 'Processing audio...';
+          }
+        }, 5000);
+        loadingTimeout15 = setTimeout(() => {
+          if (!hasCards) {
+            const et = shadowRoot?.querySelector('.ctx-empty-text');
+            if (et && et.style.display !== 'none') et.textContent = 'Analyzing... cards will appear as terms are detected.';
+          }
+        }, 15000);
+        loadingTimeout30 = setTimeout(() => {
+          if (!hasCards) {
+            const et = shadowRoot?.querySelector('.ctx-empty-text');
+            if (et && et.style.display !== 'none') et.textContent = 'Still listening. If you don\'t hear audio, try refreshing the page.';
+          }
+        }, 30000);
       } else if (changes.capturing.newValue === false) {
         setBadgeCapturing(false, false);
         if (btn) { btn.textContent = '\u25B6'; btn.title = 'Start Listening'; btn.classList.remove('listening'); }
@@ -5539,6 +5565,9 @@ if (window.__contextExtensionLoaded) {
         // Hide Now Watching bar
         const nwBar = shadowRoot?.getElementById('ctx-now-watching');
         if (nwBar) nwBar.classList.remove('visible');
+        // Clear progressive loading timeouts
+        clearTimeout(loadingTimeout5); clearTimeout(loadingTimeout15); clearTimeout(loadingTimeout30);
+        loadingTimeout5 = loadingTimeout15 = loadingTimeout30 = null;
       }
     }
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {

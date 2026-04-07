@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
 
   const { installId, userId, videoTitle, videoUrl, transcript, durationSeconds, entities, entityCount } = req.body || {};
 
-  console.log('[SESSION-DATA]', { installId, userId, videoTitle, entityCount, durationSeconds });
+  console.log('[SESSION-DATA]', { entityCount, durationSeconds });
 
   try {
     // Insert session transcript
@@ -85,3 +85,5 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+module.exports.config = { api: { bodyParser: { sizeLimit: '50kb' } } };

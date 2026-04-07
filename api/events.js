@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'No events provided' });
   }
 
-  console.log('[EVENTS]', JSON.stringify({ count: events.length, installId: events[0]?.installId, events: events.map(e => e.event) }));
+  console.log('[EVENTS]', JSON.stringify({ count: events.length, events: events.map(e => e.event) }));
 
   try {
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/events`, {
@@ -60,3 +60,5 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+module.exports.config = { api: { bodyParser: { sizeLimit: '50kb' } } };

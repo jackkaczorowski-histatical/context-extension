@@ -148,3 +148,5 @@ module.exports = async function handler(req, res) {
   console.log('[STOCK API] Final result for', symbol, ':', JSON.stringify(result));
   return res.status(200).json(result);
 };
+
+module.exports.config = { api: { bodyParser: { sizeLimit: '50kb' } } };

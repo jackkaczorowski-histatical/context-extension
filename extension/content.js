@@ -2439,7 +2439,7 @@ if (window.__contextExtensionLoaded) {
     strip.dataset.entityType = 'insight';
     strip.setAttribute('tabindex', '0');
     strip.setAttribute('role', 'article');
-    strip.setAttribute('aria-label', 'insight: ' + (insight.insight || ''));
+    strip.setAttribute('aria-label', 'insight: ' + escapeHtml(insight.insight || ''));
     const vt = formatVideoTime();
     const category = escapeHtml(insight.category || 'insight');
     const insightText = insight.insight || '';
@@ -2564,7 +2564,7 @@ if (window.__contextExtensionLoaded) {
     card.dataset.entityType = 'stock';
     card.setAttribute('tabindex', '0');
     card.setAttribute('role', 'article');
-    card.setAttribute('aria-label', 'stock: ' + (entity.ticker || entity.name || ''));
+    card.setAttribute('aria-label', 'stock: ' + escapeHtml(entity.ticker || entity.name || ''));
     const color = getTypeColor('stock');
 
     const ticker = escapeHtml(entity.ticker || '');
@@ -2768,7 +2768,7 @@ if (window.__contextExtensionLoaded) {
     card.dataset.entityType = entity.type || 'other';
     card.setAttribute('tabindex', '0');
     card.setAttribute('role', 'article');
-    card.setAttribute('aria-label', (entity.type || 'other') + ': ' + (entity.term || entity.name || ''));
+    card.setAttribute('aria-label', escapeHtml((entity.type || 'other') + ': ' + (entity.term || entity.name || '')));
     const type = entity.type || 'other';
     const color = getTypeColor(type);
     const isRectx = !!entity.recontextualized;
@@ -6097,20 +6097,18 @@ if (window.__contextExtensionLoaded) {
       // Highlight in the last few transcript chunks (most recent text)
       const chunks = scroll.querySelectorAll('.ctx-transcript-chunk');
       const recent = Array.from(chunks).slice(-5);
-      terms.forEach(({ term, type }) => {
-        if (!term) return;
-        const color = getTypeColor(type);
-        recent.forEach(chunk => {
-          const textSpan = chunk.querySelector('.ctx-transcript-text');
-          if (!textSpan) return;
-          const html = textSpan.innerHTML;
+      recent.forEach(chunk => {
+        const textSpan = chunk.querySelector('.ctx-transcript-text');
+        if (!textSpan) return;
+        let html = escapeHtml(textSpan.textContent);
+        terms.forEach(({ term, type }) => {
+          if (!term) return;
+          const color = getTypeColor(type);
           const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp('\\b(' + escaped + ')\\b', 'gi');
-          const newHtml = html.replace(regex, '<span class="ctx-transcript-highlight" style="color:' + color + ';background:' + color + '15;">$1</span>');
-          if (newHtml !== html) {
-            textSpan.innerHTML = newHtml;
-          }
+          html = html.replace(regex, '<span class="ctx-transcript-highlight" style="color:' + color + ';background:' + color + '15;">$1</span>');
         });
+        textSpan.innerHTML = html;
       });
     } else if (msg.type === 'USAGE_UPDATE') {
       if (!shadowRoot) return;

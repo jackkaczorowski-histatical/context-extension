@@ -2,5 +2,16 @@
   "version": 2,
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" }
-  ]
+  ],
+  "functions": {
+    "api/analyze.js": { "maxDuration": 15 },
+    "api/ask.js": { "maxDuration": 15 },
+    "api/context.js": { "maxDuration": 10 },
+    "api/stock.js": { "maxDuration": 10 },
+    "api/entity-pack.js": { "maxDuration": 10 },
+    "api/deepgram-token.js": { "maxDuration": 5 },
+    "api/events.js": { "maxDuration": 5 },
+    "api/session-data.js": { "maxDuration": 5 },
+    "api/auth-sync.js": { "maxDuration": 5 }
+  }
 }

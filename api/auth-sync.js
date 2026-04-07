@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
 
   const { googleId, email, name, installId, picture } = req.body || {};
 
-  console.log('[AUTH SYNC]', { googleId, email, name, installId });
+  console.log('[AUTH SYNC] request received, googleId:', googleId ? 'present' : 'missing');
 
   if (!googleId) {
     return res.status(400).json({ error: 'Missing googleId' });
@@ -63,3 +63,5 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+module.exports.config = { api: { bodyParser: { sizeLimit: '50kb' } } };

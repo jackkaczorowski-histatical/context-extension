@@ -37,3 +37,5 @@ module.exports = async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
   return res.status(200).json({ count, total });
 };
+
+module.exports.config = { api: { bodyParser: { sizeLimit: '50kb' } } };

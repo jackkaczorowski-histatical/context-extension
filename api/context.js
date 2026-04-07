@@ -1,3 +1,5 @@
+const { log } = require('./_log');
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",

@@ -1,5 +1,6 @@
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
+const { log } = require('./_log');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -24,7 +25,7 @@ module.exports = async function handler(req, res) {
 
   const { installId, userId, videoTitle, videoUrl, transcript, durationSeconds, entities, entityCount } = req.body || {};
 
-  console.log('[SESSION-DATA]', { entityCount, durationSeconds });
+  log('info', 'session_data_received', { endpoint: 'session-data', entityCount, durationSeconds });
 
   try {
     // Insert session transcript
@@ -48,7 +49,7 @@ module.exports = async function handler(req, res) {
 
     if (!transcriptRes.ok) {
       const errText = await transcriptRes.text();
-      console.error('[SESSION-DATA] Transcript insert failed:', transcriptRes.status, errText);
+      log('error', 'session_data_transcript_failed', { endpoint: 'session-data', status: transcriptRes.status });
     }
 
     // Batch insert entities
@@ -75,13 +76,13 @@ module.exports = async function handler(req, res) {
 
       if (!entitiesRes.ok) {
         const errText = await entitiesRes.text();
-        console.error('[SESSION-DATA] Entities insert failed:', entitiesRes.status, errText);
+        log('error', 'session_data_entities_failed', { endpoint: 'session-data', status: entitiesRes.status });
       }
     }
 
     return res.status(200).json({ saved: true });
   } catch (err) {
-    console.error('[SESSION-DATA] Error:', err.message);
+    log('error', 'session_data_error', { endpoint: 'session-data', error: err.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

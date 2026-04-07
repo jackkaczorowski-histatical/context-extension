@@ -8,6 +8,7 @@ const cors = {
 };
 
 const validateRequest = require('./_validateRequest');
+const { log } = require('./_log');
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
@@ -18,7 +19,7 @@ module.exports = async function handler(req, res) {
 
   const { googleId, email, name, installId, picture } = req.body || {};
 
-  console.log('[AUTH SYNC] request received, googleId:', googleId ? 'present' : 'missing');
+  log('info', 'auth_sync_request', { endpoint: 'auth-sync', hasGoogleId: !!googleId });
 
   if (!googleId) {
     return res.status(400).json({ error: 'Missing googleId' });
@@ -45,7 +46,7 @@ module.exports = async function handler(req, res) {
 
     if (!upsertRes.ok) {
       const errText = await upsertRes.text();
-      console.error('[AUTH SYNC] Supabase upsert failed:', upsertRes.status, errText);
+      log('error', 'auth_sync_upsert_failed', { endpoint: 'auth-sync', status: upsertRes.status });
       return res.status(500).json({ error: 'Database error' });
     }
 
@@ -59,7 +60,7 @@ module.exports = async function handler(req, res) {
       minutesLimit: user.minutes_limit || 30
     });
   } catch (err) {
-    console.error('[AUTH SYNC] Error:', err.message);
+    log('error', 'auth_sync_error', { endpoint: 'auth-sync', error: err.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

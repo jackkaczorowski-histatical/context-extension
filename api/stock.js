@@ -59,6 +59,7 @@ async function resolveTickerFromName(name) {
 
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
+const { log } = require('./_log');
 
 module.exports = async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -86,7 +87,7 @@ module.exports = async function handler(req, res) {
       fetchChart1D(symbol).catch(() => null),
     ]);
   } catch (err) {
-    console.error('[STOCK API] parallel fetch failed for', symbol, ':', err.message);
+    log('error', 'stock_fetch_failed', { endpoint: 'stock', ticker: symbol, error: err.message });
   }
 
   let meta = meta1D || meta1Y;
@@ -96,7 +97,7 @@ module.exports = async function handler(req, res) {
   if (!meta) {
     const resolved = await resolveTickerFromName(ticker);
     if (resolved) {
-      console.log('[STOCK API] Resolved name', ticker, '→', resolved);
+      log('info', 'stock_name_resolved', { endpoint: 'stock', query: ticker, resolved });
       resolvedSymbol = resolved;
       try {
         [meta1Y, meta1D] = await Promise.all([
@@ -105,7 +106,7 @@ module.exports = async function handler(req, res) {
         ]);
         meta = meta1D || meta1Y;
       } catch (err) {
-        console.error('[STOCK API] retry fetch failed for', resolved, ':', err.message);
+        log('error', 'stock_retry_failed', { endpoint: 'stock', ticker: resolved, error: err.message });
       }
     }
   }
@@ -145,7 +146,7 @@ module.exports = async function handler(req, res) {
     ytdReturn: null,
   };
 
-  console.log('[STOCK API] Final result for', symbol, ':', JSON.stringify(result));
+  log('info', 'stock_result', { endpoint: 'stock', ticker: result.ticker, price: result.price });
   return res.status(200).json(result);
 };
 

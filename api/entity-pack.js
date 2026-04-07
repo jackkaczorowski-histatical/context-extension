@@ -1,5 +1,6 @@
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
+const { log } = require('./_log');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -46,7 +47,7 @@ module.exports = async function handler(req, res) {
 
       if (!supaRes.ok) {
         const errText = await supaRes.text();
-        console.error('[ENTITY-PACK] GET failed:', supaRes.status, errText);
+        log('error', 'entity_pack_get_failed', { endpoint: 'entity-pack', status: supaRes.status });
         return res.status(500).json({ error: 'Database error' });
       }
 
@@ -79,7 +80,7 @@ module.exports = async function handler(req, res) {
         viewCount: pack.view_count || 0
       });
     } catch (err) {
-      console.error('[ENTITY-PACK] GET error:', err.message);
+      log('error', 'entity_pack_get_error', { endpoint: 'entity-pack', error: err.message });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -198,7 +199,7 @@ module.exports = async function handler(req, res) {
         );
         if (!updateRes.ok) {
           const errText = await updateRes.text();
-          console.error('[ENTITY-PACK] PATCH failed:', updateRes.status, errText);
+          log('error', 'entity_pack_patch_failed', { endpoint: 'entity-pack', status: updateRes.status });
           return res.status(500).json({ error: 'Update failed' });
         }
       } else {
@@ -217,15 +218,15 @@ module.exports = async function handler(req, res) {
         );
         if (!insertRes.ok) {
           const errText = await insertRes.text();
-          console.error('[ENTITY-PACK] INSERT failed:', insertRes.status, errText);
+          log('error', 'entity_pack_insert_failed', { endpoint: 'entity-pack', status: insertRes.status });
           return res.status(500).json({ error: 'Insert failed' });
         }
       }
 
-      console.log('[ENTITY-PACK]', isUpdate ? 'Updated' : 'Created', 'pack for', videoId, '- entities:', mergedEntities.length, 'insights:', mergedInsights.length);
+      log('info', 'entity_pack_saved', { endpoint: 'entity-pack', action: isUpdate ? 'updated' : 'created', videoId, entityCount: mergedEntities.length, insightCount: mergedInsights.length });
       return res.status(200).json({ saved: true, entityCount: mergedEntities.length, insightCount: mergedInsights.length });
     } catch (err) {
-      console.error('[ENTITY-PACK] POST error:', err.message);
+      log('error', 'entity_pack_post_error', { endpoint: 'entity-pack', error: err.message });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }

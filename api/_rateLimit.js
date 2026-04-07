@@ -1,4 +1,5 @@
 const { Redis } = require('@upstash/redis');
+const { log } = require('./_log');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -13,7 +14,7 @@ async function rateLimit(key, maxRequests, windowMs) {
     }
     return count <= maxRequests;
   } catch (err) {
-    console.error('[RATE-LIMIT] Redis error, failing open:', err.message);
+    log('error', 'rate_limit_redis_error', { error: err.message });
     return true;
   }
 }

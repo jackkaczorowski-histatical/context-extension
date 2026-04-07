@@ -182,6 +182,7 @@ Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...",
 
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
+const { log } = require('./_log');
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -246,7 +247,7 @@ module.exports = async function handler(req, res) {
     // Extract JSON object even if surrounded by other text
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('[ANALYZE] No JSON found in response:', text.slice(0, 200));
+      log('warn', 'analyze_no_json', { endpoint: 'analyze' });
       Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
       return res.status(200).json({ entities: [], insights: [] });
     }
@@ -254,7 +255,7 @@ module.exports = async function handler(req, res) {
     try {
       parsed = correctEntities(JSON.parse(jsonMatch[0]));
     } catch (parseErr) {
-      console.error('[ANALYZE] JSON parse failed:', parseErr.message, 'text:', jsonMatch[0].slice(0, 200));
+      log('error', 'analyze_parse_failed', { endpoint: 'analyze', error: parseErr.message });
       Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
       return res.status(200).json({ entities: [], insights: [] });
     }

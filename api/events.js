@@ -1,5 +1,6 @@
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
+const { log } = require('./_log');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -28,7 +29,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'No events provided' });
   }
 
-  console.log('[EVENTS]', JSON.stringify({ count: events.length, events: events.map(e => e.event) }));
+  log('info', 'events_received', { endpoint: 'events', count: events.length, eventTypes: events.map(e => e.event) });
 
   try {
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/events`, {
@@ -50,13 +51,13 @@ module.exports = async function handler(req, res) {
 
     if (!insertRes.ok) {
       const errText = await insertRes.text();
-      console.error('[EVENTS] Supabase insert failed:', insertRes.status, errText);
+      log('error', 'events_insert_failed', { endpoint: 'events', status: insertRes.status });
       return res.status(500).json({ error: 'Database error' });
     }
 
     return res.status(200).json({ received: events.length });
   } catch (err) {
-    console.error('[EVENTS] Error:', err.message);
+    log('error', 'events_error', { endpoint: 'events', error: err.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

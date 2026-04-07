@@ -3045,9 +3045,9 @@ if (window.__contextExtensionLoaded) {
 
           // No cached description, fetch from API
           try { if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH', term: termName }); } catch (e) {}
-          fetch('https://context-extension-zv8d.vercel.app/api/context', {
+          fetch(CONFIG.API_BASE + '/context', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-extension-token': '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3' },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
             body: JSON.stringify({
               term: termName,
               userProfile: data.userProfile || null
@@ -3114,7 +3114,7 @@ if (window.__contextExtensionLoaded) {
       if (card.classList.contains('expanded') && !card.dataset.popChecked) {
         card.dataset.popChecked = 'true';
         const termName = entity.term || entity.name || '';
-        fetch('https://context-extension-zv8d.vercel.app/api/popularity', {
+        fetch(CONFIG.API_BASE + '/popularity', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ videoUrl: window.location.href, term: termName })
@@ -3911,9 +3911,9 @@ if (window.__contextExtensionLoaded) {
         askResponse.appendChild(askClear);
 
         chrome.storage.local.get(['sessionTranscript', 'capturingTabTitle', 'sessionHistory'], (data) => {
-          fetch('https://context-extension-zv8d.vercel.app/api/ask', {
+          fetch(CONFIG.API_BASE + '/ask', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-extension-token': '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3' },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
             body: JSON.stringify({
               question,
               sessionTranscript: data.sessionTranscript || '',

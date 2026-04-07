@@ -33,7 +33,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*", "*://*.spotify.com/*", "*://*.udemy.com/*", "*://*.soundcloud.com/*", "*://*.podcasts.google.com/*", "*://*.netflix.com/*", "*://*.twitch.tv/*", "*://*.coursera.org/*", "*://*.khanacademy.org/*"],
-      "js": ["content.js"],
+      "js": ["config.js", "content.js"],
       "run_at": "document_start"
     }
   ],

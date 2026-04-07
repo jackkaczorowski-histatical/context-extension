@@ -1,5 +1,4 @@
-const TOKEN_URL = 'https://context-extension-zv8d.vercel.app/api/deepgram-token';
-const API_SECRET = '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3';
+const TOKEN_URL = CONFIG.API_BASE + '/deepgram-token';
 
 let mediaRecorder = null;
 let captureStream = null;
@@ -10,7 +9,7 @@ let currentStream = null;
 
 // Keep-warm ping: fire a silent GET so the Vercel function is warm before capture starts
 try {
-  fetch(TOKEN_URL + '?ping=1', { headers: { 'x-extension-token': API_SECRET } }).then(() => {
+  fetch(TOKEN_URL + '?ping=1', { headers: { 'x-extension-token': CONFIG.API_SECRET } }).then(() => {
     console.log('[OFFSCREEN] Keep-warm ping sent to token endpoint');
   }).catch(() => {});
 } catch (e) {}
@@ -35,7 +34,7 @@ async function fetchTempToken() {
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
       console.log(`[OFFSCREEN] Token fetch attempt ${attempt}/${maxRetries}...`);
-      const res = await fetch(TOKEN_URL, { signal: controller.signal, headers: { 'x-extension-token': API_SECRET } });
+      const res = await fetch(TOKEN_URL, { signal: controller.signal, headers: { 'x-extension-token': CONFIG.API_SECRET } });
       clearTimeout(timeout);
       if (!res.ok) {
         const errText = await res.text().catch(() => '');

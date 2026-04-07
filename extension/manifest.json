@@ -1,7 +1,6 @@
 {
   "manifest_version": 3,
   "name": "Context",
-  "privacy_policy": "https://context-extension-zv8d.vercel.app/privacy",
   "version": "1.0.0",
   "description": "Real-time audio context extraction from browser tabs",
   "permissions": [

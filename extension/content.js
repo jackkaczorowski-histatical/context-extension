@@ -4205,6 +4205,16 @@ if (window.__contextExtensionLoaded) {
       consentHint.style.cssText = 'font-size:11px;color:#64748b;line-height:1.4;margin-top:4px;padding-left:2px;';
       consentHint.textContent = 'Anonymized session data helps us improve entity extraction and build better features. No personal data is shared.';
       s3b.appendChild(consentHint);
+
+      const privacyLink = document.createElement('a');
+      privacyLink.href = 'https://context-extension-zv8d.vercel.app/privacy';
+      privacyLink.target = '_blank';
+      privacyLink.rel = 'noopener noreferrer';
+      privacyLink.textContent = 'Privacy Policy';
+      privacyLink.style.cssText = 'display:inline-block;margin-top:8px;padding-left:2px;font-size:12px;color:#14b8a6;text-decoration:none;cursor:pointer;';
+      privacyLink.addEventListener('mouseenter', () => { privacyLink.style.textDecoration = 'underline'; });
+      privacyLink.addEventListener('mouseleave', () => { privacyLink.style.textDecoration = 'none'; });
+      s3b.appendChild(privacyLink);
       settingsPanel.appendChild(s3b);
 
       // Section 4: Keyboard Shortcuts

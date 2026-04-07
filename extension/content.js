@@ -6328,6 +6328,49 @@ if (window.__contextExtensionLoaded) {
           break;
         }
       }
+    } else if (msg.type === 'MAINTENANCE_MODE') {
+      ensureSidebar();
+      if (!shadowRoot) return;
+      const existing = shadowRoot.querySelector('.ctx-disclosure-overlay.ctx-status-overlay');
+      if (existing) existing.remove();
+      const overlay = document.createElement('div');
+      overlay.className = 'ctx-disclosure-overlay ctx-status-overlay';
+      overlay.innerHTML = `
+        <div class="ctx-disclosure-card">
+          <div class="ctx-disclosure-title">Maintenance</div>
+          <div class="ctx-disclosure-body">${escapeHtml(msg.message || 'Context is temporarily offline for maintenance. We\'ll be back shortly.')}</div>
+          <div class="ctx-disclosure-actions">
+            <button class="ctx-disclosure-confirm">OK</button>
+          </div>
+        </div>
+      `;
+      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      if (sidebar) {
+        sidebar.appendChild(overlay);
+        overlay.querySelector('.ctx-disclosure-confirm').addEventListener('click', () => overlay.remove());
+      }
+    } else if (msg.type === 'FORCE_UPDATE') {
+      ensureSidebar();
+      if (!shadowRoot) return;
+      const existing = shadowRoot.querySelector('.ctx-disclosure-overlay.ctx-status-overlay');
+      if (existing) existing.remove();
+      const overlay = document.createElement('div');
+      overlay.className = 'ctx-disclosure-overlay ctx-status-overlay';
+      overlay.innerHTML = `
+        <div class="ctx-disclosure-card">
+          <div class="ctx-disclosure-title">Update Required</div>
+          <div class="ctx-disclosure-body">${escapeHtml(msg.message || 'Please update Context to the latest version.')}</div>
+          <div class="ctx-disclosure-actions" style="flex-direction: column; align-items: stretch;">
+            <a href="https://chromewebstore.google.com/detail/context/PLACEHOLDER_ID" target="_blank" class="ctx-disclosure-confirm" style="text-align:center;text-decoration:none;">Update Now</a>
+            <button class="ctx-disclosure-cancel">Dismiss</button>
+          </div>
+        </div>
+      `;
+      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      if (sidebar) {
+        sidebar.appendChild(overlay);
+        overlay.querySelector('.ctx-disclosure-cancel').addEventListener('click', () => overlay.remove());
+      }
     } else if (msg.type === 'ENTITY_REMENTION') {
       if (!shadowRoot) return;
       const term = (msg.term || '').toLowerCase();

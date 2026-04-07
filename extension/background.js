@@ -28,6 +28,50 @@ self.addEventListener('unhandledrejection', (event) => {
   }).catch(() => {});
 });
 
+async function checkServerStatus(tabId) {
+  try {
+    const res = await fetch(`${API_BASE}/status`);
+    if (!res.ok) return true; // fail open
+    const data = await res.json();
+    if (data.enabled === false || data.maintenance === true) {
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, {
+          type: 'MAINTENANCE_MODE',
+          message: data.message || 'Context is temporarily offline for maintenance. We\'ll be back shortly.'
+        }).catch(() => {});
+      }
+      return false;
+    }
+    if (data.minVersion) {
+      const currentVersion = chrome.runtime.getManifest().version;
+      if (compareVersions(currentVersion, data.minVersion) < 0) {
+        if (tabId) {
+          chrome.tabs.sendMessage(tabId, {
+            type: 'FORCE_UPDATE',
+            message: 'Please update Context to the latest version.'
+          }).catch(() => {});
+        }
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return true; // fail open
+  }
+}
+
+function compareVersions(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na < nb) return -1;
+    if (na > nb) return 1;
+  }
+  return 0;
+}
+
 const SMALL_WORDS = new Set(['of', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'by', 'as', 'with']);
 
 const GENERIC_TERMS = new Set([
@@ -563,6 +607,7 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => { if (tab.url && isSupportedUrl(tab.url)) reinjectContentScript(tab.id); });
   });
+  checkServerStatus();
 });
 
 // Extension icon click toggles sidebar (no popup)
@@ -782,6 +827,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         await stopCapture();
         if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'CAPTURE_STATE', capturing: false });
       } else {
+        // Check server status before starting
+        const statusOk = await checkServerStatus(sender.tab?.id);
+        if (!statusOk) return;
         // Check daily cap before starting — exempt pro users and trial users
         const user = data.user;
         const isPro = user && user.plan === 'pro';

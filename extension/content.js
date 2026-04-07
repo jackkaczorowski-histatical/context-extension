@@ -1303,6 +1303,45 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-onboarding { background: #f5f5f8; }
     .light-theme .ctx-onboarding-title { color: #1a1a2e; }
     .light-theme .ctx-onboarding-body { color: #64748b; }
+
+    /* ─── Audio capture disclosure ─── */
+    .ctx-disclosure-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10,10,20,0.85); z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .ctx-disclosure-card {
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 24px; max-width: 280px;
+      text-align: center;
+    }
+    .ctx-disclosure-title {
+      font-size: 16px; font-weight: 700; color: #e0e0f0;
+      margin-bottom: 14px;
+    }
+    .ctx-disclosure-body {
+      font-size: 12px; color: #94a3b8; line-height: 1.6;
+      margin-bottom: 20px; white-space: pre-line; text-align: left;
+    }
+    .ctx-disclosure-actions { display: flex; gap: 10px; justify-content: center; }
+    .ctx-disclosure-confirm {
+      background: #14b8a6; color: #0a0a14; border: none; border-radius: 8px;
+      padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: background 0.15s;
+    }
+    .ctx-disclosure-confirm:hover { background: #0d9488; }
+    .ctx-disclosure-cancel {
+      background: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+      padding: 10px 20px; font-size: 13px; color: #94a3b8; cursor: pointer;
+      font-family: inherit; transition: background 0.15s;
+    }
+    .ctx-disclosure-cancel:hover { background: rgba(255,255,255,0.05); }
+    .light-theme .ctx-disclosure-overlay { background: rgba(245,245,248,0.9); }
+    .light-theme .ctx-disclosure-card { background: #fff; border-color: rgba(0,0,0,0.1); }
+    .light-theme .ctx-disclosure-title { color: #1a1a2e; }
+    .light-theme .ctx-disclosure-body { color: #64748b; }
+    .light-theme .ctx-disclosure-cancel { border-color: rgba(0,0,0,0.12); color: #64748b; }
     .light-theme .ctx-onboarding-btn { color: #fff; }
     .light-theme .ctx-onboarding-dot { background: #cbd5e1; }
     .light-theme .ctx-onboarding-dot.active { background: #14b8a6; }
@@ -3344,6 +3383,48 @@ if (window.__contextExtensionLoaded) {
     return html;
   }
 
+  function toggleCaptureWithDisclosure(onStartCallback) {
+    chrome.storage.local.get(['capturing', 'audioCaptureDisclosureShown'], (data) => {
+      // If already capturing, just stop — no disclosure needed
+      if (data.capturing) {
+        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+        return;
+      }
+      // If disclosure already shown, start immediately
+      if (data.audioCaptureDisclosureShown) {
+        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+        if (onStartCallback) onStartCallback();
+        return;
+      }
+      // Show disclosure
+      if (!shadowRoot) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'ctx-disclosure-overlay';
+      overlay.innerHTML = `
+        <div class="ctx-disclosure-card">
+          <div class="ctx-disclosure-title">Audio Capture Notice</div>
+          <div class="ctx-disclosure-body">Context captures audio from your current browser tab to provide real-time insights.\n\nFor public content like YouTube videos, podcasts, and online courses, no additional consent is needed.\n\nFor meetings or calls, please ensure all participants are aware that audio is being processed.</div>
+          <div class="ctx-disclosure-actions">
+            <button class="ctx-disclosure-cancel">Cancel</button>
+            <button class="ctx-disclosure-confirm">Got it</button>
+          </div>
+        </div>
+      `;
+      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      if (!sidebar) return;
+      sidebar.appendChild(overlay);
+      overlay.querySelector('.ctx-disclosure-confirm').addEventListener('click', () => {
+        chrome.storage.local.set({ audioCaptureDisclosureShown: true });
+        overlay.remove();
+        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+        if (onStartCallback) onStartCallback();
+      });
+      overlay.querySelector('.ctx-disclosure-cancel').addEventListener('click', () => {
+        overlay.remove();
+      });
+    });
+  }
+
   function ensureSidebar() {
     if (shadowRoot) return shadowRoot.getElementById('cards');
 
@@ -3417,7 +3498,7 @@ if (window.__contextExtensionLoaded) {
 
     const listenBtn = header.querySelector('#ctx-listen-btn');
     listenBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+      toggleCaptureWithDisclosure();
     });
 
     // Sync listen button state on sidebar open
@@ -3658,14 +3739,14 @@ if (window.__contextExtensionLoaded) {
       const suggestedDiv = emptyState.querySelector('.suggested-section');
       if (suggestedDiv) suggestedDiv.style.display = 'none';
       returningDiv.querySelector('.start-btn-large').addEventListener('click', () => {
-        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
-        returningDiv.style.display = 'none';
-        // Restore waveform and listening text for active capture
-        if (waveform) waveform.style.display = '';
-        if (emptyTextEl) emptyTextEl.style.display = '';
-        if (kbWrapper) kbWrapper.style.display = '';
+        toggleCaptureWithDisclosure(() => {
+          returningDiv.style.display = 'none';
+          // Restore waveform and listening text for active capture
+          if (waveform) waveform.style.display = '';
+          if (emptyTextEl) emptyTextEl.style.display = '';
+          if (kbWrapper) kbWrapper.style.display = '';
+        });
       });
-    });
 
     // View tabs (Cards / Transcript)
     const viewTabs = document.createElement('div');
@@ -6001,7 +6082,7 @@ if (window.__contextExtensionLoaded) {
         toggleSidebar();
       } else if (e.key === 'S' || e.code === 'KeyS') {
         e.preventDefault();
-        chrome.runtime.sendMessage({ type: 'TOGGLE_CAPTURE' });
+        toggleCaptureWithDisclosure();
       } else if (e.key === 'C' || e.code === 'KeyC') {
         e.preventDefault();
         if (!shadowRoot) return;

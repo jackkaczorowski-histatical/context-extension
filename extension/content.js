@@ -3384,6 +3384,7 @@ if (window.__contextExtensionLoaded) {
   }
 
   function toggleCaptureWithDisclosure(onStartCallback) {
+    console.log('[CONTENT] toggleCaptureWithDisclosure called');
     chrome.storage.local.get(['capturing', 'audioCaptureDisclosureShown'], (data) => {
       // If already capturing, just stop — no disclosure needed
       if (data.capturing) {
@@ -3410,7 +3411,7 @@ if (window.__contextExtensionLoaded) {
           </div>
         </div>
       `;
-      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      const sidebar = shadowRoot.getElementById('sidebar');
       if (!sidebar) return;
       sidebar.appendChild(overlay);
       overlay.querySelector('.ctx-disclosure-confirm').addEventListener('click', () => {
@@ -3498,6 +3499,7 @@ if (window.__contextExtensionLoaded) {
 
     const listenBtn = header.querySelector('#ctx-listen-btn');
     listenBtn.addEventListener('click', () => {
+      console.log('[CONTENT] Listen button clicked, calling toggleCaptureWithDisclosure');
       toggleCaptureWithDisclosure();
     });
 
@@ -6345,7 +6347,7 @@ if (window.__contextExtensionLoaded) {
           </div>
         </div>
       `;
-      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      const sidebar = shadowRoot.getElementById('sidebar');
       if (sidebar) {
         sidebar.appendChild(overlay);
         overlay.querySelector('.ctx-disclosure-confirm').addEventListener('click', () => overlay.remove());
@@ -6367,7 +6369,7 @@ if (window.__contextExtensionLoaded) {
           </div>
         </div>
       `;
-      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      const sidebar = shadowRoot.getElementById('sidebar');
       if (sidebar) {
         sidebar.appendChild(overlay);
         overlay.querySelector('.ctx-disclosure-cancel').addEventListener('click', () => overlay.remove());

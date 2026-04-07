@@ -14,6 +14,7 @@
     "api/events.js": { "maxDuration": 5 },
     "api/session-data.js": { "maxDuration": 5 },
     "api/auth-sync.js": { "maxDuration": 5 },
-    "api/health.js": { "maxDuration": 10 }
+    "api/health.js": { "maxDuration": 10 },
+    "api/status.js": { "maxDuration": 5 }
   }
 }

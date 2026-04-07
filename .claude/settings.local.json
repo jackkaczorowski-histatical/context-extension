@@ -12,7 +12,8 @@
       "Read(//c/Users/jackk/context-extension/**)",
       "Bash(done)",
       "Bash(npx license-checker:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

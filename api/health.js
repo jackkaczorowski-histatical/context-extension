@@ -23,7 +23,7 @@ async function checkAnthropic() {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1,
         messages: [{ role: "user", content: "ping" }],
       }),
@@ -40,7 +40,10 @@ async function checkSupabase() {
   const start = Date.now();
   try {
     const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/`, {
-      headers: { apikey: process.env.SUPABASE_KEY },
+      headers: {
+        apikey: process.env.SUPABASE_KEY,
+        Authorization: "Bearer " + process.env.SUPABASE_KEY,
+      },
     });
     const latency = Date.now() - start;
     if (res.ok) return { status: "ok", latency_ms: latency, error: null };

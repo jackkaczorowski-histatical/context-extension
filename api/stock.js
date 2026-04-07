@@ -1,7 +1,7 @@
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-extension-token",
 };
 
 function formatLargeNumber(num) {
@@ -58,12 +58,15 @@ async function resolveTickerFromName(name) {
 }
 
 const { rateLimit } = require('./_rateLimit');
+const validateRequest = require('./_validateRequest');
 
 module.exports = async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
 
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  if (!validateRequest(req, res)) return;
 
   const clientId = req.body?.installId || req.headers['x-forwarded-for'] || 'unknown';
   if (!await rateLimit(clientId, 30, 60000)) {

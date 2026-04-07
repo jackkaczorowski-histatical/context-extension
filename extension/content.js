@@ -3005,7 +3005,7 @@ if (window.__contextExtensionLoaded) {
           try { if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH', term: termName }); } catch (e) {}
           fetch('https://context-extension-zv8d.vercel.app/api/context', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3' },
             body: JSON.stringify({
               term: termName,
               userProfile: data.userProfile || null
@@ -3820,7 +3820,7 @@ if (window.__contextExtensionLoaded) {
         chrome.storage.local.get(['sessionTranscript', 'capturingTabTitle', 'sessionHistory'], (data) => {
           fetch('https://context-extension-zv8d.vercel.app/api/ask', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3' },
             body: JSON.stringify({
               question,
               sessionTranscript: data.sessionTranscript || '',

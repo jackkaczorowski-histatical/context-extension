@@ -4,14 +4,17 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-extension-token",
 };
+
+const validateRequest = require('./_validateRequest');
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
   if (req.method !== "POST") { return res.status(405).json({ error: "Method not allowed" }); }
 
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+  if (!validateRequest(req, res)) return;
 
   const { googleId, email, name, installId, picture } = req.body || {};
 

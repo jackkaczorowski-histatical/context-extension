@@ -1,4 +1,5 @@
 const { rateLimit } = require('./_rateLimit');
+const validateRequest = require('./_validateRequest');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -6,7 +7,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-extension-token",
 };
 
 module.exports = async function handler(req, res) {
@@ -19,9 +20,11 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+  if (!validateRequest(req, res)) return;
+
   const clientId = req.body?.installId || req.headers['x-forwarded-for'] || 'unknown';
   if (!await rateLimit(clientId, 10, 60000)) {
-    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(429).json({ error: 'Rate limited', retry: true });
   }
 

@@ -1,4 +1,5 @@
 const { rateLimit } = require('./_rateLimit');
+const validateRequest = require('./_validateRequest');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -6,7 +7,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-extension-token",
 };
 
 function normalizeKey(term) {
@@ -17,6 +18,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
 
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+  if (!validateRequest(req, res)) return;
 
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
 

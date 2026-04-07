@@ -1,4 +1,5 @@
 const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
+const API_SECRET = '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3';
 
 const SMALL_WORDS = new Set(['of', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'by', 'as', 'with']);
 
@@ -149,7 +150,7 @@ function flushEvents() {
   const batch = eventQueue.splice(0);
   fetch(`${API_BASE}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
     body: JSON.stringify({ events: batch })
   }).catch(err => {
     console.error('[BACKGROUND] Event flush failed:', err.message);
@@ -711,7 +712,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const filteredEntities = sessionHist.filter(i => i.term && i.type !== 'insight' && i.type !== 'video-divider');
         fetch(`${API_BASE}/session-data`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
           body: JSON.stringify({
             installId: data.installId || null,
             userId: data.user?.id || null,
@@ -797,7 +798,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const installData = await chrome.storage.local.get('installId');
           const syncRes = await fetch(`${API_BASE}/auth-sync`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
             body: JSON.stringify({
               googleId: userInfo.sub,
               email: userInfo.email,
@@ -997,7 +998,9 @@ async function checkEntityPack(url) {
   const videoId = extractYouTubeId(url);
   if (!videoId) return null;
   try {
-    const res = await fetch(`${API_BASE}/entity-pack?videoId=${videoId}`);
+    const res = await fetch(`${API_BASE}/entity-pack?videoId=${videoId}`, {
+      headers: { 'x-extension-token': API_SECRET }
+    });
     if (!res.ok) return null;
     const data = await res.json();
     return data.entities ? data : null;
@@ -1263,7 +1266,7 @@ async function stopCapture() {
           .slice(0, 20);
         fetch(`${API_BASE}/entity-pack`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
           body: JSON.stringify({ videoId, title: capturingTabTitle || '', entities, insights })
         }).catch(() => {});
         console.log('[BACKGROUND] Entity pack uploaded for', videoId, '- entities:', entities.length);
@@ -1479,7 +1482,7 @@ async function processNextTranscript() {
           try {
             const stockRes = await fetch(`${API_BASE}/stock`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
               body: JSON.stringify({ ticker: entity.ticker })
             });
             if (stockRes.ok) {
@@ -1574,7 +1577,7 @@ async function processNextTranscript() {
       try {
         analyzeRes = await fetch(`${API_BASE}/analyze`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
           body: analyzeBody,
           signal: controller.signal
         });
@@ -1786,7 +1789,7 @@ async function processNextTranscript() {
             try {
               stockRes = await fetch(`${API_BASE}/stock`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
                 body: JSON.stringify({ ticker: entity.ticker }),
                 signal: stockController.signal
               });
@@ -1807,7 +1810,7 @@ async function processNextTranscript() {
                   try {
                     retryRes = await fetch(`${API_BASE}/stock`, {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
                       body: JSON.stringify({ ticker: entity.ticker }),
                       signal: retryController.signal
                     });

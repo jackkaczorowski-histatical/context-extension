@@ -66,7 +66,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const clientId = req.body?.installId || req.headers['x-forwarded-for'] || 'unknown';
-  if (!rateLimit(clientId, 30, 60000)) {
+  if (!await rateLimit(clientId, 30, 60000)) {
     return res.status(429).json({ error: 'Rate limited', retry: true });
   }
 

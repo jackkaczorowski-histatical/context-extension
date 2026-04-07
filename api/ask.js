@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
   }
 
   const clientId = req.body?.installId || req.headers['x-forwarded-for'] || 'unknown';
-  if (!rateLimit(clientId, 10, 60000)) {
+  if (!await rateLimit(clientId, 10, 60000)) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(429).json({ error: 'Rate limited', retry: true });
   }

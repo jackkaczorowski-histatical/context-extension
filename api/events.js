@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
 
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
-  if (!rateLimit(`events_${ip}`, 30, 60000)) {
+  if (!await rateLimit(`events_${ip}`, 30, 60000)) {
     return res.status(429).json({ error: 'Rate limited' });
   }
 

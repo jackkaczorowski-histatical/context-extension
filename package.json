@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@upstash/redis": "^1.37.0",
     "canvas": "^3.2.3"
   }
 }

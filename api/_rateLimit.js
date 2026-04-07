@@ -1,25 +1,21 @@
-const rateLimits = new Map();
+const { Redis } = require('@upstash/redis');
 
-function rateLimit(key, maxRequests, windowMs) {
-  const now = Date.now();
-  const record = rateLimits.get(key) || { count: 0, resetAt: now + windowMs };
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
-  if (now > record.resetAt) {
-    record.count = 0;
-    record.resetAt = now + windowMs;
-  }
-
-  record.count++;
-  rateLimits.set(key, record);
-
-  // Clean old entries periodically
-  if (rateLimits.size > 10000) {
-    for (const [k, v] of rateLimits) {
-      if (now > v.resetAt) rateLimits.delete(k);
+async function rateLimit(key, maxRequests, windowMs) {
+  try {
+    const count = await redis.incr(key);
+    if (count === 1) {
+      await redis.pexpire(key, windowMs);
     }
+    return count <= maxRequests;
+  } catch (err) {
+    console.error('[RATE-LIMIT] Redis error, failing open:', err.message);
+    return true;
   }
-
-  return record.count <= maxRequests;
 }
 
 module.exports = { rateLimit };

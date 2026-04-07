@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
 
   // GET — retrieve pack for a video
   if (req.method === "GET") {
-    if (!rateLimit(`epack-get_${ip}`, 30, 60000)) {
+    if (!await rateLimit(`epack-get_${ip}`, 30, 60000)) {
       return res.status(429).json({ error: 'Rate limited' });
     }
 
@@ -84,7 +84,7 @@ module.exports = async function handler(req, res) {
 
   // POST — upsert entities for a video
   if (req.method === "POST") {
-    if (!rateLimit(`epack-post_${ip}`, 10, 60000)) {
+    if (!await rateLimit(`epack-post_${ip}`, 10, 60000)) {
       return res.status(429).json({ error: 'Rate limited' });
     }
 

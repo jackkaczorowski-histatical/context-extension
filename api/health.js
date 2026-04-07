@@ -41,7 +41,7 @@ async function checkSupabase() {
   try {
     const res = await fetch(process.env.SUPABASE_URL, { method: "HEAD" });
     const latency = Date.now() - start;
-    if (res.ok) return { status: "ok", latency_ms: latency, error: null };
+    if (res.status < 500) return { status: "ok", latency_ms: latency, error: null };
     return { status: "degraded", latency_ms: latency, error: `HTTP ${res.status}` };
   } catch (err) {
     return { status: "degraded", latency_ms: Date.now() - start, error: err.message };

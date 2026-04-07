@@ -1781,7 +1781,7 @@ async function processNextTranscript() {
           if (!entity.ticker) return entity;
           try {
             const stockController = new AbortController();
-            const stockTimeout = setTimeout(() => stockController.abort(), 10000);
+            const stockTimeout = setTimeout(() => stockController.abort(), 15000);
             let stockRes;
             try {
               stockRes = await fetch(`${API_BASE}/stock`, {
@@ -1802,7 +1802,7 @@ async function processNextTranscript() {
                 await new Promise(r => setTimeout(r, 2000));
                 try {
                   const retryController = new AbortController();
-                  const retryTimeout = setTimeout(() => retryController.abort(), 10000);
+                  const retryTimeout = setTimeout(() => retryController.abort(), 15000);
                   let retryRes;
                   try {
                     retryRes = await fetch(`${API_BASE}/stock`, {

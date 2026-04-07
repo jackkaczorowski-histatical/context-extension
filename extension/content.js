@@ -4215,6 +4215,16 @@ if (window.__contextExtensionLoaded) {
       privacyLink.addEventListener('mouseenter', () => { privacyLink.style.textDecoration = 'underline'; });
       privacyLink.addEventListener('mouseleave', () => { privacyLink.style.textDecoration = 'none'; });
       s3b.appendChild(privacyLink);
+
+      const termsLink = document.createElement('a');
+      termsLink.href = 'https://context-extension-zv8d.vercel.app/terms';
+      termsLink.target = '_blank';
+      termsLink.rel = 'noopener noreferrer';
+      termsLink.textContent = 'Terms of Service';
+      termsLink.style.cssText = 'display:inline-block;margin-top:4px;padding-left:2px;font-size:12px;color:#14b8a6;text-decoration:none;cursor:pointer;';
+      termsLink.addEventListener('mouseenter', () => { termsLink.style.textDecoration = 'underline'; });
+      termsLink.addEventListener('mouseleave', () => { termsLink.style.textDecoration = 'none'; });
+      s3b.appendChild(termsLink);
       settingsPanel.appendChild(s3b);
 
       // Section 4: Keyboard Shortcuts

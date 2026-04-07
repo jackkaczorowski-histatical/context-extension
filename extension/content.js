@@ -2641,6 +2641,7 @@ if (window.__contextExtensionLoaded) {
             <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
           </div>
         </div>
+        <div style="font-size:9px;color:#666;margin-top:4px;font-style:italic;">Prices may be delayed. Not financial advice.</div>
       `;
     } else {
       console.warn('[CONTENT] Stock card missing price data for:', entity.ticker, '— falling back to description');
@@ -2660,6 +2661,7 @@ if (window.__contextExtensionLoaded) {
             <a class="stock-yahoo-link" href="${yahooURL}" target="_blank" rel="noopener">Yahoo Finance &#x2192;</a>
           </div>
         </div>
+        <div style="font-size:9px;color:#666;margin-top:4px;font-style:italic;">Prices may be delayed. Not financial advice.</div>
       `;
     }
 
@@ -2717,6 +2719,7 @@ if (window.__contextExtensionLoaded) {
         if (input) {
           const name = entity.companyName || entity.name || entity.ticker || '';
           const tickerStr = entity.ticker ? ` (${entity.ticker})` : '';
+          askIsStock = true;
           input.value = `Explain ${name}${tickerStr} — what does the company do, its business model, and why it matters in this video`;
           input.focus();
           input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -3237,6 +3240,10 @@ if (window.__contextExtensionLoaded) {
       });
     }
 
+    const hasStocks = entityEntries.some(e => (e.type || '').toLowerCase() === 'stock');
+    if (hasStocks) {
+      guide += `Disclaimer: Stock prices and financial data shown were current at time of capture and may be delayed. This is not financial advice.\n\n`;
+    }
     guide += `---\nGenerated with Context \u2014 a live AI study guide for any video\nhttps://chromewebstore.google.com/detail/context/${chrome.runtime.id}`;
     return guide;
   }
@@ -3329,6 +3336,10 @@ if (window.__contextExtensionLoaded) {
       });
     }
 
+    const hasStocks = entityEntries.some(e => (e.type || '').toLowerCase() === 'stock');
+    if (hasStocks) {
+      html += `<p style="margin:12px 0 0 0;font-size:10px;color:#888;font-style:italic;">Disclaimer: Stock prices and financial data shown were current at time of capture and may be delayed. This is not financial advice.</p>`;
+    }
     html += `<hr style="border:none;border-top:1px solid #ccc;margin:16px 0 8px 0;"><p style="margin:0;font-size:12px;color:#888;">Generated with <a href="https://chromewebstore.google.com/detail/context/${chrome.runtime.id}" style="color:#14b8a6;text-decoration:none;">Context</a> \u2014 a live AI study guide for any video</p>`;
     return html;
   }
@@ -3730,6 +3741,7 @@ if (window.__contextExtensionLoaded) {
     askResponse.className = 'ctx-ask-response';
 
     let askEntityLabel = '';
+    let askIsStock = false;
 
     const askClear = document.createElement('button');
     askClear.className = 'ctx-ask-clear';
@@ -3840,6 +3852,13 @@ if (window.__contextExtensionLoaded) {
             const answerStr = result.answer || 'No answer available';
             const answerText = document.createTextNode(answerStr);
             askResponse.appendChild(answerText);
+            if (askIsStock) {
+              const stockDisclaimer = document.createElement('div');
+              stockDisclaimer.style.cssText = 'font-size:9px;color:#666;margin-top:8px;font-style:italic;';
+              stockDisclaimer.textContent = 'Prices may be delayed. Not financial advice.';
+              askResponse.appendChild(stockDisclaimer);
+              askIsStock = false;
+            }
             askResponse.appendChild(askClear);
             // Save Q&A to persistent storage
             chrome.storage.local.get('sessionQA', (qaData) => {

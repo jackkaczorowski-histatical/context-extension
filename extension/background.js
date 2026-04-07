@@ -1,6 +1,33 @@
 const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
 const API_SECRET = '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3';
 
+self.addEventListener('error', (event) => {
+  fetch(`${API_BASE}/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+    body: JSON.stringify({
+      type: 'extension_error',
+      error: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      timestamp: new Date().toISOString()
+    })
+  }).catch(() => {});
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  fetch(`${API_BASE}/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+    body: JSON.stringify({
+      type: 'extension_error',
+      error: event.reason?.message || String(event.reason),
+      timestamp: new Date().toISOString()
+    })
+  }).catch(() => {});
+});
+
 const SMALL_WORDS = new Set(['of', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'by', 'as', 'with']);
 
 const GENERIC_TERMS = new Set([

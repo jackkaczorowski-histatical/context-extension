@@ -183,6 +183,7 @@ Return ONLY raw JSON, no markdown, no backticks: { "entities": [{ "term": "...",
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
 const { log } = require('./_log');
+const { captureError } = require('./_sentry');
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -263,6 +264,7 @@ module.exports = async function handler(req, res) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json(parsed);
   } catch (err) {
+    captureError(err, { endpoint: 'analyze', clientId });
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(500).json({ error: err.message });
   }

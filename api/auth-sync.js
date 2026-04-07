@@ -9,6 +9,7 @@ const cors = {
 
 const validateRequest = require('./_validateRequest');
 const { log } = require('./_log');
+const { captureError } = require('./_sentry');
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
@@ -60,6 +61,7 @@ module.exports = async function handler(req, res) {
       minutesLimit: user.minutes_limit || 30
     });
   } catch (err) {
+    captureError(err, { endpoint: 'auth-sync' });
     log('error', 'auth_sync_error', { endpoint: 'auth-sync', error: err.message });
     return res.status(500).json({ error: 'Internal server error' });
   }

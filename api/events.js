@@ -1,6 +1,7 @@
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
 const { log } = require('./_log');
+const { captureError } = require('./_sentry');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -57,6 +58,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ received: events.length });
   } catch (err) {
+    captureError(err, { endpoint: 'events', clientId });
     log('error', 'events_error', { endpoint: 'events', error: err.message });
     return res.status(500).json({ error: 'Internal server error' });
   }

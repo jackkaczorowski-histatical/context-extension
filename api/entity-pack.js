@@ -1,6 +1,7 @@
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
 const { log } = require('./_log');
+const { captureError } = require('./_sentry');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -80,6 +81,7 @@ module.exports = async function handler(req, res) {
         viewCount: pack.view_count || 0
       });
     } catch (err) {
+      captureError(err, { endpoint: 'entity-pack', method: 'GET' });
       log('error', 'entity_pack_get_error', { endpoint: 'entity-pack', error: err.message });
       return res.status(500).json({ error: 'Internal server error' });
     }
@@ -226,6 +228,7 @@ module.exports = async function handler(req, res) {
       log('info', 'entity_pack_saved', { endpoint: 'entity-pack', action: isUpdate ? 'updated' : 'created', videoId, entityCount: mergedEntities.length, insightCount: mergedInsights.length });
       return res.status(200).json({ saved: true, entityCount: mergedEntities.length, insightCount: mergedInsights.length });
     } catch (err) {
+      captureError(err, { endpoint: 'entity-pack', method: 'POST' });
       log('error', 'entity_pack_post_error', { endpoint: 'entity-pack', error: err.message });
       return res.status(500).json({ error: 'Internal server error' });
     }

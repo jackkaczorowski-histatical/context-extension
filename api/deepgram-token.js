@@ -1,4 +1,5 @@
 const { log } = require('./_log');
+const { captureError } = require('./_sentry');
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +77,7 @@ module.exports = async function handler(req, res) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json({ token });
   } catch (err) {
+    captureError(err, { endpoint: 'deepgram-token', clientId });
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(500).json({ error: err.message });
   }

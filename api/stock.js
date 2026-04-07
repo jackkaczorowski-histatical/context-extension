@@ -60,6 +60,7 @@ async function resolveTickerFromName(name) {
 const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
 const { log } = require('./_log');
+const { captureError } = require('./_sentry');
 
 module.exports = async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
@@ -87,6 +88,7 @@ module.exports = async function handler(req, res) {
       fetchChart1D(symbol).catch(() => null),
     ]);
   } catch (err) {
+    captureError(err, { endpoint: 'stock', clientId, ticker: symbol });
     log('error', 'stock_fetch_failed', { endpoint: 'stock', ticker: symbol, error: err.message });
   }
 
@@ -106,6 +108,7 @@ module.exports = async function handler(req, res) {
         ]);
         meta = meta1D || meta1Y;
       } catch (err) {
+        captureError(err, { endpoint: 'stock', clientId, ticker: resolved });
         log('error', 'stock_retry_failed', { endpoint: 'stock', ticker: resolved, error: err.message });
       }
     }

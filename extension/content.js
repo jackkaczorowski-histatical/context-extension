@@ -3747,6 +3747,7 @@ if (window.__contextExtensionLoaded) {
           if (kbWrapper) kbWrapper.style.display = '';
         });
       });
+    });
 
     // View tabs (Cards / Transcript)
     const viewTabs = document.createElement('div');

@@ -39,12 +39,7 @@ async function checkAnthropic() {
 async function checkSupabase() {
   const start = Date.now();
   try {
-    const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/`, {
-      headers: {
-        apikey: process.env.SUPABASE_KEY,
-        Authorization: "Bearer " + process.env.SUPABASE_KEY,
-      },
-    });
+    const res = await fetch(process.env.SUPABASE_URL, { method: "HEAD" });
     const latency = Date.now() - start;
     if (res.ok) return { status: "ok", latency_ms: latency, error: null };
     return { status: "degraded", latency_ms: latency, error: `HTTP ${res.status}` };

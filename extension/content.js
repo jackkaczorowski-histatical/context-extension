@@ -1424,7 +1424,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-manage-sub-btn {
       background: none; border: 1px solid rgba(255,255,255,0.1); color: #94a3b8;
       border-radius: 6px; padding: 6px 12px; font-size: 11px; cursor: pointer;
-      font-family: inherit; margin-top: 8px; transition: all 0.15s;
+      font-family: inherit; transition: all 0.15s;
     }
     .ctx-manage-sub-btn:hover { color: #e0e0f0; border-color: rgba(255,255,255,0.2); }
     .light-theme .ctx-manage-sub-btn { border-color: rgba(0,0,0,0.1); color: #64748b; }
@@ -1432,7 +1432,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-upgrade-inline-btn {
       background: var(--accent); color: white; border: none; border-radius: 6px;
       padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
-      font-family: inherit; margin-top: 8px; transition: background 0.15s;
+      font-family: inherit; transition: background 0.15s;
     }
     .ctx-upgrade-inline-btn:hover { background: #0d9488; }
     /* ─── Usage warning banner ─── */
@@ -1499,7 +1499,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-auth-badge.pro { background: rgba(20,184,166,0.15); color: var(--accent); }
     .ctx-auth-signout {
       background: none; border: none; color: #ef4444; font-size: 11px;
-      cursor: pointer; font-family: inherit; margin-top: 8px;
+      cursor: pointer; font-family: inherit;
       opacity: 0.7; transition: opacity 0.15s;
     }
     .ctx-auth-signout:hover { opacity: 1; }
@@ -4205,6 +4205,9 @@ if (window.__contextExtensionLoaded) {
           info.appendChild(emailEl);
           profile.appendChild(info);
           authSection.appendChild(profile);
+          // Buttons row: sign out + action button
+          const btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:8px;';
           const signOutBtn = document.createElement('button');
           signOutBtn.className = 'ctx-auth-signout';
           signOutBtn.textContent = 'Sign out';
@@ -4213,7 +4216,7 @@ if (window.__contextExtensionLoaded) {
             try { chrome.runtime.sendMessage({ type: 'GOOGLE_SIGN_OUT' }); } catch (err) {}
             renderAuth(null);
           });
-          authSection.appendChild(signOutBtn);
+          btnRow.appendChild(signOutBtn);
           // Subscription management buttons
           if (user.plan === 'pro') {
             const manageBtn = document.createElement('button');
@@ -4223,7 +4226,7 @@ if (window.__contextExtensionLoaded) {
               e.stopPropagation();
               try { chrome.runtime.sendMessage({ type: 'OPEN_PORTAL' }); } catch (err) {}
             });
-            authSection.appendChild(manageBtn);
+            btnRow.appendChild(manageBtn);
           } else {
             const upgradeBtn = document.createElement('button');
             upgradeBtn.className = 'ctx-upgrade-inline-btn';
@@ -4253,8 +4256,9 @@ if (window.__contextExtensionLoaded) {
               });
               sidebar.appendChild(upgradeOv);
             });
-            authSection.appendChild(upgradeBtn);
+            btnRow.appendChild(upgradeBtn);
           }
+          authSection.appendChild(btnRow);
         } else {
           const btn = document.createElement('button');
           btn.className = 'ctx-google-btn';

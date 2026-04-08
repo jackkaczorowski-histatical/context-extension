@@ -13,7 +13,9 @@
       "Bash(done)",
       "Bash(npx license-checker:*)",
       "Bash(npm audit:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(node -c api/analyze.js && node -c api/_budget.js && echo \"OK\")",
+      "Bash(node -c api/_budget.js && node -c api/analyze.js && echo \"OK\")"
     ]
   }
 }

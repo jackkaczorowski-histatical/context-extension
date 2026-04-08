@@ -58,7 +58,10 @@ module.exports = async function handler(req, res) {
       userId: user.id || googleId,
       plan: user.plan || 'free',
       minutesUsed: user.minutes_used || 0,
-      minutesLimit: user.minutes_limit || 30
+      minutesLimit: user.minutes_limit || 30,
+      subscriptionStatus: user.subscription_status || null,
+      planExpiresAt: user.plan_expires_at || null,
+      stripeCustomerId: user.stripe_customer_id || null
     });
   } catch (err) {
     captureError(err, { endpoint: 'auth-sync' });

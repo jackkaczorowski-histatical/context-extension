@@ -1,3 +1,10 @@
+const { Redis } = require('@upstash/redis');
+const stockCache = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+const { checkBudget } = require('./_budget');
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -80,6 +87,17 @@ module.exports = async function handler(req, res) {
 
   const symbol = ticker.toUpperCase();
 
+  const cacheKey = `stock:${symbol}`;
+  try {
+    const cached = await stockCache.get(cacheKey);
+    if (cached) {
+      log('info', 'stock_cache_hit', { endpoint: 'stock', ticker: symbol });
+      return res.status(200).json(typeof cached === 'string' ? JSON.parse(cached) : cached);
+    }
+  } catch (cacheErr) {
+    log('warn', 'stock_cache_read_error', { error: cacheErr.message });
+  }
+
   let meta1Y = null;
   let meta1D = null;
   try {
@@ -150,6 +168,13 @@ module.exports = async function handler(req, res) {
   };
 
   log('info', 'stock_result', { endpoint: 'stock', ticker: result.ticker, price: result.price });
+
+  try {
+    await stockCache.set(cacheKey, JSON.stringify(result), { ex: 60 });
+  } catch (cacheErr) {
+    log('warn', 'stock_cache_write_error', { error: cacheErr.message });
+  }
+
   return res.status(200).json(result);
 };
 

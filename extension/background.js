@@ -896,6 +896,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const syncData = await syncRes.json();
             user.plan = syncData.plan || 'free';
             user.minutesLimit = syncData.minutesLimit || 30;
+            user.subscriptionStatus = syncData.subscriptionStatus || null;
+            user.planExpiresAt = syncData.planExpiresAt || null;
+            user.stripeCustomerId = syncData.stripeCustomerId || null;
           }
         } catch (e) {
           console.error('[BACKGROUND] Auth sync failed:', e.message);
@@ -1069,6 +1072,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const result = await resp.json();
         if (result.url) {
           chrome.tabs.create({ url: result.url });
+          // Poll auth-sync for plan upgrade (every 5s, up to 2 min)
+          let pollCount = 0;
+          const pollInterval = setInterval(async () => {
+            pollCount++;
+            if (pollCount > 24) { clearInterval(pollInterval); return; }
+            try {
+              const pollRes = await fetch(`${CONFIG.API_BASE}/auth-sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+                body: JSON.stringify({ googleId: user.id, email: user.email, installId: data.installId || null })
+              });
+              if (!pollRes.ok) return;
+              const pollData = await pollRes.json();
+              if (pollData.plan === 'pro') {
+                clearInterval(pollInterval);
+                chrome.storage.local.get('user', (stored) => {
+                  const updatedUser = stored.user || {};
+                  updatedUser.plan = 'pro';
+                  updatedUser.minutesLimit = pollData.minutesLimit || 999999;
+                  updatedUser.subscriptionStatus = pollData.subscriptionStatus || 'active';
+                  updatedUser.planExpiresAt = pollData.planExpiresAt || null;
+                  updatedUser.stripeCustomerId = pollData.stripeCustomerId || null;
+                  chrome.storage.local.set({ user: updatedUser });
+                  console.log('[BACKGROUND] Plan upgraded to pro via checkout polling');
+                  // Notify active tab
+                  if (capturingTabId) {
+                    chrome.tabs.sendMessage(capturingTabId, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
+                  } else {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                      if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
+                    });
+                  }
+                });
+              }
+            } catch (e) {
+              console.error('[BACKGROUND] Checkout poll error:', e.message);
+            }
+          }, 5000);
         } else {
           console.error('[BACKGROUND] Checkout session error:', result.error);
         }

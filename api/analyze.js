@@ -239,10 +239,7 @@ module.exports = async function handler(req, res) {
     log('warn', 'analyze_cache_read_error', { error: cacheErr.message });
   }
 
-  log('info', 'budget_check_start', { endpoint: 'analyze' });
-  const budgetOk = await checkBudget();
-  log('info', 'budget_check_result', { endpoint: 'analyze', allowed: budgetOk });
-  if (!budgetOk) {
+  if (!await checkBudget()) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(503).json({ error: 'high_demand', message: 'Context is experiencing high demand. Please try again later.', retry: true });
   }

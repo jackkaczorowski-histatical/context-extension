@@ -6,7 +6,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-const DAILY_BUDGET_CENTS = 5; // TEMP: low limit for testing
+const DAILY_BUDGET_CENTS = 5000; // $50/day
 
 function getBudgetKey() {
   const d = new Date().toISOString().slice(0, 10);
@@ -24,7 +24,6 @@ async function checkBudget() {
   try {
     const key = getBudgetKey();
     const spent = parseInt(await redis.get(key) || '0', 10);
-    log('info', 'budget_status', { key, spent, limit: DAILY_BUDGET_CENTS });
     return spent < DAILY_BUDGET_CENTS;
   } catch (err) {
     log('warn', 'budget_check_error', { error: err.message });

@@ -1,5 +1,6 @@
 const { log } = require('./_log');
 const { captureError } = require('./_sentry');
+const { checkBudget, recordSpend } = require('./_budget');
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,11 @@ module.exports = async function handler(req, res) {
   if (!term) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(400).json({ error: "Missing term field" });
+  }
+
+  if (!await checkBudget()) {
+    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(503).json({ error: 'high_demand', message: 'Context is experiencing high demand. Please try again later.', retry: true });
   }
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
@@ -78,6 +84,8 @@ module.exports = async function handler(req, res) {
     let text = message.content[0].text;
     text = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?\s*```$/, "");
     const parsed = JSON.parse(text);
+
+    await recordSpend('context');
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json(parsed);

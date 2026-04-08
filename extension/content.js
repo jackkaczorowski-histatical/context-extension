@@ -3045,9 +3045,9 @@ if (window.__contextExtensionLoaded) {
 
           // No cached description, fetch from API
           try { if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'CONTEXT_FETCH', term: termName }); } catch (e) {}
-          fetch('https://context-extension-zv8d.vercel.app/api/context', {
+          fetch(CONFIG.API_BASE + '/context', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-extension-token': '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3' },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
             body: JSON.stringify({
               term: termName,
               userProfile: data.userProfile || null
@@ -3114,7 +3114,7 @@ if (window.__contextExtensionLoaded) {
       if (card.classList.contains('expanded') && !card.dataset.popChecked) {
         card.dataset.popChecked = 'true';
         const termName = entity.term || entity.name || '';
-        fetch('https://context-extension-zv8d.vercel.app/api/popularity', {
+        fetch(CONFIG.API_BASE + '/popularity', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ videoUrl: window.location.href, term: termName })
@@ -3384,6 +3384,7 @@ if (window.__contextExtensionLoaded) {
   }
 
   function toggleCaptureWithDisclosure(onStartCallback) {
+    console.log('[CONTENT] toggleCaptureWithDisclosure called');
     chrome.storage.local.get(['capturing', 'audioCaptureDisclosureShown'], (data) => {
       // If already capturing, just stop — no disclosure needed
       if (data.capturing) {
@@ -3410,7 +3411,7 @@ if (window.__contextExtensionLoaded) {
           </div>
         </div>
       `;
-      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      const sidebar = shadowRoot.getElementById('sidebar');
       if (!sidebar) return;
       sidebar.appendChild(overlay);
       overlay.querySelector('.ctx-disclosure-confirm').addEventListener('click', () => {
@@ -3498,6 +3499,7 @@ if (window.__contextExtensionLoaded) {
 
     const listenBtn = header.querySelector('#ctx-listen-btn');
     listenBtn.addEventListener('click', () => {
+      console.log('[CONTENT] Listen button clicked, calling toggleCaptureWithDisclosure');
       toggleCaptureWithDisclosure();
     });
 
@@ -3747,6 +3749,7 @@ if (window.__contextExtensionLoaded) {
           if (kbWrapper) kbWrapper.style.display = '';
         });
       });
+    });
 
     // View tabs (Cards / Transcript)
     const viewTabs = document.createElement('div');
@@ -3911,9 +3914,9 @@ if (window.__contextExtensionLoaded) {
         askResponse.appendChild(askClear);
 
         chrome.storage.local.get(['sessionTranscript', 'capturingTabTitle', 'sessionHistory'], (data) => {
-          fetch('https://context-extension-zv8d.vercel.app/api/ask', {
+          fetch(CONFIG.API_BASE + '/ask', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-extension-token': '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3' },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
             body: JSON.stringify({
               question,
               sessionTranscript: data.sessionTranscript || '',
@@ -6344,7 +6347,7 @@ if (window.__contextExtensionLoaded) {
           </div>
         </div>
       `;
-      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      const sidebar = shadowRoot.getElementById('sidebar');
       if (sidebar) {
         sidebar.appendChild(overlay);
         overlay.querySelector('.ctx-disclosure-confirm').addEventListener('click', () => overlay.remove());
@@ -6366,7 +6369,7 @@ if (window.__contextExtensionLoaded) {
           </div>
         </div>
       `;
-      const sidebar = shadowRoot.getElementById('ctx-sidebar');
+      const sidebar = shadowRoot.getElementById('sidebar');
       if (sidebar) {
         sidebar.appendChild(overlay);
         overlay.querySelector('.ctx-disclosure-cancel').addEventListener('click', () => overlay.remove());

@@ -1,10 +1,9 @@
-const API_BASE = 'https://context-extension-zv8d.vercel.app/api';
-const API_SECRET = '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3';
+importScripts('config.js');
 
 self.addEventListener('error', (event) => {
-  fetch(`${API_BASE}/events`, {
+  fetch(`${CONFIG.API_BASE}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+    headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
     body: JSON.stringify({
       type: 'extension_error',
       error: event.message,
@@ -17,9 +16,9 @@ self.addEventListener('error', (event) => {
 });
 
 self.addEventListener('unhandledrejection', (event) => {
-  fetch(`${API_BASE}/events`, {
+  fetch(`${CONFIG.API_BASE}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+    headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
     body: JSON.stringify({
       type: 'extension_error',
       error: event.reason?.message || String(event.reason),
@@ -30,7 +29,7 @@ self.addEventListener('unhandledrejection', (event) => {
 
 async function checkServerStatus(tabId) {
   try {
-    const res = await fetch(`${API_BASE}/status`);
+    const res = await fetch(`${CONFIG.API_BASE}/status`);
     if (!res.ok) return true; // fail open
     const data = await res.json();
     if (data.enabled === false || data.maintenance === true) {
@@ -96,13 +95,16 @@ const INDEX_TO_ETF = {
 
 async function resolveTickerFromName(name) {
   try {
-    const resp = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(name)}&quotesCount=1&newsCount=0`);
+    const resp = await fetch(`${CONFIG.API_BASE}/stock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+      body: JSON.stringify({ ticker: name })
+    });
     if (!resp.ok) return null;
     const data = await resp.json();
-    const quote = data.quotes && data.quotes[0];
-    if (quote && quote.symbol) {
-      console.log('[BACKGROUND] Resolved ticker:', name, '→', quote.symbol);
-      return quote.symbol;
+    if (data && data.ticker) {
+      console.log('[BACKGROUND] Resolved ticker:', name, '→', data.ticker);
+      return data.ticker;
     }
     return null;
   } catch (e) {
@@ -219,9 +221,9 @@ function flushEvents() {
   }
   if (eventQueue.length === 0) return;
   const batch = eventQueue.splice(0);
-  fetch(`${API_BASE}/events`, {
+  fetch(`${CONFIG.API_BASE}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+    headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
     body: JSON.stringify({ events: batch })
   }).catch(err => {
     console.error('[BACKGROUND] Event flush failed:', err.message);
@@ -782,9 +784,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // 2b. Send session data to Supabase if user consented
       if (data.dataConsent && sessionHist.length > 0) {
         const filteredEntities = sessionHist.filter(i => i.term && i.type !== 'insight' && i.type !== 'video-divider');
-        fetch(`${API_BASE}/session-data`, {
+        fetch(`${CONFIG.API_BASE}/session-data`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
           body: JSON.stringify({
             installId: data.installId || null,
             userId: data.user?.id || null,
@@ -871,9 +873,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Sync with backend before notifying content script
         try {
           const installData = await chrome.storage.local.get('installId');
-          const syncRes = await fetch(`${API_BASE}/auth-sync`, {
+          const syncRes = await fetch(`${CONFIG.API_BASE}/auth-sync`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+            headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
             body: JSON.stringify({
               googleId: userInfo.sub,
               email: userInfo.email,
@@ -1073,8 +1075,8 @@ async function checkEntityPack(url) {
   const videoId = extractYouTubeId(url);
   if (!videoId) return null;
   try {
-    const res = await fetch(`${API_BASE}/entity-pack?videoId=${videoId}`, {
-      headers: { 'x-extension-token': API_SECRET }
+    const res = await fetch(`${CONFIG.API_BASE}/entity-pack?videoId=${videoId}`, {
+      headers: { 'x-extension-token': CONFIG.API_SECRET }
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -1339,9 +1341,9 @@ async function stopCapture() {
           .filter(h => h.type === 'insight')
           .map(h => ({ insight: h.term, detail: h.description || '', category: h.category || 'tip' }))
           .slice(0, 20);
-        fetch(`${API_BASE}/entity-pack`, {
+        fetch(`${CONFIG.API_BASE}/entity-pack`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
           body: JSON.stringify({ videoId, title: capturingTabTitle || '', entities, insights })
         }).catch(() => {});
         console.log('[BACKGROUND] Entity pack uploaded for', videoId, '- entities:', entities.length);
@@ -1555,9 +1557,9 @@ async function processNextTranscript() {
         if (entity.type === 'stock') {
           if (!entity.ticker) return entity;
           try {
-            const stockRes = await fetch(`${API_BASE}/stock`, {
+            const stockRes = await fetch(`${CONFIG.API_BASE}/stock`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+              headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
               body: JSON.stringify({ ticker: entity.ticker })
             });
             if (stockRes.ok) {
@@ -1650,9 +1652,9 @@ async function processNextTranscript() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
       try {
-        analyzeRes = await fetch(`${API_BASE}/analyze`, {
+        analyzeRes = await fetch(`${CONFIG.API_BASE}/analyze`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
           body: analyzeBody,
           signal: controller.signal
         });
@@ -1689,6 +1691,20 @@ async function processNextTranscript() {
       }
     }
     const analyzeData = await analyzeRes.json();
+
+    // Budget circuit breaker — skip chunk but keep capturing
+    if (analyzeData.error === 'high_demand') {
+      console.log('[BACKGROUND] High demand, skipping chunk');
+      if (capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, {
+          type: 'SHOW_TOAST',
+          message: 'Context is experiencing high demand. Please try again later.'
+        }).catch(() => {});
+      }
+      scheduleNext();
+      return;
+    }
+
     const entities = analyzeData.entities || [];
     entities.forEach(e => { if (e.term) e.term = capitalizeTerm(e.term); });
     const insights = (analyzeData.insights || []).slice(0, 1);
@@ -1862,9 +1878,9 @@ async function processNextTranscript() {
             const stockTimeout = setTimeout(() => stockController.abort(), 15000);
             let stockRes;
             try {
-              stockRes = await fetch(`${API_BASE}/stock`, {
+              stockRes = await fetch(`${CONFIG.API_BASE}/stock`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+                headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
                 body: JSON.stringify({ ticker: entity.ticker }),
                 signal: stockController.signal
               });
@@ -1883,9 +1899,9 @@ async function processNextTranscript() {
                   const retryTimeout = setTimeout(() => retryController.abort(), 15000);
                   let retryRes;
                   try {
-                    retryRes = await fetch(`${API_BASE}/stock`, {
+                    retryRes = await fetch(`${CONFIG.API_BASE}/stock`, {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'x-extension-token': API_SECRET },
+                      headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
                       body: JSON.stringify({ ticker: entity.ticker }),
                       signal: retryController.signal
                     });

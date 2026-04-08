@@ -7,6 +7,6 @@
     "@sentry/node": "10.47.0",
     "@upstash/redis": "1.37.0",
     "canvas": "3.2.3",
-    "stripe": "14.14.0"
+    "stripe": "22.0.1"
   }
 }

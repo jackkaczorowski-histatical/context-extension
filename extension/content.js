@@ -6407,6 +6407,20 @@ if (window.__contextExtensionLoaded) {
         upgradeOv.remove();
       });
       sidebar.appendChild(upgradeOv);
+    } else if (msg.type === 'PLAN_UPGRADED') {
+      if (!shadowRoot) return;
+      // Remove any upgrade overlays
+      shadowRoot.querySelectorAll('.ctx-upgrade-overlay').forEach(el => el.remove());
+      shadowRoot.querySelectorAll('.ctx-usage-limit').forEach(el => el.remove());
+      shadowRoot.querySelectorAll('.ctx-usage-warning').forEach(el => el.remove());
+      // Hide usage footer (pro users don't need it)
+      const footer = shadowRoot.getElementById('ctx-usage-footer');
+      if (footer) footer.style.display = 'none';
+      // Rebuild settings panel if open to reflect pro status
+      const panel = shadowRoot.querySelector('.ctx-settings-panel');
+      if (panel && panel.classList.contains('open')) {
+        buildSettingsPanel();
+      }
     } else if (msg.type === 'SIGN_IN_SUCCESS') {
       // Re-render auth section in settings if open
       if (!shadowRoot) return;

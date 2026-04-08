@@ -6412,19 +6412,22 @@ if (window.__contextExtensionLoaded) {
       });
       sidebar.appendChild(upgradeOv);
     } else if (msg.type === 'PLAN_UPGRADED') {
+      console.log('[CONTENT] PLAN_UPGRADED message received');
       if (!shadowRoot) return;
-      // Remove any upgrade overlays
-      shadowRoot.querySelectorAll('.ctx-upgrade-overlay').forEach(el => el.remove());
-      shadowRoot.querySelectorAll('.ctx-usage-limit').forEach(el => el.remove());
-      shadowRoot.querySelectorAll('.ctx-usage-warning').forEach(el => el.remove());
+      // Remove every upgrade-related overlay
+      shadowRoot.querySelectorAll('.ctx-upgrade-overlay, .ctx-usage-limit, .ctx-usage-warning').forEach(el => el.remove());
       // Hide usage footer (pro users don't need it)
       const footer = shadowRoot.getElementById('ctx-usage-footer');
       if (footer) footer.style.display = 'none';
-      // Rebuild settings panel if open to reflect pro status
-      const panel = shadowRoot.querySelector('.ctx-settings-panel');
-      if (panel && panel.classList.contains('open')) {
-        buildSettingsPanel();
+      // Update auth section to show PRO state (works whether settings panel is open or closed)
+      const updatedUser = (msg && msg.user) || null;
+      const authEl = shadowRoot.querySelector('.ctx-auth-section');
+      if (authEl && updatedUser) {
+        authEl.dispatchEvent(new CustomEvent('auth-changed', { detail: updatedUser }));
       }
+      // Rebuild settings panel so next open reflects PRO
+      buildSettingsPanel();
+      console.log('[CONTENT] PLAN_UPGRADED received, UI updated');
     } else if (msg.type === 'SIGN_IN_SUCCESS') {
       // Re-render auth section in settings if open
       if (!shadowRoot) return;

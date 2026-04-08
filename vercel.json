@@ -1,6 +1,7 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/", "destination": "/api/index" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/api/terms" }
   ],

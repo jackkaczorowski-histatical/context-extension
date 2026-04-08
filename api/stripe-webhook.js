@@ -5,6 +5,15 @@ const { captureError } = require('./_sentry');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
+function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 async function updateUserSubscription(googleId, updates) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${googleId}`, {
     method: 'PATCH',
@@ -29,8 +38,7 @@ module.exports = async function handler(req, res) {
   let event;
 
   try {
-    // Vercel provides raw body as req.body when bodyParser is false
-    const rawBody = req.body;
+    const rawBody = await getRawBody(req);
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     log('error', 'stripe_webhook_sig_failed', { error: err.message });

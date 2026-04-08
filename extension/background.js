@@ -95,13 +95,16 @@ const INDEX_TO_ETF = {
 
 async function resolveTickerFromName(name) {
   try {
-    const resp = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(name)}&quotesCount=1&newsCount=0`);
+    const resp = await fetch(`${CONFIG.API_BASE}/stock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+      body: JSON.stringify({ ticker: name })
+    });
     if (!resp.ok) return null;
     const data = await resp.json();
-    const quote = data.quotes && data.quotes[0];
-    if (quote && quote.symbol) {
-      console.log('[BACKGROUND] Resolved ticker:', name, '→', quote.symbol);
-      return quote.symbol;
+    if (data && data.ticker) {
+      console.log('[BACKGROUND] Resolved ticker:', name, '→', data.ticker);
+      return data.ticker;
     }
     return null;
   } catch (e) {

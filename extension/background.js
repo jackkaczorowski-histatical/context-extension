@@ -1057,6 +1057,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     });
   } else if (message.type === 'OPEN_CHECKOUT') {
+    const originTabId = capturingTabId || (sender.tab && sender.tab.id) || null;
     chrome.storage.local.get(['user', 'installId'], async (data) => {
       const user = data.user;
       if (!user || !user.id || !user.email) {
@@ -1096,14 +1097,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   updatedUser.stripeCustomerId = pollData.stripeCustomerId || null;
                   chrome.storage.local.set({ user: updatedUser });
                   console.log('[BACKGROUND] Plan upgraded to pro via checkout polling');
-                  // Notify active tab
-                  if (capturingTabId) {
-                    chrome.tabs.sendMessage(capturingTabId, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
-                  } else {
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                      if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
-                    });
+                  // Notify the origin tab first, then broadcast to all tabs as fallback
+                  if (originTabId) {
+                    chrome.tabs.sendMessage(originTabId, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
                   }
+                  chrome.tabs.query({}, (tabs) => {
+                    tabs.forEach(tab => {
+                      if (tab.id !== originTabId) {
+                        chrome.tabs.sendMessage(tab.id, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
+                      }
+                    });
+                  });
                 });
               }
             } catch (e) {

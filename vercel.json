@@ -15,6 +15,12 @@
     "api/session-data.js": { "maxDuration": 5 },
     "api/auth-sync.js": { "maxDuration": 5 },
     "api/health.js": { "maxDuration": 10 },
-    "api/status.js": { "maxDuration": 5 }
+    "api/status.js": { "maxDuration": 5 },
+    "api/create-checkout-session.js": { "maxDuration": 10 },
+    "api/stripe-webhook.js": { "maxDuration": 10 },
+    "api/create-portal-session.js": { "maxDuration": 10 },
+    "api/checkout-success.js": { "maxDuration": 5 },
+    "api/checkout-cancel.js": { "maxDuration": 5 },
+    "api/portal-return.js": { "maxDuration": 5 }
   }
 }

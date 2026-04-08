@@ -415,6 +415,10 @@ async function incrementUsage(field, amount = 1) {
         const tabToNotify = capturingTabId;
         if (tabToNotify) {
           chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes }).catch(() => {});
+          chrome.tabs.sendMessage(tabToNotify, {
+            type: 'SHOW_UPGRADE',
+            message: 'You\'ve used your 30 free minutes today. Upgrade to Pro for unlimited listening.'
+          }).catch(() => {});
         }
         stopCapture();
       }
@@ -567,6 +571,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         const tabToNotify = activeTabId;
         if (tabToNotify) {
           chrome.tabs.sendMessage(tabToNotify, { type: 'USAGE_LIMIT_REACHED', minutes: minutes }).catch(() => {});
+          chrome.tabs.sendMessage(tabToNotify, {
+            type: 'SHOW_UPGRADE',
+            message: 'You\'ve used your 30 free minutes today. Upgrade to Pro for unlimited listening.'
+          }).catch(() => {});
         }
         stopCapture();
       }
@@ -1043,6 +1051,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (pastSessions.length > 20) pastSessions.length = 20;
         chrome.storage.local.set({ pastSessions });
         console.log('[BACKGROUND] Session snapshot saved on pause');
+      }
+    });
+  } else if (message.type === 'OPEN_CHECKOUT') {
+    chrome.storage.local.get(['user', 'installId'], async (data) => {
+      const user = data.user;
+      if (!user || !user.id || !user.email) {
+        console.error('[BACKGROUND] OPEN_CHECKOUT: no signed-in user');
+        return;
+      }
+      try {
+        const resp = await fetch(`${CONFIG.API_BASE}/create-checkout-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+          body: JSON.stringify({ googleId: user.id, email: user.email, plan: message.plan || 'monthly', installId: data.installId || null })
+        });
+        const result = await resp.json();
+        if (result.url) {
+          chrome.tabs.create({ url: result.url });
+        } else {
+          console.error('[BACKGROUND] Checkout session error:', result.error);
+        }
+      } catch (err) {
+        console.error('[BACKGROUND] OPEN_CHECKOUT failed:', err.message);
+      }
+    });
+  } else if (message.type === 'OPEN_PORTAL') {
+    chrome.storage.local.get(['user', 'installId'], async (data) => {
+      const user = data.user;
+      if (!user || !user.id) {
+        console.error('[BACKGROUND] OPEN_PORTAL: no signed-in user');
+        return;
+      }
+      try {
+        const resp = await fetch(`${CONFIG.API_BASE}/create-portal-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+          body: JSON.stringify({ googleId: user.id, installId: data.installId || null })
+        });
+        const result = await resp.json();
+        if (result.url) {
+          chrome.tabs.create({ url: result.url });
+        } else {
+          console.error('[BACKGROUND] Portal session error:', result.error);
+        }
+      } catch (err) {
+        console.error('[BACKGROUND] OPEN_PORTAL failed:', err.message);
       }
     });
   }

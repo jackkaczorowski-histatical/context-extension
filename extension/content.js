@@ -1390,6 +1390,51 @@ if (window.__contextExtensionLoaded) {
     .light-theme .ctx-usage-limit-body { color: #64748b; }
     .light-theme .ctx-usage-limit-dismiss { border-color: rgba(0,0,0,0.1); color: #9a9ab0; }
     .light-theme .ctx-usage-limit-dismiss:hover { color: #333; border-color: rgba(0,0,0,0.2); }
+    /* ─── Upgrade overlay ─── */
+    .ctx-upgrade-overlay {
+      position: absolute; inset: 0; z-index: 9999;
+      background: rgba(10,15,26,0.95); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 32px; text-align: center;
+    }
+    .ctx-upgrade-overlay-title { font-size: 18px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+    .ctx-upgrade-overlay-msg { font-size: 13px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px; max-width: 260px; }
+    .ctx-upgrade-btn-monthly {
+      background: var(--accent); color: white; border: none; border-radius: 8px;
+      padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer;
+      margin-bottom: 10px; display: block; width: 100%; max-width: 260px; font-family: inherit;
+      transition: background 150ms ease;
+    }
+    .ctx-upgrade-btn-monthly:hover { background: #0d9488; }
+    .ctx-upgrade-btn-annual {
+      background: none; border: 1px solid rgba(20,184,166,0.4); color: #14b8a6;
+      border-radius: 8px; padding: 10px 24px; font-size: 13px; font-weight: 600;
+      cursor: pointer; margin-bottom: 16px; display: block; width: 100%; max-width: 260px;
+      font-family: inherit; transition: all 150ms ease;
+    }
+    .ctx-upgrade-btn-annual:hover { background: rgba(20,184,166,0.08); border-color: #14b8a6; }
+    .ctx-upgrade-dismiss {
+      background: none; border: none; color: #64748b; font-size: 12px;
+      cursor: pointer; font-family: inherit; padding: 4px;
+    }
+    .ctx-upgrade-dismiss:hover { color: #e0e0f0; }
+    .light-theme .ctx-upgrade-overlay { background: rgba(245,245,248,0.97); }
+    .light-theme .ctx-upgrade-overlay-title { color: #1a1a2e; }
+    .light-theme .ctx-upgrade-overlay-msg { color: #64748b; }
+    /* ─── Subscription management button ─── */
+    .ctx-manage-sub-btn {
+      background: none; border: 1px solid rgba(255,255,255,0.1); color: #94a3b8;
+      border-radius: 6px; padding: 6px 12px; font-size: 11px; cursor: pointer;
+      font-family: inherit; margin-top: 8px; transition: all 0.15s;
+    }
+    .ctx-manage-sub-btn:hover { color: #e0e0f0; border-color: rgba(255,255,255,0.2); }
+    .light-theme .ctx-manage-sub-btn { border-color: rgba(0,0,0,0.1); color: #64748b; }
+    .light-theme .ctx-manage-sub-btn:hover { color: #333; border-color: rgba(0,0,0,0.2); }
+    .ctx-upgrade-inline-btn {
+      background: var(--accent); color: white; border: none; border-radius: 6px;
+      padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
+      font-family: inherit; margin-top: 8px; transition: background 0.15s;
+    }
+    .ctx-upgrade-inline-btn:hover { background: #0d9488; }
     /* ─── Usage warning banner ─── */
     .ctx-usage-warning {
       padding: 6px 12px;
@@ -4169,6 +4214,47 @@ if (window.__contextExtensionLoaded) {
             renderAuth(null);
           });
           authSection.appendChild(signOutBtn);
+          // Subscription management buttons
+          if (user.plan === 'pro') {
+            const manageBtn = document.createElement('button');
+            manageBtn.className = 'ctx-manage-sub-btn';
+            manageBtn.textContent = 'Manage Subscription';
+            manageBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              try { chrome.runtime.sendMessage({ type: 'OPEN_PORTAL' }); } catch (err) {}
+            });
+            authSection.appendChild(manageBtn);
+          } else {
+            const upgradeBtn = document.createElement('button');
+            upgradeBtn.className = 'ctx-upgrade-inline-btn';
+            upgradeBtn.textContent = 'Upgrade to Pro';
+            upgradeBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              // Show upgrade overlay
+              if (!shadowRoot) return;
+              const sidebar = shadowRoot.getElementById('sidebar');
+              if (!sidebar) return;
+              if (shadowRoot.querySelector('.ctx-upgrade-overlay')) return;
+              const upgradeOv = document.createElement('div');
+              upgradeOv.className = 'ctx-upgrade-overlay';
+              upgradeOv.innerHTML = '<div class="ctx-upgrade-overlay-title">Upgrade to Pro</div>' +
+                '<div class="ctx-upgrade-overlay-msg">Unlimited listening, no daily cap.</div>' +
+                '<button class="ctx-upgrade-btn-monthly">Go Pro \u2014 $12/mo</button>' +
+                '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
+                '<button class="ctx-upgrade-dismiss">Maybe later</button>';
+              upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
+                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (err) {}
+              });
+              upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
+                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (err) {}
+              });
+              upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
+                upgradeOv.remove();
+              });
+              sidebar.appendChild(upgradeOv);
+            });
+            authSection.appendChild(upgradeBtn);
+          }
         } else {
           const btn = document.createElement('button');
           btn.className = 'ctx-google-btn';
@@ -6249,7 +6335,7 @@ if (window.__contextExtensionLoaded) {
       banner.className = 'ctx-usage-warning';
       banner.innerHTML = (msg.minutesLeft || 5) + ' minutes remaining today. <span class="upgrade-link">Upgrade for unlimited \u2192</span>';
       banner.querySelector('.upgrade-link').addEventListener('click', () => {
-        banner.textContent = 'Pro plan coming soon!';
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
       });
       cards.parentNode.insertBefore(banner, cards);
     } else if (msg.type === 'USAGE_LIMIT_REACHED') {
@@ -6277,7 +6363,8 @@ if (window.__contextExtensionLoaded) {
         '<div class="ctx-usage-limit-meter">' + (msg.minutes || 30) + ' minutes used today</div>' +
         '<div class="ctx-usage-limit-body">You\'ve used your 30 free minutes for today.</div>' +
         '<div class="ctx-usage-countdown">' + calcResetText() + '</div>' +
-        '<button class="ctx-usage-limit-upgrade">Upgrade to Pro \u2014 $9/mo</button>' +
+        '<button class="ctx-upgrade-btn-monthly">Go Pro \u2014 $12/mo</button>' +
+        '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
         '<button class="ctx-usage-limit-dismiss">Dismiss</button>';
       // Live-tick the countdown every 60s
       const countdownEl = overlay.querySelector('.ctx-usage-countdown');
@@ -6285,10 +6372,11 @@ if (window.__contextExtensionLoaded) {
         if (!overlay.isConnected) { clearInterval(countdownInterval); return; }
         countdownEl.textContent = calcResetText();
       }, 60000);
-      overlay.querySelector('.ctx-usage-limit-upgrade').addEventListener('click', () => {
-        // Billing not built yet — show coming soon feedback
-        const upgradeBtn = overlay.querySelector('.ctx-usage-limit-upgrade');
-        if (upgradeBtn) { upgradeBtn.textContent = 'Coming soon!'; upgradeBtn.disabled = true; }
+      overlay.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+      });
+      overlay.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (e) {}
       });
       overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => {
         clearInterval(countdownInterval);
@@ -6296,6 +6384,29 @@ if (window.__contextExtensionLoaded) {
       });
       const sidebar = shadowRoot.getElementById('sidebar');
       if (sidebar) sidebar.appendChild(overlay);
+    } else if (msg.type === 'SHOW_UPGRADE') {
+      if (!shadowRoot) return;
+      // Don't show duplicate
+      if (shadowRoot.querySelector('.ctx-upgrade-overlay')) return;
+      const sidebar = shadowRoot.getElementById('sidebar');
+      if (!sidebar) return;
+      const upgradeOv = document.createElement('div');
+      upgradeOv.className = 'ctx-upgrade-overlay';
+      upgradeOv.innerHTML = '<div class="ctx-upgrade-overlay-title">Upgrade to Pro</div>' +
+        '<div class="ctx-upgrade-overlay-msg">' + (msg.message || 'Upgrade to Pro for unlimited listening.') + '</div>' +
+        '<button class="ctx-upgrade-btn-monthly">Go Pro \u2014 $12/mo</button>' +
+        '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
+        '<button class="ctx-upgrade-dismiss">Maybe later</button>';
+      upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+      });
+      upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (e) {}
+      });
+      upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
+        upgradeOv.remove();
+      });
+      sidebar.appendChild(upgradeOv);
     } else if (msg.type === 'SIGN_IN_SUCCESS') {
       // Re-render auth section in settings if open
       if (!shadowRoot) return;

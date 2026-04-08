@@ -400,11 +400,9 @@ async function incrementUsage(field, amount = 1) {
 
   // Piggyback usage cap on transcript processing (survives service worker restarts)
   if (field === 'transcripts') {
-    chrome.storage.local.get([key, 'user', 'analytics'], (capData) => {
+    chrome.storage.local.get([key, 'user'], (capData) => {
       const user = capData.user;
       if (user && user.plan === 'pro') return;
-      const installDate = (capData.analytics || {}).installDate || 0;
-      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
 
       const minutes = (capData[key] || {}).minutes || 0;
 
@@ -550,11 +548,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (!activeTabId) return;
     await incrementUsage('minutes');
     const usageKey = getUsageKey();
-    chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
+    chrome.storage.local.get([usageKey, 'user'], (data) => {
       const user = data.user;
       if (user && user.plan === 'pro') return;
-      const installDate = (data.analytics || {}).installDate || 0;
-      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
 
       const usage = data[usageKey] || { minutes: 0 };
       const minutes = usage.minutes || 0;
@@ -843,9 +839,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Check daily cap before starting — exempt pro users and trial users
         const user = data.user;
         const isPro = user && user.plan === 'pro';
-        const installDate = (data.analytics || {}).installDate || 0;
-        const inTrial = (Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3;
-        if (!isPro && !inTrial) {
+        if (!isPro) {
           const minutes = (data[toggleUsageKey] || {}).minutes || 0;
           if (minutes >= 30) {
             if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'USAGE_LIMIT_REACHED', minutes });

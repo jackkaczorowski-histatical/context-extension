@@ -1688,6 +1688,20 @@ async function processNextTranscript() {
       }
     }
     const analyzeData = await analyzeRes.json();
+
+    // Budget circuit breaker — skip chunk but keep capturing
+    if (analyzeData.error === 'high_demand') {
+      console.log('[BACKGROUND] High demand, skipping chunk');
+      if (capturingTabId) {
+        chrome.tabs.sendMessage(capturingTabId, {
+          type: 'SHOW_TOAST',
+          message: 'Context is experiencing high demand. Please try again later.'
+        }).catch(() => {});
+      }
+      scheduleNext();
+      return;
+    }
+
     const entities = analyzeData.entities || [];
     entities.forEach(e => { if (e.term) e.term = capitalizeTerm(e.term); });
     const insights = (analyzeData.insights || []).slice(0, 1);

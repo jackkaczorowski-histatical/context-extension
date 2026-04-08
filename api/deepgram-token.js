@@ -1,5 +1,6 @@
 const { log } = require('./_log');
 const { captureError } = require('./_sentry');
+const { checkBudget, recordSpend } = require('./_budget');
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +34,11 @@ module.exports = async function handler(req, res) {
   if (!await rateLimit(clientId, 10, 60000)) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(429).json({ error: 'Rate limited', retry: true });
+  }
+
+  if (!await checkBudget()) {
+    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(503).json({ error: 'high_demand', message: 'Context is experiencing high demand. Please try again later.', retry: true });
   }
 
   const apiKey = process.env.DEEPGRAM_API_KEY;
@@ -73,6 +79,8 @@ module.exports = async function handler(req, res) {
       Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
       return res.status(500).json({ error: "No key returned from Deepgram" });
     }
+
+    await recordSpend('deepgram_minute');
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json({ token });

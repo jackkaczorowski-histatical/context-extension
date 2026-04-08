@@ -1,3 +1,11 @@
+const crypto = require('crypto');
+const { Redis } = require('@upstash/redis');
+
+const entityCache = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -185,6 +193,7 @@ const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
 const { log } = require('./_log');
 const { captureError } = require('./_sentry');
+const { checkBudget, recordSpend } = require('./_budget');
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -214,6 +223,25 @@ module.exports = async function handler(req, res) {
   if (!transcript) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(400).json({ error: "Missing transcript field" });
+  }
+
+  const cacheInput = `${pageTitle || ''}::${transcript}`;
+  const cacheKey = `entity:${crypto.createHash('sha256').update(cacheInput).digest('hex').slice(0, 32)}`;
+
+  try {
+    const cached = await entityCache.get(cacheKey);
+    if (cached) {
+      log('info', 'analyze_cache_hit', { endpoint: 'analyze' });
+      Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+      return res.status(200).json(typeof cached === 'string' ? JSON.parse(cached) : cached);
+    }
+  } catch (cacheErr) {
+    log('warn', 'analyze_cache_read_error', { error: cacheErr.message });
+  }
+
+  if (!await checkBudget()) {
+    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(503).json({ error: 'high_demand', message: 'Context is experiencing high demand. Please try again later.', retry: true });
   }
 
   const knowledgeLevel = userProfile?.knowledgeLevel || "intermediate";
@@ -258,6 +286,14 @@ module.exports = async function handler(req, res) {
       Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
       return res.status(200).json({ entities: [], insights: [] });
     }
+
+    try {
+      await entityCache.set(cacheKey, JSON.stringify(parsed), { ex: 86400 });
+    } catch (cacheErr) {
+      log('warn', 'analyze_cache_write_error', { error: cacheErr.message });
+    }
+
+    await recordSpend('analyze');
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json(parsed);

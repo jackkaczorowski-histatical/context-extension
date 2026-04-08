@@ -2,6 +2,7 @@ const { rateLimit } = require('./_rateLimit');
 const validateRequest = require('./_validateRequest');
 const { log } = require('./_log');
 const { captureError } = require('./_sentry');
+const { checkBudget, recordSpend } = require('./_budget');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -35,6 +36,11 @@ module.exports = async function handler(req, res) {
   if (!question) {
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(400).json({ error: "Missing question field" });
+  }
+
+  if (!await checkBudget()) {
+    Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(503).json({ error: 'high_demand', message: 'Context is experiencing high demand. Please try again later.', retry: true });
   }
 
   const transcript = sessionTranscript
@@ -95,6 +101,8 @@ INSTRUCTIONS:
     let text = message.content[0].text;
     text = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?\s*```$/, "");
     const parsed = JSON.parse(text);
+
+    await recordSpend('ask');
 
     Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v));
 

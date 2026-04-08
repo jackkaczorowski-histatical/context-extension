@@ -67,7 +67,7 @@ module.exports = async function handler(req, res) {
           stripe_subscription_id: subscriptionId,
           subscription_status: 'active',
           plan_type: isAnnual ? 'annual' : 'monthly',
-          plan_expires_at: new Date(sub.current_period_end * 1000).toISOString(),
+          plan_expires_at: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
           minutes_limit: 999999
         });
         log('info', 'stripe_checkout_completed', { googleId, plan: isAnnual ? 'annual' : 'monthly' });
@@ -83,7 +83,7 @@ module.exports = async function handler(req, res) {
         await updateUserSubscription(googleId, {
           plan,
           subscription_status: status,
-          plan_expires_at: new Date(sub.current_period_end * 1000).toISOString(),
+          plan_expires_at: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
           minutes_limit: plan === 'pro' ? 999999 : 30
         });
         log('info', 'stripe_subscription_updated', { googleId, status, plan });

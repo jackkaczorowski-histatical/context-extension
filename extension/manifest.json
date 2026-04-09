@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Context",
   "version": "1.0.0",
-  "description": "Real-time audio context extraction from browser tabs",
+  "description": "Live AI-powered cards explain people, companies, stocks, and concepts as you watch.",
   "permissions": [
     "tabCapture",
     "activeTab",
@@ -20,7 +20,11 @@
     "*://*.spotify.com/*",
     "*://*.udemy.com/*",
     "*://*.soundcloud.com/*",
-    "*://*.podcasts.google.com/*"
+    "*://*.podcasts.google.com/*",
+    "*://*.netflix.com/*",
+    "*://*.twitch.tv/*",
+    "*://*.coursera.org/*",
+    "*://*.khanacademy.org/*"
   ],
   "oauth2": {
     "client_id": "431347797056-i4th6beimiv4ask3dtm8l4nlhceua8ba.apps.googleusercontent.com",

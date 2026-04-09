@@ -1306,10 +1306,17 @@ async function startCapture() {
 
     // No-cards fallback: if 45s pass with zero entities, notify content.js
     if (noCardsFallbackTimer) clearTimeout(noCardsFallbackTimer);
+    console.log('[BACKGROUND] No-cards fallback timer started (45s)');
     noCardsFallbackTimer = setTimeout(() => {
       noCardsFallbackTimer = null;
-      if (capturingTabId && entitiesRenderedThisSession === 0) {
-        chrome.tabs.sendMessage(capturingTabId, { type: 'NO_CARDS_FALLBACK' }).catch(() => {});
+      console.log('[BACKGROUND] No-cards fallback timer fired, entitiesRendered:', entitiesRenderedThisSession);
+      if (entitiesRenderedThisSession === 0) {
+        console.log('[BACKGROUND] No-cards fallback: sending to tab', capturingTabId);
+        if (capturingTabId) {
+          chrome.tabs.sendMessage(capturingTabId, { type: 'NO_CARDS_FALLBACK' }).catch(() => {});
+        }
+      } else {
+        console.log('[BACKGROUND] No-cards fallback: skipping, entities already rendered');
       }
     }, 45000);
 

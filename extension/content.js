@@ -6611,7 +6611,9 @@ if (window.__contextExtensionLoaded) {
       empty.appendChild(hint);
     } else if (msg.type === 'PLAN_UPGRADED') {
       console.log('[CONTENT] PLAN_UPGRADED message received');
+      console.log('[CONTENT] Showing pro celebration, shadowRoot exists:', !!shadowRoot);
       if (!shadowRoot) return;
+      ensureSidebar();
       // Remove every upgrade-related overlay
       shadowRoot.querySelectorAll('.ctx-upgrade-overlay, .ctx-usage-limit, .ctx-usage-warning, .ctx-usage-warning-yellow, .ctx-usage-warning-red').forEach(el => el.remove());
       // Hide usage footer (pro users don't need it)

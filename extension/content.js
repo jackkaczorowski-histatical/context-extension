@@ -4427,6 +4427,28 @@ if (window.__contextExtensionLoaded) {
       termsLink.addEventListener('mouseenter', () => { termsLink.style.textDecoration = 'underline'; });
       termsLink.addEventListener('mouseleave', () => { termsLink.style.textDecoration = 'none'; });
       s3b.appendChild(termsLink);
+
+      const reportLink = document.createElement('a');
+      reportLink.href = '#';
+      reportLink.textContent = 'Report an Issue';
+      reportLink.style.cssText = 'display:inline-block;margin-top:4px;padding-left:2px;font-size:12px;color:#14b8a6;text-decoration:none;cursor:pointer;';
+      reportLink.addEventListener('mouseenter', () => { reportLink.style.textDecoration = 'underline'; });
+      reportLink.addEventListener('mouseleave', () => { reportLink.style.textDecoration = 'none'; });
+      reportLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.storage.local.get(['pastSessions', 'lastError'], (d) => {
+          const version = chrome.runtime.getManifest().version;
+          const uaMatch = navigator.userAgent.match(/Chrome\/([\d.]+)/);
+          const browser = uaMatch ? 'Chrome ' + uaMatch[1] : navigator.userAgent;
+          const os = navigator.platform;
+          const sessions = (d.pastSessions || []).length;
+          const lastErr = d.lastError || 'None';
+          const body = 'Describe your issue:\n\n\n\n--- Diagnostics (auto-collected) ---\nExtension: v' + version + '\nBrowser: ' + browser + '\nOS: ' + os + '\nSessions: ' + sessions + '\nLast error: ' + lastErr + '\n---';
+          window.open('mailto:jack@histatical.com?subject=' + encodeURIComponent('Context Bug Report') + '&body=' + encodeURIComponent(body));
+        });
+      });
+      s3b.appendChild(reportLink);
+
       settingsPanel.appendChild(s3b);
 
       // Section 4: Keyboard Shortcuts
@@ -6423,6 +6445,16 @@ if (window.__contextExtensionLoaded) {
         upgradeOv.remove();
       });
       sidebar.appendChild(upgradeOv);
+    } else if (msg.type === 'NO_CARDS_FALLBACK') {
+      if (!shadowRoot || hasCards) return;
+      const empty = shadowRoot.getElementById('empty-state');
+      if (!empty) return;
+      if (empty.querySelector('.ctx-no-cards-hint')) return;
+      const hint = document.createElement('div');
+      hint.className = 'ctx-no-cards-hint';
+      hint.style.cssText = 'color:#64748b;font-size:12px;text-align:center;padding:12px 16px;line-height:1.5;';
+      hint.textContent = 'This content may not have many identifiable terms yet. Try a video about specific topics, people, or companies.';
+      empty.appendChild(hint);
     } else if (msg.type === 'PLAN_UPGRADED') {
       console.log('[CONTENT] PLAN_UPGRADED message received');
       if (!shadowRoot) return;

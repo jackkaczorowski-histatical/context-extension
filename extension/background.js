@@ -195,6 +195,7 @@ let topicAffinities = {};
 let entityPackCache = {}; // { normalizedTerm: entityObject } — loaded from pack
 let dismissedTerms = new Set(); // terms dismissed by user this session
 let lastSessionCardsExpanded = 0; // updated by SESSION_METRICS from content.js
+let noCardsFallbackTimer = null;
 
 function trackEvent(eventName, properties = {}) {
   chrome.storage.local.get(['installId', 'user', 'eventBuffer'], (data) => {
@@ -1302,6 +1303,15 @@ async function startCapture() {
     chrome.action.setBadgeText({ text: '●' });
     chrome.action.setBadgeBackgroundColor({ color: '#ef4444' });
 
+    // No-cards fallback: if 45s pass with zero entities, notify content.js
+    if (noCardsFallbackTimer) clearTimeout(noCardsFallbackTimer);
+    noCardsFallbackTimer = setTimeout(() => {
+      noCardsFallbackTimer = null;
+      if (capturingTabId && sessionTotal === 0) {
+        chrome.tabs.sendMessage(capturingTabId, { type: 'NO_CARDS_FALLBACK' }).catch(() => {});
+      }
+    }, 45000);
+
     // Check for pre-computed entity pack (non-blocking)
     if (!isResume) {
       checkEntityPack(tab.url).then(pack => {
@@ -1517,6 +1527,7 @@ async function stopCapture(stopMethod = 'user') {
   sessionTranscript = '';
   isPaused = false;
   firstFlush = true;
+  if (noCardsFallbackTimer) { clearTimeout(noCardsFallbackTimer); noCardsFallbackTimer = null; }
   stopUsageTimer();
   flushEvents();
   chrome.storage.local.remove(['activeTabId', 'sessionEntities']);

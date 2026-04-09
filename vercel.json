@@ -20,6 +20,7 @@
     "api/health.js": { "maxDuration": 10 },
     "api/status.js": { "maxDuration": 5 },
     "api/create-checkout-session.js": { "maxDuration": 10 },
+    "api/create-student-checkout.js": { "maxDuration": 10 },
     "api/stripe-webhook.js": { "maxDuration": 10 },
     "api/create-portal-session.js": { "maxDuration": 10 },
     "api/checkout-success.js": { "maxDuration": 5 },

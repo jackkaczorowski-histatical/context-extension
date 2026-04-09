@@ -1170,6 +1170,71 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.error('[BACKGROUND] OPEN_CHECKOUT failed:', err.message);
       }
     });
+  } else if (message.type === 'OPEN_STUDENT_CHECKOUT') {
+    trackEvent('upgrade_started', { plan: 'student', source: 'student_discount' });
+    const originTabId = capturingTabId || (sender.tab && sender.tab.id) || null;
+    chrome.storage.local.get(['user', 'installId'], async (data) => {
+      const user = data.user;
+      if (!user || !user.id) {
+        console.error('[BACKGROUND] OPEN_STUDENT_CHECKOUT: no signed-in user');
+        return;
+      }
+      try {
+        const resp = await fetch(`${CONFIG.API_BASE}/create-student-checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+          body: JSON.stringify({ googleId: user.id, email: user.email, studentEmail: message.email, installId: data.installId || null })
+        });
+        const result = await resp.json();
+        if (result.url) {
+          chrome.tabs.create({ url: result.url });
+          // Poll auth-sync for plan upgrade (every 5s, up to 2 min)
+          let pollCount = 0;
+          const pollInterval = setInterval(async () => {
+            pollCount++;
+            if (pollCount > 24) { clearInterval(pollInterval); return; }
+            try {
+              const pollRes = await fetch(`${CONFIG.API_BASE}/auth-sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+                body: JSON.stringify({ googleId: user.id, email: user.email, installId: data.installId || null })
+              });
+              if (!pollRes.ok) return;
+              const pollData = await pollRes.json();
+              if (pollData.plan === 'pro') {
+                clearInterval(pollInterval);
+                chrome.storage.local.get('user', (stored) => {
+                  const updatedUser = stored.user || {};
+                  updatedUser.plan = 'pro';
+                  updatedUser.minutesLimit = pollData.minutesLimit || 999999;
+                  updatedUser.subscriptionStatus = pollData.subscriptionStatus || 'active';
+                  updatedUser.planExpiresAt = pollData.planExpiresAt || null;
+                  updatedUser.stripeCustomerId = pollData.stripeCustomerId || null;
+                  chrome.storage.local.set({ user: updatedUser });
+                  console.log('[BACKGROUND] Plan upgraded to pro via student checkout polling');
+                  if (originTabId) {
+                    chrome.tabs.sendMessage(originTabId, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
+                  }
+                  chrome.tabs.query({}, (tabs) => {
+                    tabs.forEach(tab => {
+                      if (tab.id !== originTabId) {
+                        chrome.tabs.sendMessage(tab.id, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
+                      }
+                    });
+                  });
+                });
+              }
+            } catch (e) {
+              console.error('[BACKGROUND] Student checkout poll error:', e.message);
+            }
+          }, 5000);
+        } else {
+          console.error('[BACKGROUND] Student checkout error:', result.error);
+        }
+      } catch (err) {
+        console.error('[BACKGROUND] OPEN_STUDENT_CHECKOUT failed:', err.message);
+      }
+    });
   } else if (message.type === 'OPEN_PORTAL') {
     chrome.storage.local.get(['user', 'installId'], async (data) => {
       const user = data.user;

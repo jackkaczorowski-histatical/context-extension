@@ -4408,28 +4408,34 @@ if (window.__contextExtensionLoaded) {
       consentHint.textContent = 'Anonymized session data helps us improve entity extraction and build better features. No personal data is shared.';
       s3b.appendChild(consentHint);
 
+      const linksRow = document.createElement('div');
+      linksRow.style.cssText = 'margin-top:8px;padding-left:2px;font-size:12px;';
       const privacyLink = document.createElement('a');
       privacyLink.href = 'https://context-extension-zv8d.vercel.app/privacy';
       privacyLink.target = '_blank';
       privacyLink.rel = 'noopener noreferrer';
       privacyLink.textContent = 'Privacy Policy';
-      privacyLink.style.cssText = 'display:inline-block;margin-top:8px;padding-left:2px;font-size:12px;color:#14b8a6;text-decoration:none;cursor:pointer;';
+      privacyLink.style.cssText = 'color:#14b8a6;text-decoration:none;cursor:pointer;';
       privacyLink.addEventListener('mouseenter', () => { privacyLink.style.textDecoration = 'underline'; });
       privacyLink.addEventListener('mouseleave', () => { privacyLink.style.textDecoration = 'none'; });
-      s3b.appendChild(privacyLink);
-
+      const dot = document.createElement('span');
+      dot.textContent = ' \u00B7 ';
+      dot.style.cssText = 'color:#64748b;';
       const termsLink = document.createElement('a');
       termsLink.href = 'https://context-extension-zv8d.vercel.app/terms';
       termsLink.target = '_blank';
       termsLink.rel = 'noopener noreferrer';
       termsLink.textContent = 'Terms of Service';
-      termsLink.style.cssText = 'display:inline-block;margin-top:4px;padding-left:2px;font-size:12px;color:#14b8a6;text-decoration:none;cursor:pointer;';
+      termsLink.style.cssText = 'color:#14b8a6;text-decoration:none;cursor:pointer;';
       termsLink.addEventListener('mouseenter', () => { termsLink.style.textDecoration = 'underline'; });
       termsLink.addEventListener('mouseleave', () => { termsLink.style.textDecoration = 'none'; });
-      s3b.appendChild(termsLink);
+      linksRow.appendChild(privacyLink);
+      linksRow.appendChild(dot);
+      linksRow.appendChild(termsLink);
+      s3b.appendChild(linksRow);
 
       const reportDiv = document.createElement('div');
-      reportDiv.style.cssText = 'margin-top:8px;';
+      reportDiv.style.cssText = 'margin-top:6px;padding-left:2px;';
       const reportLink = document.createElement('a');
       reportLink.href = '#';
       reportLink.textContent = 'Report an Issue';

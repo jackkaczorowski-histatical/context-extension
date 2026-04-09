@@ -4,7 +4,8 @@
     { "source": "/", "destination": "/api/index" },
     { "source": "/go/:source", "destination": "/api/install-redirect?source=:source" },
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/api/terms" }
+    { "source": "/terms", "destination": "/api/terms" },
+    { "source": "/faq", "destination": "/api/faq" }
   ],
   "functions": {
     "api/analyze.js": { "maxDuration": 15 },

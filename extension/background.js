@@ -189,7 +189,6 @@ let isStoppingCapture = false;
 let isStartingCapture = false;
 let lastAnalyzeFailed = false;
 let captureStartTime = null;
-let eventQueue = [];
 let eventFlushTimer = null;
 let knowledgeState = {};
 let topicAffinities = {};
@@ -198,8 +197,9 @@ let dismissedTerms = new Set(); // terms dismissed by user this session
 let lastSessionCardsExpanded = 0; // updated by SESSION_METRICS from content.js
 
 function trackEvent(eventName, properties = {}) {
-  chrome.storage.local.get(['installId', 'user'], (data) => {
-    eventQueue.push({
+  chrome.storage.local.get(['installId', 'user', 'eventBuffer'], (data) => {
+    const buffer = data.eventBuffer || [];
+    buffer.push({
       event: eventName,
       properties,
       installId: data.installId || null,
@@ -207,11 +207,13 @@ function trackEvent(eventName, properties = {}) {
       sessionId: sessionId || null,
       timestamp: new Date().toISOString()
     });
-    if (eventQueue.length >= 10) {
-      flushEvents();
-    } else if (!eventFlushTimer) {
-      eventFlushTimer = setTimeout(() => flushEvents(), 30000);
-    }
+    chrome.storage.local.set({ eventBuffer: buffer }, () => {
+      if (buffer.length >= 20) {
+        flushEvents();
+      } else if (!eventFlushTimer) {
+        eventFlushTimer = setTimeout(() => flushEvents(), 30000);
+      }
+    });
   });
 }
 
@@ -220,16 +222,22 @@ function flushEvents() {
     clearTimeout(eventFlushTimer);
     eventFlushTimer = null;
   }
-  if (eventQueue.length === 0) return;
-  const batch = eventQueue.splice(0);
-  fetch(`${CONFIG.API_BASE}/events`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
-    body: JSON.stringify({ events: batch })
-  }).catch(err => {
-    console.error('[BACKGROUND] Event flush failed:', err.message);
-    // Keep events in buffer for retry on next flush
-    eventQueue.unshift(...batch);
+  chrome.storage.local.get('eventBuffer', (data) => {
+    const buffer = data.eventBuffer || [];
+    if (buffer.length === 0) return;
+    chrome.storage.local.set({ eventBuffer: [] });
+    fetch(`${CONFIG.API_BASE}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+      body: JSON.stringify({ events: buffer })
+    }).catch(err => {
+      console.error('[BACKGROUND] Event flush failed:', err.message);
+      // Put events back in storage for retry on next flush
+      chrome.storage.local.get('eventBuffer', (current) => {
+        const existing = current.eventBuffer || [];
+        chrome.storage.local.set({ eventBuffer: buffer.concat(existing) });
+      });
+    });
   });
 }
 
@@ -959,6 +967,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === 'CARD_EXPANDED') {
     trackEvent('card_expanded', { entityType: message.entityType, term: message.term });
+  } else if (message.type === 'EXPORT_TRIGGERED') {
+    trackEvent('export_triggered', { exportType: message.exportType || 'clipboard', entityCount: message.entityCount || 0 });
   } else if (message.type === 'CARD_COPY') {
     console.log(`[BACKGROUND] Card copied: ${message.term}`);
     trackEvent('card_copy', { term: message.term, entityType: message.entityType });

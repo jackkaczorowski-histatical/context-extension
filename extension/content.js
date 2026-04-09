@@ -3638,6 +3638,10 @@ if (window.__contextExtensionLoaded) {
         });
       });
       try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'export', properties: { method: 'clipboard' } }); } catch (e2) {}
+      chrome.storage.local.get('sessionHistory', (d) => {
+        const count = (d.sessionHistory || []).filter(i => i.term && i.type !== 'insight' && i.type !== 'video-divider').length;
+        chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'clipboard', entityCount: count }).catch(() => {});
+      });
     });
 
     exportMenu.querySelector('[data-action="gmail"]').addEventListener('click', (e) => {
@@ -3672,6 +3676,10 @@ if (window.__contextExtensionLoaded) {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
       try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'export', properties: { method: 'download' } }); } catch (e2) {}
+      chrome.storage.local.get('sessionHistory', (d) => {
+        const count = (d.sessionHistory || []).filter(i => i.term && i.type !== 'insight' && i.type !== 'video-divider').length;
+        chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'download', entityCount: count }).catch(() => {});
+      });
     });
 
     // Empty state
@@ -4828,6 +4836,7 @@ if (window.__contextExtensionLoaded) {
             copyBtn.textContent = 'Copied!';
             setTimeout(() => { copyBtn.textContent = 'Copy to clipboard'; }, 1500);
           });
+          chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'clipboard', entityCount: (session.entities || []).length }).catch(() => {});
         });
 
         const dlBtn = document.createElement('button');
@@ -4845,6 +4854,7 @@ if (window.__contextExtensionLoaded) {
           URL.revokeObjectURL(url);
           dlBtn.textContent = 'Downloaded!';
           setTimeout(() => { dlBtn.textContent = 'Download .txt'; }, 1500);
+          chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'download', entityCount: (session.entities || []).length }).catch(() => {});
         });
 
         exportRow.appendChild(copyBtn);
@@ -5876,6 +5886,7 @@ if (window.__contextExtensionLoaded) {
               btn.textContent = 'Copied!';
               setTimeout(() => { btn.textContent = 'Export Study Guide'; }, 1500);
             });
+            chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'clipboard', entityCount: totalEntities }).catch(() => {});
           });
 
           summaryEl.querySelector('.ctx-session-summary-viewkb').addEventListener('click', (e) => {

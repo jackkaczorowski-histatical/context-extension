@@ -30,7 +30,19 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'No events provided' });
   }
 
-  log('info', 'events_received', { endpoint: 'events', count: events.length, eventTypes: events.map(e => e.event) });
+  const validEvents = events.filter(e =>
+    typeof e.event === 'string' &&
+    (!('properties' in e) || (typeof e.properties === 'object' && e.properties !== null && !Array.isArray(e.properties)))
+  );
+  const filteredCount = events.length - validEvents.length;
+  if (filteredCount > 0) {
+    log('warn', 'events_invalid_filtered', { filtered: filteredCount });
+  }
+  if (validEvents.length === 0) {
+    return res.status(400).json({ error: 'No valid events provided' });
+  }
+
+  log('info', 'events_received', { endpoint: 'events', count: validEvents.length, eventTypes: validEvents.map(e => e.event) });
 
   try {
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/events`, {
@@ -40,7 +52,7 @@ module.exports = async function handler(req, res) {
         'apikey': SUPABASE_KEY,
         'Authorization': 'Bearer ' + SUPABASE_KEY
       },
-      body: JSON.stringify(events.map(e => ({
+      body: JSON.stringify(validEvents.map(e => ({
         install_id: e.installId,
         user_id: e.userId,
         event: e.event,
@@ -56,7 +68,7 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Database error' });
     }
 
-    return res.status(200).json({ received: events.length });
+    return res.status(200).json({ received: validEvents.length });
   } catch (err) {
     captureError(err, { endpoint: 'events', clientId });
     log('error', 'events_error', { endpoint: 'events', error: err.message });

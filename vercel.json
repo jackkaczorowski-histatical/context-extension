@@ -2,6 +2,7 @@
   "version": 2,
   "rewrites": [
     { "source": "/", "destination": "/api/index" },
+    { "source": "/go/:source", "destination": "/api/install-redirect?source=:source" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/api/terms" }
   ],

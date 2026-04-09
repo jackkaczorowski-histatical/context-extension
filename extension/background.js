@@ -596,7 +596,10 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.action.setBadgeText({ text: 'NEW' });
     chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
 
-    // Parse UTM parameters from post-install page for install attribution
+    // Open welcome page — it handles UTM storage via its own <script>
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+
+    // Parse UTM parameters from CWS referrer tab for install attribution
     setTimeout(() => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         let utmSource = 'organic';
@@ -610,12 +613,17 @@ chrome.runtime.onInstalled.addListener((details) => {
             utmCampaign = url.searchParams.get('utm_campaign') || '';
           } catch (e) { /* ignore invalid URLs */ }
         }
-        chrome.storage.local.set({
-          installAttribution: {
-            source: utmSource,
-            medium: utmMedium,
-            campaign: utmCampaign,
-            timestamp: new Date().toISOString()
+        // Only set from background if welcome.html hasn't already set it
+        chrome.storage.local.get('installAttribution', (existing) => {
+          if (!existing.installAttribution) {
+            chrome.storage.local.set({
+              installAttribution: {
+                source: utmSource,
+                medium: utmMedium,
+                campaign: utmCampaign,
+                timestamp: new Date().toISOString()
+              }
+            });
           }
         });
         trackEvent('extension_installed', {

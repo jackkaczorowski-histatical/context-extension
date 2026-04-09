@@ -189,7 +189,6 @@ let isStoppingCapture = false;
 let isStartingCapture = false;
 let lastAnalyzeFailed = false;
 let captureStartTime = null;
-let eventQueue = [];
 let eventFlushTimer = null;
 let knowledgeState = {};
 let topicAffinities = {};
@@ -198,19 +197,23 @@ let dismissedTerms = new Set(); // terms dismissed by user this session
 let lastSessionCardsExpanded = 0; // updated by SESSION_METRICS from content.js
 
 function trackEvent(eventName, properties = {}) {
-  chrome.storage.local.get(['installId', 'user'], (data) => {
-    eventQueue.push({
+  chrome.storage.local.get(['installId', 'user', 'eventBuffer'], (data) => {
+    const buffer = data.eventBuffer || [];
+    buffer.push({
       event: eventName,
       properties,
       installId: data.installId || null,
       userId: data.user?.id || null,
-      timestamp: Date.now()
+      sessionId: sessionId || null,
+      timestamp: new Date().toISOString()
     });
-    if (eventQueue.length >= 20) {
-      flushEvents();
-    } else if (!eventFlushTimer) {
-      eventFlushTimer = setTimeout(() => flushEvents(), 30000);
-    }
+    chrome.storage.local.set({ eventBuffer: buffer }, () => {
+      if (buffer.length >= 20) {
+        flushEvents();
+      } else if (!eventFlushTimer) {
+        eventFlushTimer = setTimeout(() => flushEvents(), 30000);
+      }
+    });
   });
 }
 
@@ -219,14 +222,22 @@ function flushEvents() {
     clearTimeout(eventFlushTimer);
     eventFlushTimer = null;
   }
-  if (eventQueue.length === 0) return;
-  const batch = eventQueue.splice(0);
-  fetch(`${CONFIG.API_BASE}/events`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
-    body: JSON.stringify({ events: batch })
-  }).catch(err => {
-    console.error('[BACKGROUND] Event flush failed:', err.message);
+  chrome.storage.local.get('eventBuffer', (data) => {
+    const buffer = data.eventBuffer || [];
+    if (buffer.length === 0) return;
+    chrome.storage.local.set({ eventBuffer: [] });
+    fetch(`${CONFIG.API_BASE}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+      body: JSON.stringify({ events: buffer })
+    }).catch(err => {
+      console.error('[BACKGROUND] Event flush failed:', err.message);
+      // Put events back in storage for retry on next flush
+      chrome.storage.local.get('eventBuffer', (current) => {
+        const existing = current.eventBuffer || [];
+        chrome.storage.local.set({ eventBuffer: buffer.concat(existing) });
+      });
+    });
   });
 }
 
@@ -400,11 +411,9 @@ async function incrementUsage(field, amount = 1) {
 
   // Piggyback usage cap on transcript processing (survives service worker restarts)
   if (field === 'transcripts') {
-    chrome.storage.local.get([key, 'user', 'analytics'], (capData) => {
+    chrome.storage.local.get([key, 'user'], (capData) => {
       const user = capData.user;
       if (user && user.plan === 'pro') return;
-      const installDate = (capData.analytics || {}).installDate || 0;
-      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
 
       const minutes = (capData[key] || {}).minutes || 0;
 
@@ -420,7 +429,7 @@ async function incrementUsage(field, amount = 1) {
             message: 'You\'ve used your 30 free minutes today. Upgrade to Pro for unlimited listening.'
           }).catch(() => {});
         }
-        stopCapture();
+        stopCapture('usage_cap');
       }
     });
   }
@@ -550,11 +559,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (!activeTabId) return;
     await incrementUsage('minutes');
     const usageKey = getUsageKey();
-    chrome.storage.local.get([usageKey, 'user', 'analytics'], (data) => {
+    chrome.storage.local.get([usageKey, 'user'], (data) => {
       const user = data.user;
       if (user && user.plan === 'pro') return;
-      const installDate = (data.analytics || {}).installDate || 0;
-      if ((Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3) return;
 
       const usage = data[usageKey] || { minutes: 0 };
       const minutes = usage.minutes || 0;
@@ -576,7 +583,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
             message: 'You\'ve used your 30 free minutes today. Upgrade to Pro for unlimited listening.'
           }).catch(() => {});
         }
-        stopCapture();
+        stopCapture('usage_cap');
       }
     });
   }
@@ -588,6 +595,35 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.action.setBadgeText({ text: 'NEW' });
     chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
+
+    // Parse UTM parameters from post-install page for install attribution
+    setTimeout(() => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        let utmSource = 'organic';
+        let utmMedium = '';
+        let utmCampaign = '';
+        if (tabs[0] && tabs[0].url) {
+          try {
+            const url = new URL(tabs[0].url);
+            utmSource = url.searchParams.get('utm_source') || 'organic';
+            utmMedium = url.searchParams.get('utm_medium') || '';
+            utmCampaign = url.searchParams.get('utm_campaign') || '';
+          } catch (e) { /* ignore invalid URLs */ }
+        }
+        chrome.storage.local.set({
+          installAttribution: {
+            source: utmSource,
+            medium: utmMedium,
+            campaign: utmCampaign,
+            timestamp: new Date().toISOString()
+          }
+        });
+        trackEvent('extension_installed', {
+          source: utmSource,
+          version: chrome.runtime.getManifest().version
+        });
+      });
+    }, 500);
   }
   // Generate anonymous install ID if not present
   chrome.storage.local.get('installId', (data) => {
@@ -720,7 +756,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.tabs.sendMessage(tabToRestart, { type: 'CONNECTION_ERROR', service: 'audio', retrying: true }).catch(() => {});
     }
     (async () => {
-      await stopCapture();
+      await stopCapture('error');
       setTimeout(() => {
         if (!tabToRestart) {
           console.log('[BACKGROUND] No tab to restart, aborting');
@@ -843,9 +879,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Check daily cap before starting — exempt pro users and trial users
         const user = data.user;
         const isPro = user && user.plan === 'pro';
-        const installDate = (data.analytics || {}).installDate || 0;
-        const inTrial = (Date.now() - installDate) / (1000 * 60 * 60 * 24) < 3;
-        if (!isPro && !inTrial) {
+        if (!isPro) {
           const minutes = (data[toggleUsageKey] || {}).minutes || 0;
           if (minutes >= 30) {
             if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'USAGE_LIMIT_REACHED', minutes });
@@ -931,6 +965,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       recalcFamiliarity(dwellKey);
       debounceSaveKnowledgeState();
     }
+  } else if (message.type === 'CARD_EXPANDED') {
+    trackEvent('card_expanded', { entityType: message.entityType, term: message.term });
+  } else if (message.type === 'EXPORT_TRIGGERED') {
+    trackEvent('export_triggered', { exportType: message.exportType || 'clipboard', entityCount: message.entityCount || 0 });
   } else if (message.type === 'CARD_COPY') {
     console.log(`[BACKGROUND] Card copied: ${message.term}`);
     trackEvent('card_copy', { term: message.term, entityType: message.entityType });
@@ -1057,6 +1095,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     });
   } else if (message.type === 'OPEN_CHECKOUT') {
+    trackEvent('upgrade_started', { plan: message.plan || 'monthly', source: message.source || 'settings' });
+    const originTabId = capturingTabId || (sender.tab && sender.tab.id) || null;
     chrome.storage.local.get(['user', 'installId'], async (data) => {
       const user = data.user;
       if (!user || !user.id || !user.email) {
@@ -1096,14 +1136,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   updatedUser.stripeCustomerId = pollData.stripeCustomerId || null;
                   chrome.storage.local.set({ user: updatedUser });
                   console.log('[BACKGROUND] Plan upgraded to pro via checkout polling');
-                  // Notify active tab
-                  if (capturingTabId) {
-                    chrome.tabs.sendMessage(capturingTabId, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
-                  } else {
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                      if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
-                    });
+                  // Notify the origin tab first, then broadcast to all tabs as fallback
+                  if (originTabId) {
+                    chrome.tabs.sendMessage(originTabId, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
                   }
+                  chrome.tabs.query({}, (tabs) => {
+                    tabs.forEach(tab => {
+                      if (tab.id !== originTabId) {
+                        chrome.tabs.sendMessage(tab.id, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
+                      }
+                    });
+                  });
                 });
               }
             } catch (e) {
@@ -1225,7 +1268,10 @@ async function startCapture() {
     chrome.storage.local.set({ capturingTabId: capturingTabId });
     capturingTabTitle = tab.title || '';
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
-    trackEvent('capture_start', { url: tab.url || '', title: capturingTabTitle });
+    const hostname = tab.url ? (() => { try { return new URL(tab.url).hostname; } catch (e) { return ''; } })() : '';
+    const videoId = extractYouTubeId(tab.url) || undefined;
+    const contentType = (tab.url && /youtube\.com|youtu\.be/.test(tab.url)) ? 'youtube' : 'other';
+    trackEvent('session_started', { site: hostname, videoId, contentType });
 
     // Store activeTabId, URL, title, and sessionId for content script
     // Only set sessionStart on fresh sessions (no existing cards), not on resume
@@ -1310,7 +1356,7 @@ async function startCapture() {
   }
 }
 
-async function stopCapture() {
+async function stopCapture(stopMethod = 'user') {
   if (isStoppingCapture) return;
   isStoppingCapture = true;
 
@@ -1325,7 +1371,7 @@ async function stopCapture() {
     }
   }
 
-  trackEvent('capture_stop', { duration_seconds: durationSec, entities_count: sessionEntities.length });
+  trackEvent('session_stopped', { duration: durationSec, entitiesRendered: sessionEntities.length, cardsExpanded: lastSessionCardsExpanded, stopMethod });
   captureStartTime = null;
   chrome.storage.local.remove('captureStartTime');
 

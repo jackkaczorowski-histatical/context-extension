@@ -144,6 +144,7 @@ if (window.__contextExtensionLoaded) {
       card.classList.add('expanded');
       card.dataset.expandedAt = Date.now().toString();
       currentlyExpandedCard = card;
+      chrome.runtime.sendMessage({ type: 'CARD_EXPANDED', entityType: card.dataset.entityType || '', term: card.dataset.term || '' }).catch(() => {});
       // Track first expansion
       if (!card.dataset.wasExpanded) {
         card.dataset.wasExpanded = 'true';
@@ -1424,7 +1425,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-manage-sub-btn {
       background: none; border: 1px solid rgba(255,255,255,0.1); color: #94a3b8;
       border-radius: 6px; padding: 6px 12px; font-size: 11px; cursor: pointer;
-      font-family: inherit; margin-top: 8px; transition: all 0.15s;
+      font-family: inherit; transition: all 0.15s;
     }
     .ctx-manage-sub-btn:hover { color: #e0e0f0; border-color: rgba(255,255,255,0.2); }
     .light-theme .ctx-manage-sub-btn { border-color: rgba(0,0,0,0.1); color: #64748b; }
@@ -1432,7 +1433,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-upgrade-inline-btn {
       background: var(--accent); color: white; border: none; border-radius: 6px;
       padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
-      font-family: inherit; margin-top: 8px; transition: background 0.15s;
+      font-family: inherit; transition: background 0.15s;
     }
     .ctx-upgrade-inline-btn:hover { background: #0d9488; }
     /* ─── Usage warning banner ─── */
@@ -1499,7 +1500,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-auth-badge.pro { background: rgba(20,184,166,0.15); color: var(--accent); }
     .ctx-auth-signout {
       background: none; border: none; color: #ef4444; font-size: 11px;
-      cursor: pointer; font-family: inherit; margin-top: 8px;
+      cursor: pointer; font-family: inherit;
       opacity: 0.7; transition: opacity 0.15s;
     }
     .ctx-auth-signout:hover { opacity: 1; }
@@ -3637,6 +3638,10 @@ if (window.__contextExtensionLoaded) {
         });
       });
       try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'export', properties: { method: 'clipboard' } }); } catch (e2) {}
+      chrome.storage.local.get('sessionHistory', (d) => {
+        const count = (d.sessionHistory || []).filter(i => i.term && i.type !== 'insight' && i.type !== 'video-divider').length;
+        chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'clipboard', entityCount: count }).catch(() => {});
+      });
     });
 
     exportMenu.querySelector('[data-action="gmail"]').addEventListener('click', (e) => {
@@ -3671,6 +3676,10 @@ if (window.__contextExtensionLoaded) {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
       try { chrome.runtime.sendMessage({ type: 'TRACK_EVENT', eventName: 'export', properties: { method: 'download' } }); } catch (e2) {}
+      chrome.storage.local.get('sessionHistory', (d) => {
+        const count = (d.sessionHistory || []).filter(i => i.term && i.type !== 'insight' && i.type !== 'video-divider').length;
+        chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'download', entityCount: count }).catch(() => {});
+      });
     });
 
     // Empty state
@@ -4205,6 +4214,9 @@ if (window.__contextExtensionLoaded) {
           info.appendChild(emailEl);
           profile.appendChild(info);
           authSection.appendChild(profile);
+          // Buttons row: sign out + action button
+          const btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:8px;';
           const signOutBtn = document.createElement('button');
           signOutBtn.className = 'ctx-auth-signout';
           signOutBtn.textContent = 'Sign out';
@@ -4213,7 +4225,7 @@ if (window.__contextExtensionLoaded) {
             try { chrome.runtime.sendMessage({ type: 'GOOGLE_SIGN_OUT' }); } catch (err) {}
             renderAuth(null);
           });
-          authSection.appendChild(signOutBtn);
+          btnRow.appendChild(signOutBtn);
           // Subscription management buttons
           if (user.plan === 'pro') {
             const manageBtn = document.createElement('button');
@@ -4223,7 +4235,7 @@ if (window.__contextExtensionLoaded) {
               e.stopPropagation();
               try { chrome.runtime.sendMessage({ type: 'OPEN_PORTAL' }); } catch (err) {}
             });
-            authSection.appendChild(manageBtn);
+            btnRow.appendChild(manageBtn);
           } else {
             const upgradeBtn = document.createElement('button');
             upgradeBtn.className = 'ctx-upgrade-inline-btn';
@@ -4243,18 +4255,19 @@ if (window.__contextExtensionLoaded) {
                 '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
                 '<button class="ctx-upgrade-dismiss">Maybe later</button>';
               upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (err) {}
+                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'settings' }); } catch (err) {}
               });
               upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (err) {}
+                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'settings' }); } catch (err) {}
               });
               upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
                 upgradeOv.remove();
               });
               sidebar.appendChild(upgradeOv);
             });
-            authSection.appendChild(upgradeBtn);
+            btnRow.appendChild(upgradeBtn);
           }
+          authSection.appendChild(btnRow);
         } else {
           const btn = document.createElement('button');
           btn.className = 'ctx-google-btn';
@@ -4823,6 +4836,7 @@ if (window.__contextExtensionLoaded) {
             copyBtn.textContent = 'Copied!';
             setTimeout(() => { copyBtn.textContent = 'Copy to clipboard'; }, 1500);
           });
+          chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'clipboard', entityCount: (session.entities || []).length }).catch(() => {});
         });
 
         const dlBtn = document.createElement('button');
@@ -4840,6 +4854,7 @@ if (window.__contextExtensionLoaded) {
           URL.revokeObjectURL(url);
           dlBtn.textContent = 'Downloaded!';
           setTimeout(() => { dlBtn.textContent = 'Download .txt'; }, 1500);
+          chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'download', entityCount: (session.entities || []).length }).catch(() => {});
         });
 
         exportRow.appendChild(copyBtn);
@@ -5871,6 +5886,7 @@ if (window.__contextExtensionLoaded) {
               btn.textContent = 'Copied!';
               setTimeout(() => { btn.textContent = 'Export Study Guide'; }, 1500);
             });
+            chrome.runtime.sendMessage({ type: 'EXPORT_TRIGGERED', exportType: 'clipboard', entityCount: totalEntities }).catch(() => {});
           });
 
           summaryEl.querySelector('.ctx-session-summary-viewkb').addEventListener('click', (e) => {
@@ -6335,7 +6351,7 @@ if (window.__contextExtensionLoaded) {
       banner.className = 'ctx-usage-warning';
       banner.innerHTML = (msg.minutesLeft || 5) + ' minutes remaining today. <span class="upgrade-link">Upgrade for unlimited \u2192</span>';
       banner.querySelector('.upgrade-link').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
       });
       cards.parentNode.insertBefore(banner, cards);
     } else if (msg.type === 'USAGE_LIMIT_REACHED') {
@@ -6373,10 +6389,10 @@ if (window.__contextExtensionLoaded) {
         countdownEl.textContent = calcResetText();
       }, 60000);
       overlay.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
       });
       overlay.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'usage_cap' }); } catch (e) {}
       });
       overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => {
         clearInterval(countdownInterval);
@@ -6398,29 +6414,32 @@ if (window.__contextExtensionLoaded) {
         '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
         '<button class="ctx-upgrade-dismiss">Maybe later</button>';
       upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
       });
       upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'usage_cap' }); } catch (e) {}
       });
       upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
         upgradeOv.remove();
       });
       sidebar.appendChild(upgradeOv);
     } else if (msg.type === 'PLAN_UPGRADED') {
+      console.log('[CONTENT] PLAN_UPGRADED message received');
       if (!shadowRoot) return;
-      // Remove any upgrade overlays
-      shadowRoot.querySelectorAll('.ctx-upgrade-overlay').forEach(el => el.remove());
-      shadowRoot.querySelectorAll('.ctx-usage-limit').forEach(el => el.remove());
-      shadowRoot.querySelectorAll('.ctx-usage-warning').forEach(el => el.remove());
+      // Remove every upgrade-related overlay
+      shadowRoot.querySelectorAll('.ctx-upgrade-overlay, .ctx-usage-limit, .ctx-usage-warning').forEach(el => el.remove());
       // Hide usage footer (pro users don't need it)
       const footer = shadowRoot.getElementById('ctx-usage-footer');
       if (footer) footer.style.display = 'none';
-      // Rebuild settings panel if open to reflect pro status
-      const panel = shadowRoot.querySelector('.ctx-settings-panel');
-      if (panel && panel.classList.contains('open')) {
-        buildSettingsPanel();
+      // Update auth section to show PRO state (works whether settings panel is open or closed)
+      const updatedUser = (msg && msg.user) || null;
+      const authEl = shadowRoot.querySelector('.ctx-auth-section');
+      if (authEl && updatedUser) {
+        authEl.dispatchEvent(new CustomEvent('auth-changed', { detail: updatedUser }));
       }
+      // Rebuild settings panel so next open reflects PRO
+      buildSettingsPanel();
+      console.log('[CONTENT] PLAN_UPGRADED received, UI updated');
     } else if (msg.type === 'SIGN_IN_SUCCESS') {
       // Re-render auth section in settings if open
       if (!shadowRoot) return;

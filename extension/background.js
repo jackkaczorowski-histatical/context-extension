@@ -196,6 +196,7 @@ let entityPackCache = {}; // { normalizedTerm: entityObject } — loaded from pa
 let dismissedTerms = new Set(); // terms dismissed by user this session
 let lastSessionCardsExpanded = 0; // updated by SESSION_METRICS from content.js
 let noCardsFallbackTimer = null;
+let entitiesRenderedThisSession = 0;
 
 function trackEvent(eventName, properties = {}) {
   chrome.storage.local.get(['installId', 'user', 'eventBuffer'], (data) => {
@@ -1307,7 +1308,7 @@ async function startCapture() {
     if (noCardsFallbackTimer) clearTimeout(noCardsFallbackTimer);
     noCardsFallbackTimer = setTimeout(() => {
       noCardsFallbackTimer = null;
-      if (capturingTabId && sessionTotal === 0) {
+      if (capturingTabId && entitiesRenderedThisSession === 0) {
         chrome.tabs.sendMessage(capturingTabId, { type: 'NO_CARDS_FALLBACK' }).catch(() => {});
       }
     }, 45000);
@@ -1519,6 +1520,7 @@ async function stopCapture(stopMethod = 'user') {
   pendingStreamId = null;
   sessionId = null;
   sessionTotal = 0;
+  entitiesRenderedThisSession = 0;
   updateTopicAffinities();
   sessionEntities = [];
   sessionInsights = [];
@@ -1760,6 +1762,7 @@ async function processNextTranscript() {
           pendingTimestamp: Date.now()
         });
         // Show card count badge for pack entities when sidebar closed
+        entitiesRenderedThisSession += enrichedPackMatches.length;
         sessionTotal += enrichedPackMatches.length;
         if (!sidebarOpen) {
           chrome.action.setBadgeText({ text: String(sessionTotal) });
@@ -2188,6 +2191,7 @@ async function processNextTranscript() {
     });
 
     incrementUsage('entities', enrichedEntities.length + dedupedInsights.length);
+    entitiesRenderedThisSession += enrichedEntities.length;
     sessionTotal += enrichedEntities.length + dedupedInsights.length;
     // Show card count badge when sidebar is closed
     if (!sidebarOpen) {

@@ -4428,10 +4428,12 @@ if (window.__contextExtensionLoaded) {
       termsLink.addEventListener('mouseleave', () => { termsLink.style.textDecoration = 'none'; });
       s3b.appendChild(termsLink);
 
+      const reportDiv = document.createElement('div');
+      reportDiv.style.cssText = 'margin-top:8px;';
       const reportLink = document.createElement('a');
       reportLink.href = '#';
       reportLink.textContent = 'Report an Issue';
-      reportLink.style.cssText = 'display:inline-block;margin-top:4px;padding-left:2px;font-size:12px;color:#14b8a6;text-decoration:none;cursor:pointer;';
+      reportLink.style.cssText = 'display:inline-block;padding-left:2px;font-size:12px;color:#14b8a6;text-decoration:none;cursor:pointer;';
       reportLink.addEventListener('mouseenter', () => { reportLink.style.textDecoration = 'underline'; });
       reportLink.addEventListener('mouseleave', () => { reportLink.style.textDecoration = 'none'; });
       reportLink.addEventListener('click', (e) => {
@@ -4444,10 +4446,11 @@ if (window.__contextExtensionLoaded) {
           const sessions = (d.pastSessions || []).length;
           const lastErr = d.lastError || 'None';
           const body = 'Describe your issue:\n\n\n\n--- Diagnostics (auto-collected) ---\nExtension: v' + version + '\nBrowser: ' + browser + '\nOS: ' + os + '\nSessions: ' + sessions + '\nLast error: ' + lastErr + '\n---';
-          window.open('mailto:jack@histatical.com?subject=' + encodeURIComponent('Context Bug Report') + '&body=' + encodeURIComponent(body));
+          window.open('https://mail.google.com/mail/?view=cm&to=jack@histatical.com&su=' + encodeURIComponent('Context Bug Report') + '&body=' + encodeURIComponent(body), '_blank');
         });
       });
-      s3b.appendChild(reportLink);
+      reportDiv.appendChild(reportLink);
+      s3b.appendChild(reportDiv);
 
       settingsPanel.appendChild(s3b);
 

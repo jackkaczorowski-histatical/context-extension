@@ -4315,6 +4315,14 @@ if (window.__contextExtensionLoaded) {
                 '<div class="ctx-upgrade-overlay-msg">Unlimited listening, no daily cap.</div>' +
                 '<button class="ctx-upgrade-btn-monthly">Go Pro \u2014 $12/mo</button>' +
                 '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
+                '<div class="ctx-student-link" id="ctx-student-toggle">Student? Get 50% off</div>' +
+                '<div id="ctx-student-form" style="display:none">' +
+                  '<div class="ctx-student-input-wrap">' +
+                    '<input type="email" class="ctx-student-email-input" placeholder="you@university.edu" />' +
+                    '<button class="ctx-student-apply-btn">Apply</button>' +
+                  '</div>' +
+                  '<div class="ctx-student-error" style="display:none"></div>' +
+                '</div>' +
                 '<button class="ctx-upgrade-dismiss">Maybe later</button>';
               upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
                 try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'settings' }); } catch (err) {}
@@ -4325,6 +4333,30 @@ if (window.__contextExtensionLoaded) {
               upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
                 upgradeOv.remove();
               });
+              // Student discount toggle
+              const sToggle = upgradeOv.querySelector('#ctx-student-toggle');
+              const sForm = upgradeOv.querySelector('#ctx-student-form');
+              if (sToggle && sForm) {
+                sToggle.addEventListener('click', () => {
+                  sForm.style.display = sForm.style.display === 'none' ? '' : 'none';
+                  sToggle.style.display = 'none';
+                });
+                const sInput = sForm.querySelector('.ctx-student-email-input');
+                const sApply = sForm.querySelector('.ctx-student-apply-btn');
+                const sError = sForm.querySelector('.ctx-student-error');
+                sApply.addEventListener('click', () => {
+                  const email = (sInput.value || '').trim().toLowerCase();
+                  if (!email.endsWith('.edu')) {
+                    sError.textContent = 'Please enter a valid .edu email address.';
+                    sError.style.display = '';
+                    return;
+                  }
+                  sError.style.display = 'none';
+                  sApply.textContent = 'Verifying...';
+                  sApply.disabled = true;
+                  try { chrome.runtime.sendMessage({ type: 'OPEN_STUDENT_CHECKOUT', email: email }); } catch (err) {}
+                });
+              }
               sidebar.appendChild(upgradeOv);
             });
             btnRow.appendChild(upgradeBtn);

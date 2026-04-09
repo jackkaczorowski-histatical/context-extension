@@ -144,6 +144,7 @@ if (window.__contextExtensionLoaded) {
       card.classList.add('expanded');
       card.dataset.expandedAt = Date.now().toString();
       currentlyExpandedCard = card;
+      chrome.runtime.sendMessage({ type: 'CARD_EXPANDED', entityType: card.dataset.entityType || '', term: card.dataset.term || '' }).catch(() => {});
       // Track first expansion
       if (!card.dataset.wasExpanded) {
         card.dataset.wasExpanded = 'true';
@@ -4246,10 +4247,10 @@ if (window.__contextExtensionLoaded) {
                 '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
                 '<button class="ctx-upgrade-dismiss">Maybe later</button>';
               upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (err) {}
+                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'settings' }); } catch (err) {}
               });
               upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (err) {}
+                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'settings' }); } catch (err) {}
               });
               upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
                 upgradeOv.remove();
@@ -6339,7 +6340,7 @@ if (window.__contextExtensionLoaded) {
       banner.className = 'ctx-usage-warning';
       banner.innerHTML = (msg.minutesLeft || 5) + ' minutes remaining today. <span class="upgrade-link">Upgrade for unlimited \u2192</span>';
       banner.querySelector('.upgrade-link').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
       });
       cards.parentNode.insertBefore(banner, cards);
     } else if (msg.type === 'USAGE_LIMIT_REACHED') {
@@ -6377,10 +6378,10 @@ if (window.__contextExtensionLoaded) {
         countdownEl.textContent = calcResetText();
       }, 60000);
       overlay.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
       });
       overlay.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'usage_cap' }); } catch (e) {}
       });
       overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => {
         clearInterval(countdownInterval);
@@ -6402,10 +6403,10 @@ if (window.__contextExtensionLoaded) {
         '<button class="ctx-upgrade-btn-annual">$84/year (save 42%)</button>' +
         '<button class="ctx-upgrade-dismiss">Maybe later</button>';
       upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
       });
       upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual' }); } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'usage_cap' }); } catch (e) {}
       });
       upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
         upgradeOv.remove();

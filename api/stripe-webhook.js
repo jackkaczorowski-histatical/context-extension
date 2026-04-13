@@ -1,4 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 const { log } = require('./_log');
 const { captureError } = require('./_sentry');
 
@@ -71,6 +73,20 @@ module.exports = async function handler(req, res) {
           minutes_limit: 999999
         });
         log('info', 'stripe_checkout_completed', { googleId, plan: isAnnual ? 'annual' : 'monthly' });
+        try {
+          const customerEmail = session.customer_details?.email || session.customer_email;
+          if (customerEmail) {
+            await resend.emails.send({
+              from: 'Context <noreply@contextlistener.com>',
+              to: customerEmail,
+              subject: 'Welcome to Context Pro!',
+              html: '<h2>Welcome to Context Pro! \ud83c\udf89</h2><p>Your subscription is active. You now have unlimited listening time, full session history, knowledge base exports, and follow-up questions.</p><p>Open any YouTube video, click the Context icon, and start listening \u2014 no daily limit.</p><p>Need help? Reply to this email or visit <a href="https://contextlistener.com/faq">our FAQ</a>.</p><p>\u2014 Jack, Context founder</p>'
+            });
+            log('info', 'welcome_email_sent', { email: customerEmail });
+          }
+        } catch (emailErr) {
+          log('warn', 'welcome_email_failed', { error: emailErr.message });
+        }
         break;
       }
 

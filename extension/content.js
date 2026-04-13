@@ -728,16 +728,16 @@ if (window.__contextExtensionLoaded) {
     }
     .card-desc { font-size: 12px; font-weight: 400; color: #a0a0c0; line-height: 1.4; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
     .card-thumb-wrap {
-      display: block; overflow: hidden; border-radius: 6px; height: 80px; margin-bottom: 6px;
+      display: block; overflow: hidden; border-radius: 6px; height: 120px; margin-bottom: 6px;
     }
     .card-thumbnail {
-      display: block; width: 100%; height: 80px; object-fit: cover; object-position: top;
+      display: block; width: 100%; height: 120px; object-fit: cover; object-position: center;
       border-radius: 6px;
       opacity: 0; transition: opacity 0.3s ease;
     }
     .card-thumbnail.loaded { opacity: 1; }
     .card-thumb {
-      display: block; width: 100%; height: 80px; object-fit: cover; object-position: top;
+      display: block; width: 100%; height: 120px; object-fit: cover; object-position: center;
       border-radius: 6px;
     }
     .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }

@@ -7,7 +7,7 @@
     "@sentry/node": "10.47.0",
     "@upstash/redis": "1.37.0",
     "canvas": "3.2.3",
-    "resend": "4.1.0",
+    "resend": "6.10.0",
     "stripe": "22.0.1"
   }
 }

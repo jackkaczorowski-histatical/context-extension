@@ -5885,30 +5885,34 @@ if (window.__contextExtensionLoaded) {
         ) || 'Previous video';
         const prevUrl = data.previousVideoUrl || '';
 
+        ensureSidebar();
         const cards = shadowRoot?.getElementById('cards');
-        if (cards && cards.children.length > 0) {
-          // Remove any existing dividers to prevent stacking
-          cards.querySelectorAll('.ctx-video-divider').forEach(d => d.remove());
+        if (!cards) return;
 
-          const prevCardCount = cards.querySelectorAll('.context-card').length;
+        // Show cards area immediately so divider is visible
+        showCardsHideEmpty();
 
-          const link = prevUrl
-            ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${prevTitle}</a>`
-            : `<span class="ctx-divider-link">${prevTitle}</span>`;
+        // Remove any existing dividers to prevent stacking
+        cards.querySelectorAll('.ctx-video-divider').forEach(d => d.remove());
 
-          const divider = document.createElement('div');
-          divider.className = 'ctx-video-divider';
-          divider.innerHTML = `
-            <div class="ctx-divider-prev">
-              <span class="ctx-divider-label">PREVIOUS</span>
-              ${link}
-              <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
-            </div>
-            <div class="ctx-divider-line-full"></div>
-          `;
+        const prevCardCount = cards.querySelectorAll('.context-card').length;
 
-          cards.appendChild(divider);
-        }
+        const link = prevUrl
+          ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${prevTitle}</a>`
+          : `<span class="ctx-divider-link">${prevTitle}</span>`;
+
+        const divider = document.createElement('div');
+        divider.className = 'ctx-video-divider';
+        divider.innerHTML = `
+          <div class="ctx-divider-prev">
+            <span class="ctx-divider-label">PREVIOUS</span>
+            ${link}
+            <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="ctx-divider-line-full"></div>
+        `;
+
+        cards.appendChild(divider);
       });
     }
     if (changes.capturing) {
@@ -6258,11 +6262,15 @@ if (window.__contextExtensionLoaded) {
 
     chrome.storage.local.get('capturing', (data) => {
       if (!data.capturing) return;
+      ensureSidebar();
       const cards = shadowRoot?.getElementById('cards');
-      if (!cards || cards.children.length === 0) return;
+      if (!cards) return;
       // Skip if a divider was already added by the storage listener
       const lastChild = cards.lastElementChild;
       if (lastChild && lastChild.classList.contains('ctx-video-divider')) return;
+
+      // Show cards area immediately so divider is visible
+      showCardsHideEmpty();
 
       const prevTitle = escapeHtml(
         (document.title || 'Previous video')

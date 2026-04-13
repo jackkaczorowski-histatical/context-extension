@@ -1,4 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -21,6 +23,19 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // Check for verified .edu email
+    const verifyRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/student_verifications?google_id=eq.${encodeURIComponent(googleId)}&verified=eq.true&order=created_at.desc&limit=1`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    if (!verifyRes.ok) {
+      return res.status(500).json({ error: 'Failed to check verification status' });
+    }
+    const verified = await verifyRes.json();
+    if (!verified || verified.length === 0) {
+      return res.status(403).json({ error: 'not_verified', message: 'Please verify your .edu email first' });
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],

@@ -5,7 +5,8 @@
     { "source": "/go/:source", "destination": "/api/install-redirect?source=:source" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/api/terms" },
-    { "source": "/faq", "destination": "/api/faq" }
+    { "source": "/faq", "destination": "/api/faq" },
+    { "source": "/verify-student", "destination": "/api/verify-student" }
   ],
   "functions": {
     "api/analyze.js": { "maxDuration": 15 },
@@ -20,6 +21,8 @@
     "api/health.js": { "maxDuration": 10 },
     "api/status.js": { "maxDuration": 5 },
     "api/create-checkout-session.js": { "maxDuration": 10 },
+    "api/send-student-verification.js": { "maxDuration": 10 },
+    "api/verify-student.js": { "maxDuration": 5 },
     "api/create-student-checkout.js": { "maxDuration": 10 },
     "api/stripe-webhook.js": { "maxDuration": 10 },
     "api/create-portal-session.js": { "maxDuration": 10 },

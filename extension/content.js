@@ -4346,15 +4346,22 @@ if (window.__contextExtensionLoaded) {
                 const sError = sForm.querySelector('.ctx-student-error');
                 sApply.addEventListener('click', () => {
                   const email = (sInput.value || '').trim().toLowerCase();
+                  if (sApply.dataset.verified === 'true') {
+                    // Already verified — proceed to checkout
+                    sApply.textContent = 'Opening checkout...';
+                    sApply.disabled = true;
+                    try { chrome.runtime.sendMessage({ type: 'OPEN_STUDENT_CHECKOUT', email: email }); } catch (err) {}
+                    return;
+                  }
                   if (!email.endsWith('.edu')) {
                     sError.textContent = 'Please enter a valid .edu email address.';
                     sError.style.display = '';
                     return;
                   }
                   sError.style.display = 'none';
-                  sApply.textContent = 'Verifying...';
+                  sApply.textContent = 'Sending...';
                   sApply.disabled = true;
-                  try { chrome.runtime.sendMessage({ type: 'OPEN_STUDENT_CHECKOUT', email: email }); } catch (err) {}
+                  try { chrome.runtime.sendMessage({ type: 'VERIFY_STUDENT_EMAIL', studentEmail: email }); } catch (err) {}
                 });
               }
               sidebar.appendChild(upgradeOv);
@@ -6619,18 +6626,50 @@ if (window.__contextExtensionLoaded) {
         const studentError = studentForm.querySelector('.ctx-student-error');
         studentApply.addEventListener('click', () => {
           const email = (studentInput.value || '').trim().toLowerCase();
+          if (studentApply.dataset.verified === 'true') {
+            // Already verified — proceed to checkout
+            studentApply.textContent = 'Opening checkout...';
+            studentApply.disabled = true;
+            try { chrome.runtime.sendMessage({ type: 'OPEN_STUDENT_CHECKOUT', email: email }); } catch (e) {}
+            return;
+          }
           if (!email.endsWith('.edu')) {
             studentError.textContent = 'Please enter a valid .edu email address.';
             studentError.style.display = '';
             return;
           }
           studentError.style.display = 'none';
-          studentApply.textContent = 'Verifying...';
+          studentApply.textContent = 'Sending...';
           studentApply.disabled = true;
-          try { chrome.runtime.sendMessage({ type: 'OPEN_STUDENT_CHECKOUT', email: email }); } catch (e) {}
+          try { chrome.runtime.sendMessage({ type: 'VERIFY_STUDENT_EMAIL', studentEmail: email }); } catch (e) {}
         });
       }
       sidebar.appendChild(upgradeOv);
+    } else if (msg.type === 'STUDENT_VERIFICATION_SENT') {
+      if (!shadowRoot) return;
+      // Update all student apply buttons to show "check inbox" state
+      shadowRoot.querySelectorAll('.ctx-student-apply-btn').forEach(btn => {
+        btn.textContent = "I've verified my email";
+        btn.disabled = false;
+        btn.dataset.verified = 'true';
+      });
+      shadowRoot.querySelectorAll('.ctx-student-error').forEach(el => {
+        el.textContent = 'Check your .edu inbox for a verification link.';
+        el.style.display = '';
+        el.style.color = '#14b8a6';
+      });
+    } else if (msg.type === 'STUDENT_NOT_VERIFIED') {
+      if (!shadowRoot) return;
+      shadowRoot.querySelectorAll('.ctx-student-apply-btn').forEach(btn => {
+        btn.textContent = 'Apply';
+        btn.disabled = false;
+        btn.dataset.verified = '';
+      });
+      shadowRoot.querySelectorAll('.ctx-student-error').forEach(el => {
+        el.textContent = 'Please verify your .edu email first. Check your inbox for the verification link.';
+        el.style.display = '';
+        el.style.color = '#ef4444';
+      });
     } else if (msg.type === 'NO_CARDS_FALLBACK') {
       if (!shadowRoot || hasCards) return;
       const empty = shadowRoot.getElementById('empty-state');

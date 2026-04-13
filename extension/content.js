@@ -728,16 +728,16 @@ if (window.__contextExtensionLoaded) {
     }
     .card-desc { font-size: 12px; font-weight: 400; color: #a0a0c0; line-height: 1.4; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
     .card-thumb-wrap {
-      overflow: hidden; border-radius: 6px; max-height: 80px; margin-bottom: 6px;
+      display: block; overflow: hidden; border-radius: 6px; height: 80px; margin-bottom: 6px;
     }
     .card-thumbnail {
-      display: block; max-width: 100%; max-height: 80px; object-fit: cover;
+      display: block; width: 100%; height: 80px; object-fit: cover;
       border-radius: 6px;
       opacity: 0; transition: opacity 0.3s ease;
     }
     .card-thumbnail.loaded { opacity: 1; }
     .card-thumb {
-      display: block; max-width: 100%; max-height: 80px; object-fit: cover;
+      display: block; width: 100%; height: 80px; object-fit: cover;
       border-radius: 6px;
     }
     .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }
@@ -3202,6 +3202,7 @@ if (window.__contextExtensionLoaded) {
           .then(r => r.ok ? r.json() : null)
           .then(wikiData => {
             if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source && !wikiData.thumbnail.source.includes('/Flag_of')) {
+              console.log('[CONTENT] Wiki thumbnail fetched for', termForWiki, ':', wikiData.thumbnail.source);
               card.dataset.thumbUrl = wikiData.thumbnail.source;
               const wrap = document.createElement('div');
               wrap.className = 'card-thumb-wrap';
@@ -3209,15 +3210,19 @@ if (window.__contextExtensionLoaded) {
               img.className = 'card-thumbnail';
               img.src = wikiData.thumbnail.source;
               img.alt = termForWiki;
-              img.addEventListener('load', () => img.classList.add('loaded'));
+              img.addEventListener('load', () => { img.classList.add('loaded'); console.log('[CONTENT] Wiki thumbnail loaded for', termForWiki); });
+              img.addEventListener('error', () => { console.warn('[CONTENT] Wiki thumbnail failed to load for', termForWiki); wrap.remove(); });
               wrap.appendChild(img);
               const expandArea = card.querySelector('.card-expand-area');
               if (expandArea && !expandArea.querySelector('.card-thumbnail') && !expandArea.querySelector('.card-thumb')) {
                 expandArea.insertBefore(wrap, expandArea.firstChild);
+                console.log('[CONTENT] Wiki thumbnail element inserted for', termForWiki);
               }
+            } else {
+              console.log('[CONTENT] No wiki thumbnail found for', termForWiki, wikiData ? '(no thumb in response)' : '(no data)');
             }
           })
-          .catch(() => {});
+          .catch(err => { console.warn('[CONTENT] Wiki thumbnail fetch error for', termForWiki, err.message || err); });
       }
 
       // Track popularity on first expand

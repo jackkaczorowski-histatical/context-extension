@@ -5,7 +5,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const cors = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "*", // TODO: Lock to chrome-extension://EXTENSION_ID after CWS publish
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-extension-token",
 };

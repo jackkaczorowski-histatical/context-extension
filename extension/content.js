@@ -1492,7 +1492,7 @@ if (window.__contextExtensionLoaded) {
     /* ─── Student discount ─── */
     .ctx-student-link { color: #94a3b8; font-size: 11px; cursor: pointer; text-decoration: underline; margin-top: 4px; }
     .ctx-student-link:hover { color: #e0e0f0; }
-    .ctx-student-input-wrap { display: flex; gap: 6px; margin-top: 8px; max-width: 260px; width: 100%; }
+    .ctx-student-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; max-width: 260px; width: 100%; }
     .ctx-student-email-input {
       flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
       border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #e2e8f0;
@@ -4319,7 +4319,7 @@ if (window.__contextExtensionLoaded) {
                 '<div id="ctx-student-form" style="display:none">' +
                   '<div class="ctx-student-input-wrap">' +
                     '<input type="email" class="ctx-student-email-input" placeholder="you@university.edu" />' +
-                    '<button class="ctx-student-apply-btn">Apply</button>' +
+                    '<button class="ctx-student-apply-btn">Verify</button>' +
                   '</div>' +
                   '<div class="ctx-student-error" style="display:none"></div>' +
                 '</div>' +
@@ -6599,7 +6599,7 @@ if (window.__contextExtensionLoaded) {
         '<div id="ctx-student-form" style="display:none">' +
           '<div class="ctx-student-input-wrap">' +
             '<input type="email" class="ctx-student-email-input" placeholder="you@university.edu" />' +
-            '<button class="ctx-student-apply-btn">Apply</button>' +
+            '<button class="ctx-student-apply-btn">Verify</button>' +
           '</div>' +
           '<div class="ctx-student-error" style="display:none"></div>' +
         '</div>' +
@@ -6649,7 +6649,7 @@ if (window.__contextExtensionLoaded) {
       if (!shadowRoot) return;
       // Update all student apply buttons to show "check inbox" state
       shadowRoot.querySelectorAll('.ctx-student-apply-btn').forEach(btn => {
-        btn.textContent = "I've verified my email";
+        btn.textContent = 'Done';
         btn.disabled = false;
         btn.dataset.verified = 'true';
       });
@@ -6661,7 +6661,7 @@ if (window.__contextExtensionLoaded) {
     } else if (msg.type === 'STUDENT_NOT_VERIFIED') {
       if (!shadowRoot) return;
       shadowRoot.querySelectorAll('.ctx-student-apply-btn').forEach(btn => {
-        btn.textContent = 'Apply';
+        btn.textContent = 'Verify';
         btn.disabled = false;
         btn.dataset.verified = '';
       });

@@ -29,6 +29,7 @@ module.exports = async function handler(req, res) {
       cancel_url: 'https://context-extension-zv8d.vercel.app/api/checkout-cancel',
       metadata: { googleId },
       subscription_data: { metadata: { googleId } },
+      automatic_tax: { enabled: true },
     });
 
     log('info', 'checkout_session_created', { endpoint: 'create-checkout-session', plan });

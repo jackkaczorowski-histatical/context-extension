@@ -731,13 +731,13 @@ if (window.__contextExtensionLoaded) {
       display: block; overflow: hidden; border-radius: 6px; height: 80px; margin-bottom: 6px;
     }
     .card-thumbnail {
-      display: block; width: 100%; height: 80px; object-fit: cover;
+      display: block; width: 100%; height: 80px; object-fit: cover; object-position: top;
       border-radius: 6px;
       opacity: 0; transition: opacity 0.3s ease;
     }
     .card-thumbnail.loaded { opacity: 1; }
     .card-thumb {
-      display: block; width: 100%; height: 80px; object-fit: cover;
+      display: block; width: 100%; height: 80px; object-fit: cover; object-position: top;
       border-radius: 6px;
     }
     .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }

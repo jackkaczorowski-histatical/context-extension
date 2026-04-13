@@ -2569,10 +2569,7 @@ if (window.__contextExtensionLoaded) {
   }
 
   function getShopLinkHTML(entity, videoTitle) {
-    if (!shouldShowShopLink(entity, videoTitle)) return '';
-    const term = entity.term || entity.name || '';
-    const href = 'https://www.amazon.com/s?k=' + encodeURIComponent(term) + '&tag=contextlis-20';
-    return '<a class="card-shop-link" href="' + href + '" target="_blank" rel="noopener">Shop on Amazon &#x2197;</a>';
+    return '';
   }
 
   function insightKey(text) {

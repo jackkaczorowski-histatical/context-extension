@@ -1170,6 +1170,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.error('[BACKGROUND] OPEN_CHECKOUT failed:', err.message);
       }
     });
+  } else if (message.type === 'VERIFY_STUDENT_EMAIL') {
+    const originTabId = capturingTabId || (sender.tab && sender.tab.id) || null;
+    chrome.storage.local.get(['user', 'installId'], async (data) => {
+      const user = data.user;
+      if (!user || !user.id) {
+        console.error('[BACKGROUND] VERIFY_STUDENT_EMAIL: no signed-in user');
+        return;
+      }
+      try {
+        const resp = await fetch(`${CONFIG.API_BASE}/send-student-verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+          body: JSON.stringify({ studentEmail: message.studentEmail, googleId: user.id, installId: data.installId || null })
+        });
+        const result = await resp.json();
+        if (result.sent) {
+          console.log('[BACKGROUND] Student verification email sent to:', message.studentEmail);
+          if (originTabId) {
+            chrome.tabs.sendMessage(originTabId, { type: 'STUDENT_VERIFICATION_SENT' }).catch(() => {});
+          }
+        } else {
+          console.error('[BACKGROUND] Student verification error:', result.error);
+        }
+      } catch (err) {
+        console.error('[BACKGROUND] VERIFY_STUDENT_EMAIL failed:', err.message);
+      }
+    });
   } else if (message.type === 'OPEN_STUDENT_CHECKOUT') {
     trackEvent('upgrade_started', { plan: 'student', source: 'student_discount' });
     const originTabId = capturingTabId || (sender.tab && sender.tab.id) || null;
@@ -1228,6 +1255,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               console.error('[BACKGROUND] Student checkout poll error:', e.message);
             }
           }, 5000);
+        } else if (result.error === 'not_verified') {
+          console.log('[BACKGROUND] Student email not verified yet');
+          if (originTabId) {
+            chrome.tabs.sendMessage(originTabId, { type: 'STUDENT_NOT_VERIFIED' }).catch(() => {});
+          }
         } else {
           console.error('[BACKGROUND] Student checkout error:', result.error);
         }

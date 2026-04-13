@@ -727,15 +727,18 @@ if (window.__contextExtensionLoaded) {
       max-height: 500px; opacity: 1; padding-top: 6px;
     }
     .card-desc { font-size: 12px; font-weight: 400; color: #a0a0c0; line-height: 1.4; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; }
+    .card-thumb-wrap {
+      overflow: hidden; border-radius: 6px; max-height: 80px; margin-bottom: 6px;
+    }
     .card-thumbnail {
-      width: 100%; height: 80px; object-fit: cover;
-      border-radius: 4px; margin-bottom: 6px;
+      display: block; max-width: 100%; max-height: 80px; object-fit: cover;
+      border-radius: 6px;
       opacity: 0; transition: opacity 0.3s ease;
     }
     .card-thumbnail.loaded { opacity: 1; }
     .card-thumb {
-      display: block; width: 100%; height: 80px; object-fit: cover;
-      border-radius: 4px; margin-bottom: 6px;
+      display: block; max-width: 100%; max-height: 80px; object-fit: cover;
+      border-radius: 6px;
     }
     .card-source { font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic; }
     .card-popularity { font-size: 9px; color: var(--text-tertiary); margin-top: 4px; }
@@ -2968,7 +2971,7 @@ if (window.__contextExtensionLoaded) {
       </div>
       ${previewDesc ? `<div class="card-preview-text">${escapeHtml(previewDesc)}</div>` : ''}
       <div class="card-expand-area">
-        ${entity.thumbnail ? `<img class="card-thumb" src="${escapeHtml(entity.thumbnail)}" alt="" />` : ''}
+        ${entity.thumbnail ? `<div class="card-thumb-wrap"><img class="card-thumb" src="${escapeHtml(entity.thumbnail)}" alt="" /></div>` : ''}
         <div class="card-desc"></div>
         ${sourceLine}
         <div class="card-actions-row">
@@ -3200,14 +3203,17 @@ if (window.__contextExtensionLoaded) {
           .then(wikiData => {
             if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source && !wikiData.thumbnail.source.includes('/Flag_of')) {
               card.dataset.thumbUrl = wikiData.thumbnail.source;
+              const wrap = document.createElement('div');
+              wrap.className = 'card-thumb-wrap';
               const img = document.createElement('img');
               img.className = 'card-thumbnail';
               img.src = wikiData.thumbnail.source;
               img.alt = termForWiki;
               img.addEventListener('load', () => img.classList.add('loaded'));
+              wrap.appendChild(img);
               const expandArea = card.querySelector('.card-expand-area');
               if (expandArea && !expandArea.querySelector('.card-thumbnail') && !expandArea.querySelector('.card-thumb')) {
-                expandArea.insertBefore(img, expandArea.firstChild);
+                expandArea.insertBefore(wrap, expandArea.firstChild);
               }
             }
           })
@@ -6116,11 +6122,14 @@ if (window.__contextExtensionLoaded) {
             if (card.dataset.term === item.term && !card.querySelector('.card-thumb')) {
               const expandArea = card.querySelector('.card-expand-area');
               if (expandArea) {
+                const wrap = document.createElement('div');
+                wrap.className = 'card-thumb-wrap';
                 const img = document.createElement('img');
                 img.className = 'card-thumb';
                 img.src = item.thumbnail;
                 img.alt = '';
-                expandArea.insertBefore(img, expandArea.firstChild);
+                wrap.appendChild(img);
+                expandArea.insertBefore(wrap, expandArea.firstChild);
               }
               card.dataset.thumbUrl = item.thumbnail;
             }

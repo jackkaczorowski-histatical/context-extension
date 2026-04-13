@@ -889,8 +889,6 @@ if (window.__contextExtensionLoaded) {
     .context-card.high-relevance .card-term { color: #a5b4fc; }
     .light-theme .context-card.high-relevance .card-term { color: #6366f1; }
     .context-card.salience-background { opacity: 0.65; border-left-color: transparent !important; }
-    .context-card.salience-background .card-term { font-size: 11px; }
-    .context-card.salience-background .card-type { font-size: 7px; }
     .insight-strip {
       display: flex; align-items: flex-start; gap: 8px;
       padding: 6px 12px; border-left: 2px solid rgba(234, 179, 8, 0.5);

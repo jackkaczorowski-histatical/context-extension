@@ -823,6 +823,7 @@ if (window.__contextExtensionLoaded) {
     .ctx-filter-btn.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.3); }
     .filter-hide-known .context-card.card-dismissed { display: none; }
     .filter-starred-only .context-card:not(.card-highlighted) { display: none; }
+    .filter-starred-only .insight-strip:not(.card-highlighted) { display: none; }
     .collapse-all .context-card .card-expand-area { max-height: 0; opacity: 0; padding-top: 0; }
     .collapse-all .context-card .card-chevron { transform: rotate(0deg); }
     .reaction-label {
@@ -2632,11 +2633,11 @@ if (window.__contextExtensionLoaded) {
       newBtn.title = 'New to me';
 
       function applyReaction(reaction) {
-        strip.classList.remove('reacted');
+        strip.classList.remove('reacted', 'card-dismissed', 'card-highlighted');
         knewBtn.classList.remove('active');
         newBtn.classList.remove('active');
-        if (reaction === 'known') { knewBtn.classList.add('active'); strip.classList.add('reacted'); }
-        if (reaction === 'new') { newBtn.classList.add('active'); strip.classList.add('reacted'); }
+        if (reaction === 'known') { knewBtn.classList.add('active'); strip.classList.add('reacted', 'card-dismissed'); }
+        if (reaction === 'new') { newBtn.classList.add('active'); strip.classList.add('reacted', 'card-highlighted'); }
       }
 
       chrome.storage.local.get('cardReactions', (data) => {

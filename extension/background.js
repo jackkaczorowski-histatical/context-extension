@@ -188,6 +188,8 @@ let sidebarOpen = false;
 let isStoppingCapture = false;
 let isStartingCapture = false;
 let lastAnalyzeFailed = false;
+let consecutiveAnalyzeFailures = 0;
+let analyzeBackoffTimer = null;
 let captureStartTime = null;
 let eventFlushTimer = null;
 let knowledgeState = {};
@@ -873,6 +875,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     transcriptBuffer = '';
     dismissedTerms.clear();
     firstFlush = true;
+    consecutiveAnalyzeFailures = 0;
+    if (analyzeBackoffTimer) { clearTimeout(analyzeBackoffTimer); analyzeBackoffTimer = null; }
   } else if (message.type === 'GET_TAB_ID') {
     sendResponse({ tabId: sender.tab?.id });
     return true;
@@ -1298,6 +1302,11 @@ function flushTranscriptBuffer() {
     clearTimeout(bufferTimer);
     bufferTimer = null;
   }
+  // During backoff, keep buffering — don't push to queue yet
+  if (analyzeBackoffTimer) {
+    console.log('[BACKGROUND] Backoff active, deferring flush (' + transcriptBuffer.trim().length + ' chars buffered)');
+    return;
+  }
   const text = transcriptBuffer.trim();
   if (text.length > 0 && text.length < 80 && Date.now() - bufferStartTime < 20000) {
     console.log('[BACKGROUND] Buffer too short (' + text.length + ' chars), deferring flush');
@@ -1490,6 +1499,8 @@ async function stopCapture(stopMethod = 'user') {
   trackEvent('session_stopped', { duration: durationSec, entitiesRendered: sessionEntities.length, cardsExpanded: lastSessionCardsExpanded, stopMethod });
   captureStartTime = null;
   chrome.storage.local.remove('captureStartTime');
+  consecutiveAnalyzeFailures = 0;
+  if (analyzeBackoffTimer) { clearTimeout(analyzeBackoffTimer); analyzeBackoffTimer = null; }
 
   capturingTabId = null;
   chrome.storage.local.remove('capturingTabId');
@@ -1925,6 +1936,20 @@ async function processNextTranscript() {
         if (attempt === 2) {
           console.log('[BACKGROUND] Analyze failed after 3 attempts (network) — skipping');
           lastAnalyzeFailed = true;
+          consecutiveAnalyzeFailures++;
+          console.log('[BACKGROUND] Consecutive analyze failures:', consecutiveAnalyzeFailures);
+          if (consecutiveAnalyzeFailures === 3) {
+            if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'SHOW_TOAST', message: 'Context is temporarily having trouble connecting. Cards will resume automatically when the connection is restored.' }).catch(() => {});
+          }
+          if (consecutiveAnalyzeFailures >= 3) {
+            const backoffSec = Math.min(30 * Math.pow(2, consecutiveAnalyzeFailures - 3), 120);
+            console.log(`[BACKGROUND] Backoff: waiting ${backoffSec}s before next analyze attempt`);
+            analyzeBackoffTimer = setTimeout(() => {
+              analyzeBackoffTimer = null;
+              console.log('[BACKGROUND] Backoff expired, flushing buffered transcript');
+              flushTranscriptBuffer();
+            }, backoffSec * 1000);
+          }
           scheduleNext();
           return;
         }
@@ -1936,7 +1961,12 @@ async function processNextTranscript() {
           console.log(`[BACKGROUND] Analyze succeeded on attempt ${attempt + 1}${lastAnalyzeFailed ? ' (recovering from previous failure)' : ''}`);
           if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'CONNECTION_RESTORED', service: 'analysis' }).catch(() => {});
         }
+        if (consecutiveAnalyzeFailures >= 3 && capturingTabId) {
+          chrome.tabs.sendMessage(capturingTabId, { type: 'SHOW_TOAST', message: 'Connection restored! Cards are flowing again.' }).catch(() => {});
+        }
         lastAnalyzeFailed = false;
+        consecutiveAnalyzeFailures = 0;
+        if (analyzeBackoffTimer) { clearTimeout(analyzeBackoffTimer); analyzeBackoffTimer = null; }
         break;
       }
       // Notify on HTTP errors (503, 529, etc.)
@@ -1946,6 +1976,20 @@ async function processNextTranscript() {
       if (attempt === 2) {
         console.log('[BACKGROUND] Analyze failed after 3 attempts, status:', analyzeRes.status, '— skipping');
         lastAnalyzeFailed = true;
+        consecutiveAnalyzeFailures++;
+        console.log('[BACKGROUND] Consecutive analyze failures:', consecutiveAnalyzeFailures);
+        if (consecutiveAnalyzeFailures === 3) {
+          if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'SHOW_TOAST', message: 'Context is temporarily having trouble connecting. Cards will resume automatically when the connection is restored.' }).catch(() => {});
+        }
+        if (consecutiveAnalyzeFailures >= 3) {
+          const backoffSec = Math.min(30 * Math.pow(2, consecutiveAnalyzeFailures - 3), 120);
+          console.log(`[BACKGROUND] Backoff: waiting ${backoffSec}s before next analyze attempt`);
+          analyzeBackoffTimer = setTimeout(() => {
+            analyzeBackoffTimer = null;
+            console.log('[BACKGROUND] Backoff expired, flushing buffered transcript');
+            flushTranscriptBuffer();
+          }, backoffSec * 1000);
+        }
         scheduleNext();
         return;
       }

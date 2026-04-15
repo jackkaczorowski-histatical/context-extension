@@ -5161,12 +5161,12 @@ if (window.__contextExtensionLoaded) {
       const isCapturingTab = !data.capturingTabId || !myTabId || myTabId === data.capturingTabId;
       const cards = shadowRoot.getElementById('cards');
 
-      // If capturing on another tab, show "listening elsewhere" message instead of cards
-      if (data.capturing && !isCapturingTab && cards) {
+      // If capturing on another tab AND sidebar has no cards yet, show "listening elsewhere"
+      // If cards already exist, leave them — don't nuke recovered cards
+      if (data.capturing && !isCapturingTab && cards && cards.children.length === 0) {
         const emptyState = shadowRoot.getElementById('empty-state');
         if (emptyState) emptyState.style.display = 'none';
         cards.style.display = 'block';
-        cards.innerHTML = '';
         const otherTabMsg = document.createElement('div');
         otherTabMsg.className = 'ctx-other-tab-msg';
         otherTabMsg.innerHTML = '<div style="font-size:14px;font-weight:600;color:#64748b;margin-bottom:6px;">Listening on another tab</div>' +
@@ -6460,6 +6460,7 @@ if (window.__contextExtensionLoaded) {
       }
       updateFloatingWidget(msg.capturing);
     } else if (msg.type === 'CAPTURE_SWITCHED_AWAY') {
+      console.log('[CONTENT] CAPTURE_SWITCHED_AWAY received');
       if (!shadowRoot) return;
       // Reset listen button to play state
       const btn = shadowRoot.getElementById('ctx-listen-btn');

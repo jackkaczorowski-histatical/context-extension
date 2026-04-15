@@ -105,6 +105,7 @@ if (window.__contextExtensionLoaded) {
 
   let cardsRenderedThisSession = 0;
   let cardsExpandedThisSession = 0;
+  let captureSwitchedAwayAt = 0;
 
   function computeCardScore(entity) {
     const novelty = 1.0 - (entity.familiarity || 0);
@@ -6033,6 +6034,10 @@ if (window.__contextExtensionLoaded) {
       }
     }
     if (changes.capturing && changes.capturing.oldValue === true && changes.capturing.newValue === false) {
+      // Skip session summary if capture was switched to another tab (not user-stopped)
+      if (Date.now() - captureSwitchedAwayAt < 2000) {
+        console.log('[CONTENT] Skipping session summary — capture switched away, not ended');
+      } else {
       isActiveTab((active) => {
         if (!active) return;
         chrome.storage.local.get(['sessionHistory', 'knowledgeBase', 'capturingTabTitle', 'cardReactions', 'sessionQA', 'sessionStats', 'sessionCount', 'analytics'], (data) => {
@@ -6119,6 +6124,7 @@ if (window.__contextExtensionLoaded) {
           });
         });
       });
+      }
     }
     {
       const newEntities = changes.pendingEntities?.newValue || [];
@@ -6458,9 +6464,22 @@ if (window.__contextExtensionLoaded) {
           } catch (e) {}
         }
       }
+      // When capture starts on THIS tab (sent explicitly by background to newTabId),
+      // clean up any "Listening on another tab" overlay and prepare sidebar
+      if (msg.capturing && shadowRoot) {
+        const otherMsg = shadowRoot.querySelector('.ctx-other-tab-msg');
+        if (otherMsg) {
+          console.log('[CONTENT] Clearing "other tab" overlay — capture now on this tab');
+          otherMsg.remove();
+        }
+        // Ensure sidebar is open and ready for new cards
+        ensureSidebar();
+        openSidebar();
+      }
       updateFloatingWidget(msg.capturing);
     } else if (msg.type === 'CAPTURE_SWITCHED_AWAY') {
       console.log('[CONTENT] CAPTURE_SWITCHED_AWAY received');
+      captureSwitchedAwayAt = Date.now();
       if (!shadowRoot) return;
       // Reset listen button to play state
       const btn = shadowRoot.getElementById('ctx-listen-btn');

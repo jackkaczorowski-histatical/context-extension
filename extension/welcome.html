@@ -52,23 +52,6 @@
     <p>You're all set. Open any video or audio content in Chrome and click the Context icon to start listening. Works on YouTube, podcasts, Zoom, CNBC, TED talks, and any website with audio.</p>
     <a class="cta" href="https://www.youtube.com">Start browsing</a>
   </div>
-  <script>
-    (function() {
-      const params = new URLSearchParams(window.location.search);
-      const source = params.get('utm_source') || params.get('source') || '';
-      const medium = params.get('utm_medium') || '';
-      const campaign = params.get('utm_campaign') || '';
-      if (source || medium || campaign) {
-        chrome.storage.local.set({
-          installAttribution: {
-            source: source || 'organic',
-            medium: medium,
-            campaign: campaign,
-            timestamp: new Date().toISOString()
-          }
-        });
-      }
-    })();
-  </script>
+  <script src="welcome.js"></script>
 </body>
 </html>

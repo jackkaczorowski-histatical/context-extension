@@ -167,7 +167,9 @@ if (window.__contextExtensionLoaded) {
   function isActiveTab(callback) {
     function compare(myTabId) {
       chrome.storage.local.get(['capturingTabId'], (data) => {
-        if (chrome.runtime.lastError) { callback(false); return; }
+        if (chrome.runtime.lastError) { callback(true); return; } // fail open
+        // If capturingTabId not set in storage, assume active (fail open)
+        if (!data.capturingTabId) { callback(true); return; }
         callback(myTabId === data.capturingTabId);
       });
     }
@@ -175,7 +177,7 @@ if (window.__contextExtensionLoaded) {
       compare(cachedTabId);
     } else {
       chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
-        if (chrome.runtime.lastError || !response) { callback(false); return; }
+        if (chrome.runtime.lastError || !response) { callback(true); return; } // fail open
         cachedTabId = response.tabId;
         compare(cachedTabId);
       });
@@ -183,13 +185,15 @@ if (window.__contextExtensionLoaded) {
   }
 
   // When tab becomes visible again, re-check if this is the capturing tab
-  // and clear "Listening on another tab" message if it is
+  // and clear "Listening on another tab" message if it is.
+  // IMPORTANT: never clear cards here — only remove the "other tab" overlay.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     if (!shadowRoot) return;
     isActiveTab((active) => {
+      console.log('[CONTENT] visibilitychange: visible, isActive:', active);
       if (!active) return;
-      // Remove the "other tab" message if present
+      // Remove the "other tab" message if present — do NOT touch cards
       const otherMsg = shadowRoot.querySelector('.ctx-other-tab-msg');
       if (otherMsg) otherMsg.remove();
       // Sync listen button to recording state
@@ -5155,7 +5159,8 @@ if (window.__contextExtensionLoaded) {
     // Recover cards and sidebar state from storage (e.g. page refresh)
     chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen', 'capturingTabId'], (data) => {
       function proceedRecovery(myTabId) {
-      const isCapturingTab = !data.capturingTabId || myTabId === data.capturingTabId;
+      // Fail open: if we can't determine our tab ID or capturingTabId, assume we're the capturing tab
+      const isCapturingTab = !data.capturingTabId || !myTabId || myTabId === data.capturingTabId;
       const cards = shadowRoot.getElementById('cards');
 
       // If capturing on another tab, show "listening elsewhere" message instead of cards
@@ -6201,7 +6206,8 @@ if (window.__contextExtensionLoaded) {
   chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart', 'capturingTabId'], (data) => {
     // Resolve own tab ID, then compare against capturing tab
     function proceedWithTabCheck(myTabId) {
-      if (data.capturingTabId && myTabId !== data.capturingTabId) {
+      // Fail open: if we can't determine our tab ID, proceed anyway
+      if (data.capturingTabId && myTabId && myTabId !== data.capturingTabId) {
         console.log('[CONTENT] Not the captured tab on load, skipping');
         return;
       }
@@ -6236,7 +6242,7 @@ if (window.__contextExtensionLoaded) {
       proceedWithTabCheck(cachedTabId);
     } else {
       chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
-        if (chrome.runtime.lastError || !response) return;
+        if (chrome.runtime.lastError || !response) { proceedWithTabCheck(null); return; }
         cachedTabId = response.tabId;
         proceedWithTabCheck(cachedTabId);
       });

@@ -18,10 +18,10 @@ module.exports = async function handler(req, res) {
   log('info', 'status_check', { endpoint: 'status' });
 
   return res.status(200).json({
-    enabled: true,
-    minVersion: "1.0.0",
-    message: null,
-    maintenance: false
+    enabled: process.env.KILL_SWITCH_ENABLED !== 'false',
+    minVersion: process.env.MIN_VERSION || "1.0.0",
+    message: process.env.STATUS_MESSAGE || null,
+    maintenance: process.env.MAINTENANCE_MODE === 'true'
   });
 };
 

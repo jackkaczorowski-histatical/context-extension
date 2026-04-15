@@ -888,12 +888,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const oldTabId = capturingTabId;
       if (oldTabId) {
         await stopCapture('switch');
-        if (oldTabId) chrome.tabs.sendMessage(oldTabId, { type: 'CAPTURE_STATE', capturing: false }).catch(() => {});
       }
       // Focus the requesting tab so startCapture picks it up
       await chrome.tabs.update(newTabId, { active: true });
       await startCapture();
       chrome.tabs.sendMessage(newTabId, { type: 'CAPTURE_STATE', capturing: true }).catch(() => {});
+      // Tell the old tab to update its UI
+      if (oldTabId && oldTabId !== newTabId) {
+        chrome.tabs.sendMessage(oldTabId, { type: 'CAPTURE_SWITCHED_AWAY' }).catch(() => {});
+      }
     })();
   } else if (message.type === 'TOGGLE_CAPTURE') {
     const toggleUsageKey = getUsageKey();

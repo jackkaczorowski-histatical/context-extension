@@ -162,19 +162,24 @@ if (window.__contextExtensionLoaded) {
     if (data.extensionSettings) settings = { ...settings, ...data.extensionSettings };
   });
 
-  // Check if this tab is the one being captured
+  // Check if this tab is the one being captured (compare tab IDs)
+  let cachedTabId = null;
   function isActiveTab(callback) {
-    chrome.storage.local.get(['activeTabUrl'], (data) => {
-      if (chrome.runtime.lastError) { callback(false); return; }
-      const activeUrl = data.activeTabUrl || '';
-      try {
-        const active = new URL(activeUrl);
-        const current = new URL(window.location.href);
-        callback(active.origin + active.pathname === current.origin + current.pathname);
-      } catch (e) {
-        callback(activeUrl === window.location.href);
-      }
-    });
+    function compare(myTabId) {
+      chrome.storage.local.get(['capturingTabId'], (data) => {
+        if (chrome.runtime.lastError) { callback(false); return; }
+        callback(myTabId === data.capturingTabId);
+      });
+    }
+    if (cachedTabId !== null) {
+      compare(cachedTabId);
+    } else {
+      chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+        if (chrome.runtime.lastError || !response) { callback(false); return; }
+        cachedTabId = response.tabId;
+        compare(cachedTabId);
+      });
+    }
   }
 
   chrome.storage.onChanged.addListener((changes) => {
@@ -2695,12 +2700,8 @@ if (window.__contextExtensionLoaded) {
   }
 
   function createStockCard(entity) {
-    console.log('[CONTENT] Stock card data:', JSON.stringify(entity));
-    console.log('[CONTENT] Stock price fields — price:', entity.price, 'change:', entity.change, 'changePercent:', entity.changePercent);
-
     // If entity has no ticker AND no price, don't render an empty stock card
     if (!entity.ticker && entity.price == null) {
-      console.warn('[CONTENT] Stock entity has no ticker or price — rendering as generic card');
       return createGenericCard(entity);
     }
 
@@ -3202,7 +3203,6 @@ if (window.__contextExtensionLoaded) {
           .then(r => r.ok ? r.json() : null)
           .then(wikiData => {
             if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source && !wikiData.thumbnail.source.includes('/Flag_of')) {
-              console.log('[CONTENT] Wiki thumbnail fetched for', termForWiki, ':', wikiData.thumbnail.source);
               card.dataset.thumbUrl = wikiData.thumbnail.source;
               const wrap = document.createElement('div');
               wrap.className = 'card-thumb-wrap';
@@ -3210,19 +3210,16 @@ if (window.__contextExtensionLoaded) {
               img.className = 'card-thumbnail';
               img.src = wikiData.thumbnail.source;
               img.alt = termForWiki;
-              img.addEventListener('load', () => { img.classList.add('loaded'); console.log('[CONTENT] Wiki thumbnail loaded for', termForWiki); });
-              img.addEventListener('error', () => { console.warn('[CONTENT] Wiki thumbnail failed to load for', termForWiki); wrap.remove(); });
+              img.addEventListener('load', () => { img.classList.add('loaded'); });
+              img.addEventListener('error', () => { wrap.remove(); });
               wrap.appendChild(img);
               const expandArea = card.querySelector('.card-expand-area');
               if (expandArea && !expandArea.querySelector('.card-thumbnail') && !expandArea.querySelector('.card-thumb')) {
                 expandArea.insertBefore(wrap, expandArea.firstChild);
-                console.log('[CONTENT] Wiki thumbnail element inserted for', termForWiki);
               }
-            } else {
-              console.log('[CONTENT] No wiki thumbnail found for', termForWiki, wikiData ? '(no thumb in response)' : '(no data)');
             }
           })
-          .catch(err => { console.warn('[CONTENT] Wiki thumbnail fetch error for', termForWiki, err.message || err); });
+          .catch(() => {});
       }
 
       // Track popularity on first expand
@@ -5139,7 +5136,7 @@ if (window.__contextExtensionLoaded) {
             let vcType = 'entity';
             if (item.type === 'video-divider') vcType = 'divider';
             else if (item.type === 'insight' && item.category) vcType = 'insight';
-            else if (item.type === 'stock') vcType = 'stock';
+            else if (item.type === 'stock' && item.ticker && item.price != null) vcType = 'stock';
 
             const vcData = vcType === 'insight'
               ? { insight: item.term, category: item.category, detail: item.description, timestamp: item.timestamp }
@@ -6149,23 +6146,18 @@ if (window.__contextExtensionLoaded) {
   });
 
   // Check for pending entities/insights on load
-  chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart', 'activeTabUrl'], (data) => {
-    try {
-      const activeUrl = data.activeTabUrl || '';
-      const active = new URL(activeUrl);
-      const current = new URL(window.location.href);
-      if (active.origin + active.pathname !== current.origin + current.pathname) {
+  chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart', 'capturingTabId'], (data) => {
+    // Resolve own tab ID, then compare against capturing tab
+    function proceedWithTabCheck(myTabId) {
+      if (data.capturingTabId && myTabId !== data.capturingTabId) {
         console.log('[CONTENT] Not the captured tab on load, skipping');
         return;
       }
-    } catch (e) {
-      if (data.activeTabUrl && data.activeTabUrl !== window.location.href) return;
-    }
-    if (data.sessionStart) {
-      trackSessionStart(data.sessionStart);
-    }
-    const initEntities = data.pendingEntities || [];
-    const initInsights = data.pendingInsights || [];
+      if (data.sessionStart) {
+        trackSessionStart(data.sessionStart);
+      }
+      const initEntities = data.pendingEntities || [];
+      const initInsights = data.pendingInsights || [];
     console.log('[CONTENT] Initial check, entities:', initEntities.length, 'insights:', initInsights.length);
     if (initEntities.length > 0) {
       renderCards(initEntities);
@@ -6187,6 +6179,16 @@ if (window.__contextExtensionLoaded) {
     }
     if (initEntities.length > 0 || initInsights.length > 0) {
       chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
+    }
+    }
+    if (cachedTabId !== null) {
+      proceedWithTabCheck(cachedTabId);
+    } else {
+      chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+        if (chrome.runtime.lastError || !response) return;
+        cachedTabId = response.tabId;
+        proceedWithTabCheck(cachedTabId);
+      });
     }
   });
 
@@ -6699,8 +6701,6 @@ if (window.__contextExtensionLoaded) {
       hint.textContent = 'This content may not have many identifiable terms yet. Try a video about specific topics, people, or companies.';
       empty.appendChild(hint);
     } else if (msg.type === 'PLAN_UPGRADED') {
-      console.log('[CONTENT] PLAN_UPGRADED message received');
-      console.log('[CONTENT] Showing pro celebration, shadowRoot exists:', !!shadowRoot);
       if (!shadowRoot) return;
       ensureSidebar();
       // Remove every upgrade-related overlay
@@ -6738,7 +6738,6 @@ if (window.__contextExtensionLoaded) {
       }
       // Rebuild settings panel so next open reflects PRO
       buildSettingsPanel();
-      console.log('[CONTENT] PLAN_UPGRADED received, UI updated');
     } else if (msg.type === 'SIGN_IN_SUCCESS') {
       // Re-render auth section in settings if open
       if (!shadowRoot) return;

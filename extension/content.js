@@ -6453,6 +6453,39 @@ if (window.__contextExtensionLoaded) {
         }
       }
       updateFloatingWidget(msg.capturing);
+    } else if (msg.type === 'CAPTURE_SWITCHED_AWAY') {
+      if (!shadowRoot) return;
+      // Reset listen button to play state
+      const btn = shadowRoot.getElementById('ctx-listen-btn');
+      if (btn) {
+        btn.textContent = '\u25B6'; btn.title = 'Start Listening';
+        btn.classList.remove('listening');
+      }
+      // Hide floating widget and live dot
+      updateFloatingWidget(false);
+      const liveDot = shadowRoot.querySelector('.live-dot');
+      if (liveDot) liveDot.classList.remove('active');
+      // Hide now-watching bar
+      const nowWatching = shadowRoot.getElementById('ctx-now-watching');
+      if (nowWatching) nowWatching.classList.remove('visible');
+      // Clear cards and show "listening on another tab" message
+      const cards = shadowRoot.getElementById('cards');
+      if (cards) {
+        const emptyState = shadowRoot.getElementById('empty-state');
+        if (emptyState) emptyState.style.display = 'none';
+        cards.style.display = 'block';
+        cards.innerHTML = '';
+        const otherTabMsg = document.createElement('div');
+        otherTabMsg.className = 'ctx-other-tab-msg';
+        otherTabMsg.innerHTML = '<div style="font-size:14px;font-weight:600;color:#64748b;margin-bottom:6px;">Listening on another tab</div>' +
+          '<div style="font-size:12px;color:#64748b;margin-bottom:16px;">Click below to switch capture to this tab</div>' +
+          '<button class="ctx-switch-tab-btn">Capture this tab</button>';
+        cards.appendChild(otherTabMsg);
+        otherTabMsg.querySelector('.ctx-switch-tab-btn').addEventListener('click', () => {
+          chrome.runtime.sendMessage({ type: 'SWITCH_CAPTURE_TAB' });
+          otherTabMsg.remove();
+        });
+      }
     } else if (msg.type === 'CONNECTION_ERROR') {
       if (!shadowRoot) return;
       const bar = shadowRoot.getElementById('ctx-status-bar');

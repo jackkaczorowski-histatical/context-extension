@@ -1851,7 +1851,7 @@ async function processNextTranscript() {
       chrome.storage.local.get('sessionHistory', (histData) => {
         const history = histData.sessionHistory || [];
         enrichedPackMatches.forEach(entity => {
-          history.push({
+          const histEntry = {
             term: entity.term,
             type: entity.type,
             description: entity.description,
@@ -1862,7 +1862,18 @@ async function processNextTranscript() {
             timesSeen: entity.timesSeen,
             timestamp: Date.now(),
             fromPack: true
-          });
+          };
+          // Persist full stock data for card recovery on reload
+          if (entity.type === 'stock' && entity.ticker) {
+            if (entity.price != null) histEntry.price = entity.price;
+            if (entity.change != null) histEntry.change = entity.change;
+            if (entity.changePercent != null) histEntry.changePercent = entity.changePercent;
+            if (entity.low52 != null) histEntry.low52 = entity.low52;
+            if (entity.high52 != null) histEntry.high52 = entity.high52;
+            if (entity.volume != null) histEntry.volume = entity.volume;
+            if (entity.companyName) histEntry.companyName = entity.companyName;
+          }
+          history.push(histEntry);
         });
         chrome.storage.local.set({
           sessionHistory: history,
@@ -2267,7 +2278,18 @@ async function processNextTranscript() {
     enrichedEntities.forEach(e => {
       const term = e.term || e.name || '';
       if (term) {
-        newHistoryEntries.push({ term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', ticker: e.ticker || null, elapsedSeconds });
+        const entry = { term, type: e.type || 'other', timestamp: Date.now(), description: e.description || '', ticker: e.ticker || null, elapsedSeconds };
+        // Persist full stock data for card recovery on reload
+        if (e.type === 'stock' && e.ticker) {
+          if (e.price != null) entry.price = e.price;
+          if (e.change != null) entry.change = e.change;
+          if (e.changePercent != null) entry.changePercent = e.changePercent;
+          if (e.low52 != null) entry.low52 = e.low52;
+          if (e.high52 != null) entry.high52 = e.high52;
+          if (e.volume != null) entry.volume = e.volume;
+          if (e.companyName) entry.companyName = e.companyName;
+        }
+        newHistoryEntries.push(entry);
       }
     });
     dedupedInsights.forEach(i => {

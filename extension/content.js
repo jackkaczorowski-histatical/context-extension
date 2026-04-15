@@ -5136,7 +5136,7 @@ if (window.__contextExtensionLoaded) {
             let vcType = 'entity';
             if (item.type === 'video-divider') vcType = 'divider';
             else if (item.type === 'insight' && item.category) vcType = 'insight';
-            else if (item.type === 'stock') vcType = 'stock';
+            else if (item.type === 'stock' && item.ticker && item.price != null) vcType = 'stock';
 
             const vcData = vcType === 'insight'
               ? { insight: item.term, category: item.category, detail: item.description, timestamp: item.timestamp }

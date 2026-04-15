@@ -182,6 +182,28 @@ if (window.__contextExtensionLoaded) {
     }
   }
 
+  // When tab becomes visible again, re-check if this is the capturing tab
+  // and clear "Listening on another tab" message if it is
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (!shadowRoot) return;
+    isActiveTab((active) => {
+      if (!active) return;
+      // Remove the "other tab" message if present
+      const otherMsg = shadowRoot.querySelector('.ctx-other-tab-msg');
+      if (otherMsg) otherMsg.remove();
+      // Sync listen button to recording state
+      chrome.storage.local.get('capturing', (data) => {
+        const btn = shadowRoot.getElementById('ctx-listen-btn');
+        if (btn && data.capturing) {
+          btn.textContent = '\u25A0'; btn.title = 'Stop Recording';
+          btn.classList.add('listening');
+        }
+        updateFloatingWidget(!!data.capturing);
+      });
+    });
+  });
+
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.extensionSettings) {
       settings = { ...settings, ...changes.extensionSettings.newValue };
@@ -6136,7 +6158,6 @@ if (window.__contextExtensionLoaded) {
                     cards.appendChild(card);
                     vc.el = card;
                     virtualCards.push(vc);
-                    addToNotes(card);
                     if (virtualCards.length > VIRTUAL_THRESHOLD) {
                       activateVirtualScroll(cards);
                     }
@@ -6204,7 +6225,6 @@ if (window.__contextExtensionLoaded) {
           const card = createInsightCard(insight);
           card.dataset.createdAt = Date.now().toString();
           cards.appendChild(card);
-          addToNotes(card);
         });
       }
     }
@@ -6259,7 +6279,6 @@ if (window.__contextExtensionLoaded) {
                 const card = createInsightCard(insight);
                 card.dataset.createdAt = Date.now().toString();
                 cards.appendChild(card);
-                addToNotes(card);
               });
             }
           }

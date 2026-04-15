@@ -196,7 +196,9 @@ module.exports = function handler(req, res) {
       <a href="#how-it-works" class="btn-outline">See how it works</a>
     </div>
     <p class="hero-note">Free for 30 min/day. No credit card required.</p>
-    <img src="/hero.png" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);margin-top:48px;max-width:720px;" alt="Context extension showing real-time AI cards on a YouTube video">
+    <div style="width:100%;max-width:720px;margin-top:48px;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4);aspect-ratio:16/9;">
+      <iframe width="100%" height="100%" src="https://www.youtube.com/embed/_SxnJBzo-D8?rel=0&modestbranding=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="border-radius:12px;"></iframe>
+    </div>
   </div>
 </section>
 

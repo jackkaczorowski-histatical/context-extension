@@ -5,6 +5,8 @@ module.exports = function handler(req, res) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icon16.png">
 <title>Context — AI context cards for anything you watch</title>
 <meta name="description" content="Context listens to any browser tab and surfaces live AI-powered cards explaining people, companies, stocks, and concepts as you watch.">
 <style>
@@ -196,7 +198,7 @@ module.exports = function handler(req, res) {
       <a href="#how-it-works" class="btn-outline">See how it works</a>
     </div>
     <p class="hero-note">Free for 30 min/day. No credit card required.</p>
-    <div style="width:100%;max-width:720px;margin-top:48px;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4);aspect-ratio:16/9;">
+    <div style="display:block;width:100%;max-width:720px;margin:48px auto 0;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4);aspect-ratio:16/9;">
       <iframe width="100%" height="100%" src="https://www.youtube.com/embed/_SxnJBzo-D8?rel=0&modestbranding=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="border-radius:12px;"></iframe>
     </div>
   </div>

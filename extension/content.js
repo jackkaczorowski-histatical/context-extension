@@ -2024,6 +2024,18 @@ if (window.__contextExtensionLoaded) {
         transition: none !important;
       }
     }
+
+    /* ─── Other tab message ─── */
+    .ctx-other-tab-msg {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 48px 24px;
+    }
+    .ctx-switch-tab-btn {
+      background: #00e676; color: white; border: none; border-radius: 20px;
+      padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: background 0.2s;
+    }
+    .ctx-switch-tab-btn:hover { background: #00c853; }
   `;
 
   const BADGE_CSS = `
@@ -5119,9 +5131,30 @@ if (window.__contextExtensionLoaded) {
     console.log('[CONTENT] Shadow DOM sidebar created');
 
     // Recover cards and sidebar state from storage (e.g. page refresh)
-    chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen', 'activeTabUrl'], (data) => {
-      const history = data.sessionHistory || [];
+    chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen', 'capturingTabId'], (data) => {
+      function proceedRecovery(myTabId) {
+      const isCapturingTab = !data.capturingTabId || myTabId === data.capturingTabId;
       const cards = shadowRoot.getElementById('cards');
+
+      // If capturing on another tab, show "listening elsewhere" message instead of cards
+      if (data.capturing && !isCapturingTab && cards) {
+        const emptyState = shadowRoot.getElementById('empty-state');
+        if (emptyState) emptyState.style.display = 'none';
+        cards.style.display = 'block';
+        cards.innerHTML = '';
+        const otherTabMsg = document.createElement('div');
+        otherTabMsg.className = 'ctx-other-tab-msg';
+        otherTabMsg.innerHTML = '<div style="font-size:14px;font-weight:600;color:#64748b;margin-bottom:6px;">Listening on another tab</div>' +
+          '<div style="font-size:12px;color:#64748b;margin-bottom:16px;">Click below to switch capture to this tab</div>' +
+          '<button class="ctx-switch-tab-btn">Capture this tab</button>';
+        cards.appendChild(otherTabMsg);
+        otherTabMsg.querySelector('.ctx-switch-tab-btn').addEventListener('click', () => {
+          chrome.runtime.sendMessage({ type: 'SWITCH_CAPTURE_TAB' });
+          otherTabMsg.remove();
+        });
+      } else {
+      // Normal card recovery
+      const history = data.sessionHistory || [];
       if (history.length > 0 && cards && cards.children.length === 0) {
         console.log('[CONTENT] Recovering', history.length, 'cards from storage');
         const emptyState = shadowRoot.getElementById('empty-state');
@@ -5174,27 +5207,16 @@ if (window.__contextExtensionLoaded) {
 
         console.log('[CONTENT] Recovered', virtualCards.length, 'cards' + (virtualActive ? ' (virtual scroll)' : ''));
       }
+      }
 
-      // Sync button state if currently capturing
-      if (data.capturing) {
+      // Sync button state if currently capturing on THIS tab
+      if (data.capturing && isCapturingTab) {
         const btn = shadowRoot.getElementById('ctx-listen-btn');
         if (btn) {
           btn.textContent = '\u25A0'; btn.title = 'Stop Recording';
           btn.classList.add('listening');
         }
       }
-
-      // Auto-reopen sidebar only on the capturing tab
-      const isCapturingTab = (() => {
-        try {
-          if (!data.activeTabUrl) return false;
-          const active = new URL(data.activeTabUrl);
-          const current = new URL(window.location.href);
-          return active.origin + active.pathname === current.origin + current.pathname;
-        } catch (e) {
-          return data.activeTabUrl === window.location.href;
-        }
-      })();
 
       if (isCapturingTab && (data.sidebarOpen || data.capturing)) {
         hostEl.dataset.open = 'true';
@@ -5208,9 +5230,18 @@ if (window.__contextExtensionLoaded) {
         console.log('[CONTENT] Auto-reopened sidebar after refresh (capturing tab)');
       }
 
-
       // Sync floating widget with initial state
-      updateFloatingWidget(!!data.capturing);
+      updateFloatingWidget(!!data.capturing && isCapturingTab);
+      }
+      if (cachedTabId !== null) {
+        proceedRecovery(cachedTabId);
+      } else {
+        chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+          if (chrome.runtime.lastError || !response) { proceedRecovery(null); return; }
+          cachedTabId = response.tabId;
+          proceedRecovery(cachedTabId);
+        });
+      }
     });
 
     // Restore Now Watching bar on page refresh — read document.title directly

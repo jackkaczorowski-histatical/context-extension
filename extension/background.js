@@ -880,6 +880,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'GET_TAB_ID') {
     sendResponse({ tabId: sender.tab?.id });
     return true;
+  } else if (message.type === 'SWITCH_CAPTURE_TAB') {
+    const newTabId = sender.tab?.id;
+    if (!newTabId) return;
+    console.log('[BACKGROUND] SWITCH_CAPTURE_TAB from tab', newTabId);
+    (async () => {
+      const oldTabId = capturingTabId;
+      if (oldTabId) {
+        await stopCapture('switch');
+        if (oldTabId) chrome.tabs.sendMessage(oldTabId, { type: 'CAPTURE_STATE', capturing: false }).catch(() => {});
+      }
+      // Focus the requesting tab so startCapture picks it up
+      await chrome.tabs.update(newTabId, { active: true });
+      await startCapture();
+      chrome.tabs.sendMessage(newTabId, { type: 'CAPTURE_STATE', capturing: true }).catch(() => {});
+    })();
   } else if (message.type === 'TOGGLE_CAPTURE') {
     const toggleUsageKey = getUsageKey();
     chrome.storage.local.get(['capturing', toggleUsageKey, 'user', 'analytics'], async (data) => {

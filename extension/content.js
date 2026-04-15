@@ -162,14 +162,12 @@ if (window.__contextExtensionLoaded) {
     if (data.extensionSettings) settings = { ...settings, ...data.extensionSettings };
   });
 
-  // Check if this tab is the one being captured (compare tab IDs)
+  // Check if this tab is the one being captured (fail closed — returns false on any error)
   let cachedTabId = null;
   function isActiveTab(callback) {
     function compare(myTabId) {
       chrome.storage.local.get(['capturingTabId'], (data) => {
-        if (chrome.runtime.lastError) { callback(true); return; } // fail open
-        // If capturingTabId not set in storage, assume active (fail open)
-        if (!data.capturingTabId) { callback(true); return; }
+        if (chrome.runtime.lastError || !data.capturingTabId) { callback(false); return; }
         callback(myTabId === data.capturingTabId);
       });
     }
@@ -177,7 +175,7 @@ if (window.__contextExtensionLoaded) {
       compare(cachedTabId);
     } else {
       chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
-        if (chrome.runtime.lastError || !response) { callback(true); return; } // fail open
+        if (chrome.runtime.lastError || !response || !response.tabId) { callback(false); return; }
         cachedTabId = response.tabId;
         compare(cachedTabId);
       });
@@ -5159,7 +5157,7 @@ if (window.__contextExtensionLoaded) {
     // Recover cards and sidebar state from storage (e.g. page refresh)
     chrome.storage.local.get(['sessionHistory', 'capturing', 'sidebarOpen', 'capturingTabId'], (data) => {
       function proceedRecovery(myTabId) {
-      // Fail open: if we can't determine our tab ID or capturingTabId, assume we're the capturing tab
+      // Fail closed: only show "Listening on another tab" when BOTH IDs are known and different
       const isCapturingTab = !data.capturingTabId || !myTabId || myTabId === data.capturingTabId;
       const cards = shadowRoot.getElementById('cards');
 
@@ -5930,44 +5928,47 @@ if (window.__contextExtensionLoaded) {
         }
       }
 
-      // Create divider for the previous video
-      chrome.storage.local.get(['previousVideoTitle', 'previousVideoUrl'], (data) => {
-        const prevTitle = escapeHtml(
-          (data.previousVideoTitle || 'Previous video')
-            .replace(/\s*-\s*YouTube$/i, '')
-            .replace(/^\(\d+\)\s*/, '')
-            .trim()
-        ) || 'Previous video';
-        const prevUrl = data.previousVideoUrl || '';
+      // Create divider only on the capturing tab (fail closed)
+      isActiveTab((active) => {
+        if (!active) return;
+        chrome.storage.local.get(['previousVideoTitle', 'previousVideoUrl'], (data) => {
+          const prevTitle = escapeHtml(
+            (data.previousVideoTitle || 'Previous video')
+              .replace(/\s*-\s*YouTube$/i, '')
+              .replace(/^\(\d+\)\s*/, '')
+              .trim()
+          ) || 'Previous video';
+          const prevUrl = data.previousVideoUrl || '';
 
-        ensureSidebar();
-        const cards = shadowRoot?.getElementById('cards');
-        if (!cards) return;
+          ensureSidebar();
+          const cards = shadowRoot?.getElementById('cards');
+          if (!cards) return;
 
-        // Show cards area immediately so divider is visible
-        showCardsHideEmpty();
+          // Show cards area immediately so divider is visible
+          showCardsHideEmpty();
 
-        // Remove any existing dividers to prevent stacking
-        cards.querySelectorAll('.ctx-video-divider').forEach(d => d.remove());
+          // Remove any existing dividers to prevent stacking
+          cards.querySelectorAll('.ctx-video-divider').forEach(d => d.remove());
 
-        const prevCardCount = cards.querySelectorAll('.context-card').length;
+          const prevCardCount = cards.querySelectorAll('.context-card').length;
 
-        const link = prevUrl
-          ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${prevTitle}</a>`
-          : `<span class="ctx-divider-link">${prevTitle}</span>`;
+          const link = prevUrl
+            ? `<a href="${escapeHtml(prevUrl)}" target="_blank" class="ctx-divider-link">${prevTitle}</a>`
+            : `<span class="ctx-divider-link">${prevTitle}</span>`;
 
-        const divider = document.createElement('div');
-        divider.className = 'ctx-video-divider';
-        divider.innerHTML = `
-          <div class="ctx-divider-prev">
-            <span class="ctx-divider-label">PREVIOUS</span>
-            ${link}
-            <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
-          </div>
-          <div class="ctx-divider-line-full"></div>
-        `;
+          const divider = document.createElement('div');
+          divider.className = 'ctx-video-divider';
+          divider.innerHTML = `
+            <div class="ctx-divider-prev">
+              <span class="ctx-divider-label">PREVIOUS</span>
+              ${link}
+              <span class="ctx-divider-count">${prevCardCount} card${prevCardCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="ctx-divider-line-full"></div>
+          `;
 
-        cards.appendChild(divider);
+          cards.appendChild(divider);
+        });
       });
     }
     if (changes.capturing) {
@@ -6130,49 +6131,44 @@ if (window.__contextExtensionLoaded) {
         if (kbWrapper) {
           kbWrapper.classList.remove('visible');
         }
-        isActiveTab((active) => {
-            if (!active) {
-              console.log('[CONTENT] Not the captured tab, ignoring');
-              return;
-            }
-            // Render entities if any
-            if (newEntities.length > 0) {
-              console.log('[CONTENT] Rendering', newEntities.length, 'entities');
-              renderCards(newEntities);
-            }
-            // Render insights if any — completely independent of entities
-            if (newInsights.length > 0) {
-              console.log('[CONTENT] Rendering', newInsights.length, 'insights');
-              ensureSidebar();
-              showCardsHideEmpty();
-              const cards = shadowRoot.getElementById('cards');
-              if (cards) {
-                newInsights.forEach(insight => {
-                  const key = insightKey(insight.insight || '');
-                  if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
-                    console.log('[CONTENT] Skipping duplicate insight card:', key);
-                    return;
-                  }
-                  const vc = { data: insight, height: HEIGHT_INSIGHT, measuredHeight: 0, type: 'insight', el: null, dismissed: false, highlighted: false };
-                  cardsRenderedThisSession++;
-                  if (virtualActive) {
-                    addVirtualCard(vc, cards);
-                  } else {
-                    const card = createInsightCard(insight);
-                    card.dataset.createdAt = Date.now().toString();
-                    cards.appendChild(card);
-                    vc.el = card;
-                    virtualCards.push(vc);
-                    if (virtualCards.length > VIRTUAL_THRESHOLD) {
-                      activateVirtualScroll(cards);
-                    }
-                  }
-                });
+        // Cards render on any tab with sidebar open — dedup prevents duplicates
+        // Tab filtering only gates destructive ops (session reset, summary, dividers)
+        if (newEntities.length > 0) {
+          console.log('[CONTENT] Rendering', newEntities.length, 'entities');
+          renderCards(newEntities);
+        }
+        // Render insights if any — completely independent of entities
+        if (newInsights.length > 0) {
+          console.log('[CONTENT] Rendering', newInsights.length, 'insights');
+          ensureSidebar();
+          showCardsHideEmpty();
+          const cards = shadowRoot.getElementById('cards');
+          if (cards) {
+            newInsights.forEach(insight => {
+              const key = insightKey(insight.insight || '');
+              if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
+                console.log('[CONTENT] Skipping duplicate insight card:', key);
+                return;
               }
-            }
-            // Clean up storage after rendering both
-            chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
-          });
+              const vc = { data: insight, height: HEIGHT_INSIGHT, measuredHeight: 0, type: 'insight', el: null, dismissed: false, highlighted: false };
+              cardsRenderedThisSession++;
+              if (virtualActive) {
+                addVirtualCard(vc, cards);
+              } else {
+                const card = createInsightCard(insight);
+                card.dataset.createdAt = Date.now().toString();
+                cards.appendChild(card);
+                vc.el = card;
+                virtualCards.push(vc);
+                if (virtualCards.length > VIRTUAL_THRESHOLD) {
+                  activateVirtualScroll(cards);
+                }
+              }
+            });
+          }
+        }
+        // Clean up storage after rendering both
+        chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
       }
     }
     // Patch late-arriving thumbnails onto existing cards
@@ -6203,19 +6199,16 @@ if (window.__contextExtensionLoaded) {
   });
 
   // Check for pending entities/insights on load
-  chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart', 'capturingTabId'], (data) => {
-    // Resolve own tab ID, then compare against capturing tab
-    function proceedWithTabCheck(myTabId) {
-      // Fail open: if we can't determine our tab ID, proceed anyway
-      if (data.capturingTabId && myTabId && myTabId !== data.capturingTabId) {
-        console.log('[CONTENT] Not the captured tab on load, skipping');
-        return;
-      }
-      if (data.sessionStart) {
-        trackSessionStart(data.sessionStart);
-      }
-      const initEntities = data.pendingEntities || [];
-      const initInsights = data.pendingInsights || [];
+  chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart'], (data) => {
+    // Gate sessionStart on active tab only (fail closed)
+    if (data.sessionStart) {
+      isActiveTab((active) => {
+        if (active) trackSessionStart(data.sessionStart);
+      });
+    }
+    // Cards render on any tab with sidebar open — dedup prevents duplicates
+    const initEntities = data.pendingEntities || [];
+    const initInsights = data.pendingInsights || [];
     console.log('[CONTENT] Initial check, entities:', initEntities.length, 'insights:', initInsights.length);
     if (initEntities.length > 0) {
       renderCards(initEntities);
@@ -6237,16 +6230,6 @@ if (window.__contextExtensionLoaded) {
     if (initEntities.length > 0 || initInsights.length > 0) {
       chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
     }
-    }
-    if (cachedTabId !== null) {
-      proceedWithTabCheck(cachedTabId);
-    } else {
-      chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
-        if (chrome.runtime.lastError || !response) { proceedWithTabCheck(null); return; }
-        cachedTabId = response.tabId;
-        proceedWithTabCheck(cachedTabId);
-      });
-    }
   });
 
   // Polling fallback: check every 2s in case storage.onChanged doesn't fire
@@ -6257,42 +6240,40 @@ if (window.__contextExtensionLoaded) {
         clearInterval(pollId);
         return;
       }
-      isActiveTab((active) => {
-        if (!active) return;
-        chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'pendingSessionId'], (data) => {
-          if (chrome.runtime.lastError) return;
-          if (mySessionId && data.pendingSessionId !== mySessionId) return;
-          const pollEntities = data.pendingEntities || [];
-          const pollInsights = data.pendingInsights || [];
-          if (pollEntities.length === 0 && pollInsights.length === 0) return;
-          console.log('[CONTENT] Poll fired, entities:', pollEntities.length, 'insights:', pollInsights.length);
-          // Render entities if any
-          if (pollEntities.length > 0) {
-            renderCards(pollEntities);
+      // Cards render on any tab with sidebar open — dedup prevents duplicates
+      chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'pendingSessionId'], (data) => {
+        if (chrome.runtime.lastError) return;
+        if (mySessionId && data.pendingSessionId !== mySessionId) return;
+        const pollEntities = data.pendingEntities || [];
+        const pollInsights = data.pendingInsights || [];
+        if (pollEntities.length === 0 && pollInsights.length === 0) return;
+        console.log('[CONTENT] Poll fired, entities:', pollEntities.length, 'insights:', pollInsights.length);
+        // Render entities if any
+        if (pollEntities.length > 0) {
+          renderCards(pollEntities);
+        }
+        // Render insights if any — completely independent of entities
+        if (pollInsights.length > 0) {
+          ensureSidebar();
+          showCardsHideEmpty();
+          const cards = shadowRoot.getElementById('cards');
+          if (cards) {
+            pollInsights.forEach(insight => {
+              const key = insightKey(insight.insight || '');
+              if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
+                console.log('[CONTENT] Skipping duplicate insight card (poll):', key);
+                return;
+              }
+              const card = createInsightCard(insight);
+              card.dataset.createdAt = Date.now().toString();
+              cards.appendChild(card);
+            });
           }
-          // Render insights if any — completely independent of entities
-          if (pollInsights.length > 0) {
-            ensureSidebar();
-            showCardsHideEmpty();
-            const cards = shadowRoot.getElementById('cards');
-            if (cards) {
-              pollInsights.forEach(insight => {
-                const key = insightKey(insight.insight || '');
-                if (key && shadowRoot.querySelector('[data-insight-key="' + key + '"]')) {
-                  console.log('[CONTENT] Skipping duplicate insight card (poll):', key);
-                  return;
-                }
-                const card = createInsightCard(insight);
-                card.dataset.createdAt = Date.now().toString();
-                cards.appendChild(card);
-              });
-            }
-          }
-          // Only clean up if this is our session
-          if (!mySessionId || data.pendingSessionId === mySessionId) {
-            chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
-          }
-        });
+        }
+        // Only clean up if this is our session
+        if (!mySessionId || data.pendingSessionId === mySessionId) {
+          chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
+        }
       });
     } catch (e) {
       console.log('[CONTENT] Extension context gone, clearing interval');

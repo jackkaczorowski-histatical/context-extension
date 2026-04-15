@@ -162,19 +162,24 @@ if (window.__contextExtensionLoaded) {
     if (data.extensionSettings) settings = { ...settings, ...data.extensionSettings };
   });
 
-  // Check if this tab is the one being captured
+  // Check if this tab is the one being captured (compare tab IDs)
+  let cachedTabId = null;
   function isActiveTab(callback) {
-    chrome.storage.local.get(['activeTabUrl'], (data) => {
-      if (chrome.runtime.lastError) { callback(false); return; }
-      const activeUrl = data.activeTabUrl || '';
-      try {
-        const active = new URL(activeUrl);
-        const current = new URL(window.location.href);
-        callback(active.origin + active.pathname === current.origin + current.pathname);
-      } catch (e) {
-        callback(activeUrl === window.location.href);
-      }
-    });
+    function compare(myTabId) {
+      chrome.storage.local.get(['capturingTabId'], (data) => {
+        if (chrome.runtime.lastError) { callback(false); return; }
+        callback(myTabId === data.capturingTabId);
+      });
+    }
+    if (cachedTabId !== null) {
+      compare(cachedTabId);
+    } else {
+      chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+        if (chrome.runtime.lastError || !response) { callback(false); return; }
+        cachedTabId = response.tabId;
+        compare(cachedTabId);
+      });
+    }
   }
 
   chrome.storage.onChanged.addListener((changes) => {
@@ -6141,23 +6146,18 @@ if (window.__contextExtensionLoaded) {
   });
 
   // Check for pending entities/insights on load
-  chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart', 'activeTabUrl'], (data) => {
-    try {
-      const activeUrl = data.activeTabUrl || '';
-      const active = new URL(activeUrl);
-      const current = new URL(window.location.href);
-      if (active.origin + active.pathname !== current.origin + current.pathname) {
+  chrome.storage.local.get(['pendingEntities', 'pendingInsights', 'sessionStart', 'capturingTabId'], (data) => {
+    // Resolve own tab ID, then compare against capturing tab
+    function proceedWithTabCheck(myTabId) {
+      if (data.capturingTabId && myTabId !== data.capturingTabId) {
         console.log('[CONTENT] Not the captured tab on load, skipping');
         return;
       }
-    } catch (e) {
-      if (data.activeTabUrl && data.activeTabUrl !== window.location.href) return;
-    }
-    if (data.sessionStart) {
-      trackSessionStart(data.sessionStart);
-    }
-    const initEntities = data.pendingEntities || [];
-    const initInsights = data.pendingInsights || [];
+      if (data.sessionStart) {
+        trackSessionStart(data.sessionStart);
+      }
+      const initEntities = data.pendingEntities || [];
+      const initInsights = data.pendingInsights || [];
     console.log('[CONTENT] Initial check, entities:', initEntities.length, 'insights:', initInsights.length);
     if (initEntities.length > 0) {
       renderCards(initEntities);
@@ -6179,6 +6179,16 @@ if (window.__contextExtensionLoaded) {
     }
     if (initEntities.length > 0 || initInsights.length > 0) {
       chrome.storage.local.remove(['pendingEntities', 'pendingInsights']);
+    }
+    }
+    if (cachedTabId !== null) {
+      proceedWithTabCheck(cachedTabId);
+    } else {
+      chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+        if (chrome.runtime.lastError || !response) return;
+        cachedTabId = response.tabId;
+        proceedWithTabCheck(cachedTabId);
+      });
     }
   });
 

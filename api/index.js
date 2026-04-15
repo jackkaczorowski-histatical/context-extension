@@ -333,7 +333,7 @@ module.exports = function handler(req, res) {
     <div class="faq-list">
       <div class="faq-item">
         <div class="faq-q">What websites does it work on?</div>
-        <div class="faq-a">YouTube, Spotify, Twitch, Coursera, Khan Academy, Udemy, SoundCloud, Netflix, and Google Podcasts. Any site that plays audio in a Chrome tab, including Zoom and Google Meet in the browser.</div>
+        <div class="faq-a">Context works on any website with audio content in the browser &mdash; YouTube, Spotify, Twitch, Coursera, Khan Academy, Udemy, SoundCloud, Netflix, Google Podcasts, Zoom, Google Meet, and more. If a Chrome tab can play audio, Context can listen.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">Do I need headphones?</div>

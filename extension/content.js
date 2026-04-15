@@ -2695,12 +2695,8 @@ if (window.__contextExtensionLoaded) {
   }
 
   function createStockCard(entity) {
-    console.log('[CONTENT] Stock card data:', JSON.stringify(entity));
-    console.log('[CONTENT] Stock price fields — price:', entity.price, 'change:', entity.change, 'changePercent:', entity.changePercent);
-
     // If entity has no ticker AND no price, don't render an empty stock card
     if (!entity.ticker && entity.price == null) {
-      console.warn('[CONTENT] Stock entity has no ticker or price — rendering as generic card');
       return createGenericCard(entity);
     }
 
@@ -3202,7 +3198,6 @@ if (window.__contextExtensionLoaded) {
           .then(r => r.ok ? r.json() : null)
           .then(wikiData => {
             if (wikiData && wikiData.thumbnail && wikiData.thumbnail.source && !wikiData.thumbnail.source.includes('/Flag_of')) {
-              console.log('[CONTENT] Wiki thumbnail fetched for', termForWiki, ':', wikiData.thumbnail.source);
               card.dataset.thumbUrl = wikiData.thumbnail.source;
               const wrap = document.createElement('div');
               wrap.className = 'card-thumb-wrap';
@@ -3210,19 +3205,16 @@ if (window.__contextExtensionLoaded) {
               img.className = 'card-thumbnail';
               img.src = wikiData.thumbnail.source;
               img.alt = termForWiki;
-              img.addEventListener('load', () => { img.classList.add('loaded'); console.log('[CONTENT] Wiki thumbnail loaded for', termForWiki); });
-              img.addEventListener('error', () => { console.warn('[CONTENT] Wiki thumbnail failed to load for', termForWiki); wrap.remove(); });
+              img.addEventListener('load', () => { img.classList.add('loaded'); });
+              img.addEventListener('error', () => { wrap.remove(); });
               wrap.appendChild(img);
               const expandArea = card.querySelector('.card-expand-area');
               if (expandArea && !expandArea.querySelector('.card-thumbnail') && !expandArea.querySelector('.card-thumb')) {
                 expandArea.insertBefore(wrap, expandArea.firstChild);
-                console.log('[CONTENT] Wiki thumbnail element inserted for', termForWiki);
               }
-            } else {
-              console.log('[CONTENT] No wiki thumbnail found for', termForWiki, wikiData ? '(no thumb in response)' : '(no data)');
             }
           })
-          .catch(err => { console.warn('[CONTENT] Wiki thumbnail fetch error for', termForWiki, err.message || err); });
+          .catch(() => {});
       }
 
       // Track popularity on first expand
@@ -6699,8 +6691,6 @@ if (window.__contextExtensionLoaded) {
       hint.textContent = 'This content may not have many identifiable terms yet. Try a video about specific topics, people, or companies.';
       empty.appendChild(hint);
     } else if (msg.type === 'PLAN_UPGRADED') {
-      console.log('[CONTENT] PLAN_UPGRADED message received');
-      console.log('[CONTENT] Showing pro celebration, shadowRoot exists:', !!shadowRoot);
       if (!shadowRoot) return;
       ensureSidebar();
       // Remove every upgrade-related overlay
@@ -6738,7 +6728,6 @@ if (window.__contextExtensionLoaded) {
       }
       // Rebuild settings panel so next open reflects PRO
       buildSettingsPanel();
-      console.log('[CONTENT] PLAN_UPGRADED received, UI updated');
     } else if (msg.type === 'SIGN_IN_SUCCESS') {
       // Re-render auth section in settings if open
       if (!shadowRoot) return;

@@ -13,7 +13,17 @@
     "alarms"
   ],
   "host_permissions": [
-    "*://*/*",
+    "*://*.youtube.com/*",
+    "*://*.spotify.com/*",
+    "*://*.twitch.tv/*",
+    "*://*.coursera.org/*",
+    "*://*.khanacademy.org/*",
+    "*://*.udemy.com/*",
+    "*://*.soundcloud.com/*",
+    "*://*.netflix.com/*",
+    "*://*.podcasts.google.com/*",
+    "*://*.cnbc.com/*",
+    "*://*.ted.com/*",
     "https://context-extension-zv8d.vercel.app/*",
     "wss://api.deepgram.com/*",
     "https://www.googleapis.com/*"
@@ -27,7 +37,19 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*/*"],
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://*.spotify.com/*",
+        "*://*.twitch.tv/*",
+        "*://*.coursera.org/*",
+        "*://*.khanacademy.org/*",
+        "*://*.udemy.com/*",
+        "*://*.soundcloud.com/*",
+        "*://*.netflix.com/*",
+        "*://*.podcasts.google.com/*",
+        "*://*.cnbc.com/*",
+        "*://*.ted.com/*"
+      ],
       "js": ["config.js", "content.js"],
       "run_at": "document_start"
     }

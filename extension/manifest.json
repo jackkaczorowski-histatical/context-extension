@@ -23,10 +23,7 @@
     "*://*.netflix.com/*",
     "*://*.podcasts.google.com/*",
     "*://*.cnbc.com/*",
-    "*://*.ted.com/*",
-    "https://context-extension-zv8d.vercel.app/*",
-    "wss://api.deepgram.com/*",
-    "https://www.googleapis.com/*"
+    "*://*.ted.com/*"
   ],
   "oauth2": {
     "client_id": "431347797056-i4th6beimiv4ask3dtm8l4nlhceua8ba.apps.googleusercontent.com",

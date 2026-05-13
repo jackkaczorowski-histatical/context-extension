@@ -1,7 +1,13 @@
 // TODO: After CWS publish, set EXTENSION_ID env var in Vercel and uncomment CORS lock in each API file
 module.exports = function validateRequest(req, res) {
   const token = req.headers['x-extension-token'];
-  if (token !== process.env.EXTENSION_API_SECRET) {
+  const oldSecret = process.env.EXTENSION_API_SECRET;
+  const newSecret = process.env.EXTENSION_API_SECRET_NEW;
+  const tokenIsValid = (
+    (oldSecret && token === oldSecret) ||
+    (newSecret && token === newSecret)
+  );
+  if (!tokenIsValid) {
     res.status(403).json({ error: 'Forbidden' });
     return false;
   }

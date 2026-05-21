@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Context Listener: Live AI Notes & Transcripts \u2014 Videos, Podcasts & Lectures",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "Live AI notes, transcripts & stock cards for any video or podcast \u2014 built for students, investors & researchers.",
   "permissions": [
     "tabCapture",

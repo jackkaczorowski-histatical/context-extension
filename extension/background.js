@@ -169,6 +169,11 @@ function extractYouTubeId(url) {
 
 let capturingTabId = null;
 let capturingTabTitle = null;
+
+function isUrlLikeTitle(s) {
+  if (!s || typeof s !== 'string') return true;
+  return /^https?:\/\//i.test(s.trim());
+}
 let pendingStreamId = null;
 let isProcessing = false;
 const transcriptQueue = [];
@@ -530,7 +535,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             timestamp: Date.now()
           });
 
-          capturingTabTitle = tab?.title || '';
+          const newTitle = tab?.title || '';
+          if (!isUrlLikeTitle(newTitle)) {
+            capturingTabTitle = newTitle;
+          }
 
           chrome.storage.local.set({
             sessionHistory: history,
@@ -1400,7 +1408,8 @@ async function startCapture() {
 
     capturingTabId = tab.id;
     chrome.storage.local.set({ capturingTabId: capturingTabId });
-    capturingTabTitle = tab.title || '';
+    const startTitle = tab.title || '';
+    capturingTabTitle = isUrlLikeTitle(startTitle) ? '' : startTitle;
     console.log('[BACKGROUND] START_CAPTURE: stored capturingTabId =', capturingTabId, 'title =', capturingTabTitle, 'url =', tab.url);
     const hostname = tab.url ? (() => { try { return new URL(tab.url).hostname; } catch (e) { return ''; } })() : '';
     const videoId = extractYouTubeId(tab.url) || undefined;

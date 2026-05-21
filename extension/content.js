@@ -1358,10 +1358,14 @@ if (window.__contextExtensionLoaded) {
       font-size: 12px; color: #94a3b8; line-height: 1.6;
       margin-bottom: 20px; white-space: pre-line; text-align: left;
     }
+    .ctx-disclosure-body a { color: #14b8a6; text-decoration: underline; }
+    .ctx-disclosure-body a:visited { color: #14b8a6; }
+    .ctx-disclosure-body a:hover { color: #2dd4bf; }
     .ctx-disclosure-actions { display: flex; gap: 10px; justify-content: center; }
     .ctx-disclosure-confirm {
       background: #14b8a6; color: #0a0a14; border: none; border-radius: 8px;
-      padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+      padding: 10px 24px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
       font-family: inherit; transition: background 0.15s;
     }
     .ctx-disclosure-confirm:hover { background: #0d9488; }
@@ -3553,11 +3557,17 @@ if (window.__contextExtensionLoaded) {
       overlay.className = 'ctx-disclosure-overlay';
       overlay.innerHTML = `
         <div class="ctx-disclosure-card">
-          <div class="ctx-disclosure-title">Audio Capture Notice</div>
-          <div class="ctx-disclosure-body">Context Listener captures audio from your current browser tab to provide real-time insights.\n\nFor public content like YouTube videos, podcasts, and online courses, no additional consent is needed.\n\nFor meetings or calls, please ensure all participants are aware that audio is being processed.</div>
+          <div class="ctx-disclosure-title">Before we start your first session</div>
+          <div class="ctx-disclosure-body">
+            <p>Context Listener needs your permission to capture audio from this tab.</p>
+            <p><strong>What happens to the audio:</strong> Audio from this tab is streamed live to Deepgram for real-time transcription. Audio is never recorded or saved \u2014 on your device or on any server.</p>
+            <p><strong>What happens to the transcript:</strong> The transcript text is sent to Anthropic\u2019s Claude API to extract key terms, people, concepts, and insights. Full transcripts are never stored on our servers.</p>
+            <p><strong>What we don\u2019t do:</strong> We never store audio. We never store full transcripts. We never read other tabs. We never access page content beyond what\u2019s needed for the session.</p>
+            <p><a href="https://contextlistener.com/privacy" target="_blank" rel="noopener noreferrer">Read full privacy policy</a></p>
+          </div>
           <div class="ctx-disclosure-actions">
             <button class="ctx-disclosure-cancel">Cancel</button>
-            <button class="ctx-disclosure-confirm">Got it</button>
+            <button class="ctx-disclosure-confirm">I agree</button>
           </div>
         </div>
       `;
@@ -4825,7 +4835,20 @@ if (window.__contextExtensionLoaded) {
               dot.style.background = sessionFolder.color;
               titleDiv.appendChild(dot);
             }
-            titleDiv.appendChild(document.createTextNode(session.title || 'Untitled'));
+            const rawTitle = session.title || '';
+            let displayTitle;
+            if (!rawTitle) {
+              displayTitle = 'Untitled';
+            } else if (/^https?:\/\//i.test(rawTitle.trim())) {
+              try {
+                displayTitle = new URL(rawTitle).hostname.replace(/^www\./, '');
+              } catch {
+                displayTitle = 'Untitled';
+              }
+            } else {
+              displayTitle = rawTitle;
+            }
+            titleDiv.appendChild(document.createTextNode(displayTitle));
             titleDiv.appendChild(chevron);
 
             const meta = document.createElement('div');

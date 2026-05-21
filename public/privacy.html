@@ -26,7 +26,8 @@
   <p>Histatical, LLC is the <strong>data controller</strong> for personal data processed in connection with the Services. Questions? Contact <a href="mailto:jack@histatical.com">jack@histatical.com</a>.</p>
 
   <h2>1. What Context does</h2>
-  <p>Context is a Chrome extension that runs on supported audio and video websites — currently YouTube, Spotify, Twitch, Coursera, Khan Academy, Udemy, SoundCloud, Netflix, Google Podcasts, CNBC, and TED. It captures audio from your active browser tab, transcribes it in real time, and extracts key terms, people, concepts, and insights to display in a sidebar.</p>
+  <p>Context is a Chrome extension that captures audio from your active browser tab, transcribes it in real time, and extracts key terms, people, concepts, and insights to display in a sidebar. It works on <strong>any website that plays audio</strong> — including video platforms (YouTube, Netflix, Twitch), audio platforms (Spotify, SoundCloud, Google Podcasts), educational sites (Coursera, Khan Academy, Udemy, TED), news and finance sites (CNBC, Bloomberg, news streams), meeting tools, lecture recordings, and any other browser tab where audio plays.</p>
+  <p>Because audio can play on virtually any website, Chrome requires the Extension to request broad host permissions. <strong>The Extension only captures audio and reads page metadata when you explicitly start a Context session on a tab.</strong> Until you start a session, no audio is captured, no transcript is generated, and no information about the page is sent to our servers.</p>
 
   <h2>2. Data we collect</h2>
   <p>We collect only the data necessary to deliver the Extension's functionality. The categories below cover everything we collect.</p>
@@ -83,6 +84,7 @@
     <li>We do not store full transcripts on any server</li>
     <li>We do not record URLs or page titles for pages where you have not started a Context session</li>
     <li>We do not track your general browsing history</li>
+    <li>We do not read page text, HTML, form inputs, or other page content</li>
     <li>We do not sell, rent, or trade your data</li>
     <li>We do not share your data with advertisers</li>
     <li>We do not display ads</li>
@@ -182,7 +184,7 @@
     <li><strong>offscreen</strong> — required to process tab audio capture under Chrome's Manifest V3 architecture.</li>
     <li><strong>alarms</strong> — fires a per-minute timer during active capture sessions to track free-tier usage time and enforce the 30-minute daily cap. No data leaves your device through this permission.</li>
     <li><strong>identity</strong> — optional. Used only if you choose to sign in with Google.</li>
-    <li><strong>Host permissions</strong> — access to the supported sites listed in Section 1 (YouTube, Spotify, Twitch, Coursera, Khan Academy, Udemy, SoundCloud, Netflix, Google Podcasts, CNBC, TED) so the Extension can inject its sidebar and capture audio on those sites.</li>
+    <li><strong>Host permissions (<code>&lt;all_urls&gt;</code>)</strong> — required for the Extension to inject its sidebar and capture audio on whichever site you choose to use it on, since audio can play on virtually any website. The Extension does not read page content or transmit any data from any site unless you explicitly start a Context session on that tab. Additional narrow host permissions for <code>wss://api.deepgram.com</code> (transcription) and <code>https://www.googleapis.com</code> (sign-in) cover those service connections.</li>
   </ul>
   <p>We request the narrowest set of permissions required to deliver the Extension's functionality.</p>
 

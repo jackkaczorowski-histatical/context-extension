@@ -2344,7 +2344,7 @@ if (window.__contextExtensionLoaded) {
         title: 'Your privacy',
         body: 'Audio is processed by Deepgram for transcription and Anthropic for entity extraction. No audio or transcripts are stored on any server. All data stays in your browser\u2019s local storage. You can clear everything anytime.',
         btn: 'Next \u2192',
-        link: { text: 'Read full privacy policy', href: 'https://context-extension-zv8d.vercel.app/privacy' }
+        link: { text: 'Read full privacy policy', href: 'https://www.contextlistener.com/privacy' }
       },
       {
         title: 'Sign in to sync',
@@ -3433,7 +3433,7 @@ if (window.__contextExtensionLoaded) {
     if (hasStocks) {
       guide += `Disclaimer: Stock prices and financial data shown were current at time of capture and may be delayed. This is not financial advice.\n\n`;
     }
-    guide += `---\nGenerated with Context \u2014 a live AI study guide for any video\nhttps://chromewebstore.google.com/detail/context/${chrome.runtime.id}`;
+    guide += `---\nGenerated with Context Listener \u2014 a live AI study guide for any video.\nMarketing: https://contextlistener.com\nInstall on Chrome: https://chromewebstore.google.com/detail/context/jfgdiedepacihbejgajabnamokklegjg`;
     return guide;
   }
 
@@ -3529,7 +3529,7 @@ if (window.__contextExtensionLoaded) {
     if (hasStocks) {
       html += `<p style="margin:12px 0 0 0;font-size:10px;color:#888;font-style:italic;">Disclaimer: Stock prices and financial data shown were current at time of capture and may be delayed. This is not financial advice.</p>`;
     }
-    html += `<hr style="border:none;border-top:1px solid #ccc;margin:16px 0 8px 0;"><p style="margin:0;font-size:12px;color:#888;">Generated with <a href="https://chromewebstore.google.com/detail/context/${chrome.runtime.id}" style="color:#14b8a6;text-decoration:none;">Context</a> \u2014 a live AI study guide for any video</p>`;
+    html += `<hr style="border:none;border-top:1px solid #ccc;margin:16px 0 8px 0;"><p style="margin:0;font-size:12px;color:#888;">Generated with <a href="https://contextlistener.com" style="color:#14b8a6;text-decoration:none;">Context Listener</a> \u2014 a live AI study guide for any video. <a href="https://chromewebstore.google.com/detail/context/jfgdiedepacihbejgajabnamokklegjg" style="color:#14b8a6;text-decoration:none;">Get it on Chrome</a></p>`;
     return html;
   }
 
@@ -3554,7 +3554,7 @@ if (window.__contextExtensionLoaded) {
       overlay.innerHTML = `
         <div class="ctx-disclosure-card">
           <div class="ctx-disclosure-title">Audio Capture Notice</div>
-          <div class="ctx-disclosure-body">Context captures audio from your current browser tab to provide real-time insights.\n\nFor public content like YouTube videos, podcasts, and online courses, no additional consent is needed.\n\nFor meetings or calls, please ensure all participants are aware that audio is being processed.</div>
+          <div class="ctx-disclosure-body">Context Listener captures audio from your current browser tab to provide real-time insights.\n\nFor public content like YouTube videos, podcasts, and online courses, no additional consent is needed.\n\nFor meetings or calls, please ensure all participants are aware that audio is being processed.</div>
           <div class="ctx-disclosure-actions">
             <button class="ctx-disclosure-cancel">Cancel</button>
             <button class="ctx-disclosure-confirm">Got it</button>
@@ -4528,7 +4528,7 @@ if (window.__contextExtensionLoaded) {
       consentRow.className = 'ctx-settings-toggle-row';
       const consentLbl = document.createElement('span');
       consentLbl.className = 'ctx-settings-toggle-label';
-      consentLbl.textContent = 'Help improve Context';
+      consentLbl.textContent = 'Help improve Context Listener';
       const consentToggle = document.createElement('button');
       chrome.storage.local.get('dataConsent', (dc) => {
         consentToggle.className = 'ctx-settings-toggle' + (dc.dataConsent ? ' on' : '');
@@ -4554,7 +4554,7 @@ if (window.__contextExtensionLoaded) {
       const linksRow = document.createElement('div');
       linksRow.style.cssText = 'margin-top:8px;padding-left:2px;font-size:12px;';
       const privacyLink = document.createElement('a');
-      privacyLink.href = 'https://context-extension-zv8d.vercel.app/privacy';
+      privacyLink.href = 'https://www.contextlistener.com/privacy';
       privacyLink.target = '_blank';
       privacyLink.rel = 'noopener noreferrer';
       privacyLink.textContent = 'Privacy Policy';
@@ -4565,7 +4565,7 @@ if (window.__contextExtensionLoaded) {
       dot.textContent = ' \u00B7 ';
       dot.style.cssText = 'color:#64748b;';
       const termsLink = document.createElement('a');
-      termsLink.href = 'https://context-extension-zv8d.vercel.app/terms';
+      termsLink.href = 'https://www.contextlistener.com/terms';
       termsLink.target = '_blank';
       termsLink.rel = 'noopener noreferrer';
       termsLink.textContent = 'Terms of Service';
@@ -4608,7 +4608,7 @@ if (window.__contextExtensionLoaded) {
           const sessions = (d.pastSessions || []).length;
           const lastErr = d.lastError || 'None';
           const body = 'Describe your issue:\n\n\n\n--- Diagnostics (auto-collected) ---\nExtension: v' + version + '\nBrowser: ' + browser + '\nOS: ' + os + '\nSessions: ' + sessions + '\nLast error: ' + lastErr + '\n---';
-          window.open('https://mail.google.com/mail/?view=cm&to=jack@histatical.com&su=' + encodeURIComponent('Context Bug Report') + '&body=' + encodeURIComponent(body), '_blank');
+          window.open('https://mail.google.com/mail/?view=cm&to=jack@histatical.com&su=' + encodeURIComponent('Context Listener Bug Report') + '&body=' + encodeURIComponent(body), '_blank');
         });
       });
       reportDiv.appendChild(reportLink);
@@ -5006,7 +5006,7 @@ if (window.__contextExtensionLoaded) {
             });
             guide += '\n';
           }
-          guide += '---\nGenerated with Context \u2014 a live AI study guide for any video\nhttps://chromewebstore.google.com/detail/context/' + chrome.runtime.id;
+          guide += '---\nGenerated with Context Listener \u2014 a live AI study guide for any video.\nMarketing: https://contextlistener.com\nInstall on Chrome: https://chromewebstore.google.com/detail/context/jfgdiedepacihbejgajabnamokklegjg';
           return guide;
         }
 
@@ -6872,7 +6872,7 @@ if (window.__contextExtensionLoaded) {
       overlay.innerHTML = `
         <div class="ctx-disclosure-card">
           <div class="ctx-disclosure-title">Maintenance</div>
-          <div class="ctx-disclosure-body">${escapeHtml(msg.message || 'Context is temporarily offline for maintenance. We\'ll be back shortly.')}</div>
+          <div class="ctx-disclosure-body">${escapeHtml(msg.message || 'Context Listener is temporarily offline for maintenance. We\'ll be back shortly.')}</div>
           <div class="ctx-disclosure-actions">
             <button class="ctx-disclosure-confirm">OK</button>
           </div>
@@ -6893,9 +6893,9 @@ if (window.__contextExtensionLoaded) {
       overlay.innerHTML = `
         <div class="ctx-disclosure-card">
           <div class="ctx-disclosure-title">Update Required</div>
-          <div class="ctx-disclosure-body">${escapeHtml(msg.message || 'Please update Context to the latest version.')}</div>
+          <div class="ctx-disclosure-body">${escapeHtml(msg.message || 'Please update Context Listener to the latest version.')}</div>
           <div class="ctx-disclosure-actions" style="flex-direction: column; align-items: stretch;">
-            <a href="https://chromewebstore.google.com/detail/context/PLACEHOLDER_ID" target="_blank" class="ctx-disclosure-confirm" style="text-align:center;text-decoration:none;">Update Now</a>
+            <a href="https://chromewebstore.google.com/detail/context/jfgdiedepacihbejgajabnamokklegjg" target="_blank" class="ctx-disclosure-confirm" style="text-align:center;text-decoration:none;">Update Now</a>
             <button class="ctx-disclosure-cancel">Dismiss</button>
           </div>
         </div>

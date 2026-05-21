@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Context",
-  "version": "1.0.0",
-  "description": "Live AI-powered cards explain people, companies, stocks, and concepts as you watch.",
+  "name": "Context Listener: Live AI Notes & Transcripts \u2014 Videos, Podcasts & Lectures",
+  "version": "1.1.5",
+  "description": "Live AI notes, transcripts & stock cards for any video or podcast \u2014 built for students, investors & researchers.",
   "permissions": [
     "tabCapture",
     "activeTab",
@@ -13,17 +13,9 @@
     "alarms"
   ],
   "host_permissions": [
-    "*://*.youtube.com/*",
-    "*://*.spotify.com/*",
-    "*://*.twitch.tv/*",
-    "*://*.coursera.org/*",
-    "*://*.khanacademy.org/*",
-    "*://*.udemy.com/*",
-    "*://*.soundcloud.com/*",
-    "*://*.netflix.com/*",
-    "*://*.podcasts.google.com/*",
-    "*://*.cnbc.com/*",
-    "*://*.ted.com/*"
+    "*://*/*",
+    "wss://api.deepgram.com/*",
+    "https://www.googleapis.com/*"
   ],
   "oauth2": {
     "client_id": "431347797056-i4th6beimiv4ask3dtm8l4nlhceua8ba.apps.googleusercontent.com",
@@ -34,19 +26,7 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://*.youtube.com/*",
-        "*://*.spotify.com/*",
-        "*://*.twitch.tv/*",
-        "*://*.coursera.org/*",
-        "*://*.khanacademy.org/*",
-        "*://*.udemy.com/*",
-        "*://*.soundcloud.com/*",
-        "*://*.netflix.com/*",
-        "*://*.podcasts.google.com/*",
-        "*://*.cnbc.com/*",
-        "*://*.ted.com/*"
-      ],
+      "matches": ["*://*/*"],
       "js": ["config.js", "content.js"],
       "run_at": "document_start"
     }

@@ -36,7 +36,7 @@ async function checkServerStatus(tabId) {
       if (tabId) {
         chrome.tabs.sendMessage(tabId, {
           type: 'MAINTENANCE_MODE',
-          message: data.message || 'Context is temporarily offline for maintenance. We\'ll be back shortly.'
+          message: data.message || 'Context Listener is temporarily offline for maintenance. We\'ll be back shortly.'
         }).catch(() => {});
       }
       return false;
@@ -47,7 +47,7 @@ async function checkServerStatus(tabId) {
         if (tabId) {
           chrome.tabs.sendMessage(tabId, {
             type: 'FORCE_UPDATE',
-            message: 'Please update Context to the latest version.'
+            message: 'Please update Context Listener to the latest version.'
           }).catch(() => {});
         }
         return false;
@@ -1830,6 +1830,14 @@ async function processNextTranscript() {
         }
       });
 
+      // Promote ticker-bearing entities to stock type for price enrichment
+      enrichedPackMatches.forEach(entity => {
+        if (entity.ticker && entity.type !== 'stock') {
+          entity.companyName = entity.companyName || entity.term || entity.name;
+          entity.type = 'stock';
+        }
+      });
+
       // Resolve tickers for stock entities that don't have one
       for (const entity of enrichedPackMatches) {
         if (entity.type === 'stock' && !entity.ticker) {
@@ -1968,7 +1976,7 @@ async function processNextTranscript() {
           consecutiveAnalyzeFailures++;
           console.log('[BACKGROUND] Consecutive analyze failures:', consecutiveAnalyzeFailures);
           if (consecutiveAnalyzeFailures === 3) {
-            if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'SHOW_TOAST', message: 'Context is temporarily having trouble connecting. Cards will resume automatically when the connection is restored.' }).catch(() => {});
+            if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'SHOW_TOAST', message: 'Context Listener is temporarily having trouble connecting. Cards will resume automatically when the connection is restored.' }).catch(() => {});
           }
           if (consecutiveAnalyzeFailures >= 3) {
             const backoffSec = Math.min(30 * Math.pow(2, consecutiveAnalyzeFailures - 3), 120);
@@ -2008,7 +2016,7 @@ async function processNextTranscript() {
         consecutiveAnalyzeFailures++;
         console.log('[BACKGROUND] Consecutive analyze failures:', consecutiveAnalyzeFailures);
         if (consecutiveAnalyzeFailures === 3) {
-          if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'SHOW_TOAST', message: 'Context is temporarily having trouble connecting. Cards will resume automatically when the connection is restored.' }).catch(() => {});
+          if (capturingTabId) chrome.tabs.sendMessage(capturingTabId, { type: 'SHOW_TOAST', message: 'Context Listener is temporarily having trouble connecting. Cards will resume automatically when the connection is restored.' }).catch(() => {});
         }
         if (consecutiveAnalyzeFailures >= 3) {
           const backoffSec = Math.min(30 * Math.pow(2, consecutiveAnalyzeFailures - 3), 120);
@@ -2031,7 +2039,7 @@ async function processNextTranscript() {
       if (capturingTabId) {
         chrome.tabs.sendMessage(capturingTabId, {
           type: 'SHOW_TOAST',
-          message: 'Context is experiencing high demand. Please try again later.'
+          message: 'Context Listener is experiencing high demand. Please try again later.'
         }).catch(() => {});
       }
       scheduleNext();
@@ -2188,6 +2196,14 @@ async function processNextTranscript() {
         entity.type = 'stock';
         entity.ticker = etfMatch.ticker;
         entity.companyName = etfMatch.name;
+      }
+    });
+
+    // Promote ticker-bearing entities to stock type for price enrichment
+    filteredEntities.forEach(entity => {
+      if (entity.ticker && entity.type !== 'stock') {
+        entity.companyName = entity.companyName || entity.term || entity.name;
+        entity.type = 'stock';
       }
     });
 

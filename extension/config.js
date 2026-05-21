@@ -1,4 +1,4 @@
 const CONFIG = {
-  API_BASE: 'https://context-extension-zv8d.vercel.app/api',
-  API_SECRET: '21a80449b3cf6baa1280a170556b31d6c3f0233ebce26564be73796c3ee14fa3'
+  API_BASE: 'https://www.contextlistener.com/api',
+  API_SECRET: 'ffd5a14457a7706b6831a728e2c6ae1788554a37a5390daa8ea5c54f7733fe42'
 };

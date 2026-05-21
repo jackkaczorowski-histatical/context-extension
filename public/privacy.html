@@ -8,68 +8,197 @@
     body { font-family: system-ui, -apple-system, sans-serif; max-width: 680px; margin: 0 auto; padding: 40px 20px; color: #1a1a2e; line-height: 1.7; }
     h1 { font-size: 24px; margin-bottom: 8px; }
     h2 { font-size: 18px; margin-top: 32px; }
+    h3 { font-size: 16px; margin-top: 20px; }
     p { font-size: 15px; }
+    ul { font-size: 15px; margin: 0 0 16px 20px; }
+    li { margin-bottom: 6px; }
     .updated { font-size: 13px; color: #666; margin-bottom: 32px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e5ef; vertical-align: top; }
+    th { font-weight: 600; background: #f7f7fb; }
+    a { color: #1e6feb; }
   </style>
 </head>
 <body>
   <h1>Context — Privacy Policy</h1>
-  <p class="updated">Last updated: April 2026</p>
+  <p class="updated">Last updated: May 21, 2026 · Effective: May 21, 2026</p>
 
-  <h2>What Context does</h2>
-  <p>Context is a Chrome extension that works on any website with audio content in the browser — including YouTube, Spotify, Udemy, Netflix, and more. It captures audio from your browser tab, transcribes it in real time, and extracts key terms, people, concepts, and insights to display in a sidebar.</p>
+  <p>This Privacy Policy explains how Context (the "Extension"), provided by <strong>Histatical, LLC</strong>, a United States limited liability company ("we," "us," "our"), collects, uses, stores, shares, and protects your information when you use our Chrome extension and related services (collectively, the "Services").</p>
 
-  <h2>Audio data</h2>
-  <p>Your tab audio is streamed to Deepgram (a third-party transcription service) for real-time speech-to-text conversion. Audio is processed in real time and is never stored on any server. Deepgram's privacy policy is available at deepgram.com/privacy.</p>
+  <p>Histatical, LLC is the <strong>data controller</strong> for personal data processed in connection with the Services. Questions? Contact <a href="mailto:jack@histatical.com">jack@histatical.com</a>.</p>
 
-  <h2>Transcript data</h2>
-  <p>Transcribed text is sent to Anthropic's Claude API for entity and insight extraction. Transcripts are processed in real time and are not stored on Anthropic's servers beyond the API request lifecycle. Anthropic's privacy policy is available at anthropic.com/privacy.</p>
+  <h2>1. What Context does</h2>
+  <p>Context is a Chrome extension that works on any website with audio content in the browser — including YouTube, Spotify, Udemy, Netflix, and similar platforms. It captures audio from your active browser tab, transcribes it in real time, and extracts key terms, people, concepts, and insights to display in a sidebar.</p>
 
-  <h2>Data stored locally</h2>
-  <p>The following data is stored in your browser's local storage (chrome.storage.local) and never leaves your device:</p>
+  <h2>2. Data we collect</h2>
+  <p>We collect only the data necessary to deliver the Extension's functionality. The categories below cover everything we collect.</p>
+
+  <h3>2.1 Audio data</h3>
+  <p>When you activate Context on a tab, we capture the audio playing in that tab using Chrome's <code>tabCapture</code> API. This audio is streamed in real time to our transcription provider (see Section 4). <strong>Audio is never recorded, saved, or stored</strong> — on your device or on any server — at any point in the pipeline.</p>
+
+  <h3>2.2 Transcript data</h3>
+  <p>Transcripts produced from your tab audio are sent in real time to our language-model provider for entity and insight extraction (see Section 4). Full transcripts are <strong>not stored</strong> on our servers or on the providers' servers beyond the lifetime of each API request.</p>
+
+  <h3>2.3 Locally stored data (on your device only)</h3>
+  <p>The following data is stored in your browser's local storage (<code>chrome.storage.local</code>) and never leaves your device unless you explicitly export it:</p>
   <ul>
     <li>Extracted entities and insights from your sessions</li>
-    <li>Your knowledge base (accumulated terms across sessions)</li>
-    <li>Session history and past session metadata</li>
+    <li>Your accumulated knowledge base (terms across sessions)</li>
+    <li>Session history and session metadata (timestamps, durations)</li>
     <li>Your preferences and settings</li>
-    <li>Usage statistics (session count, duration)</li>
+    <li>Local usage statistics (session count, total duration)</li>
   </ul>
+
+  <h3>2.4 Account data (if you choose to sign in)</h3>
+  <p>Google sign-in is <strong>optional</strong>. If you sign in:</p>
+  <ul>
+    <li>We receive your <strong>email address, name, and profile picture</strong> from Google's basic profile scope</li>
+    <li>This information is stored on Supabase servers hosted in the United States (us-west-2, Oregon) to identify your account and sync preferences across devices</li>
+    <li>We do <strong>not</strong> access your Google Drive, Gmail, contacts, calendar, or any other Google data</li>
+  </ul>
+
+  <h3>2.5 Anonymous analytics (opt-in only)</h3>
+  <p>If you opt in to "Help improve Context" in Settings, we collect anonymous usage events to improve the product. These events contain:</p>
+  <ul>
+    <li>Session start/stop events</li>
+    <li>Feature usage counts (which features were used, how often)</li>
+    <li>Anonymous installation ID (randomly generated, not tied to your identity)</li>
+    <li>Extension version and Chrome version</li>
+  </ul>
+  <p>These events contain <strong>no transcripts, no entity data, no audio, no URLs, and no personally identifiable information</strong>. Analytics are off by default; you can opt out at any time in Settings.</p>
+
+  <h3>2.6 Data we do not collect</h3>
+  <ul>
+    <li>We do not store audio recordings</li>
+    <li>We do not store full transcripts on any server</li>
+    <li>We do not track your browsing history</li>
+    <li>We do not record which sites you visit (beyond the active session you start)</li>
+    <li>We do not sell, rent, or trade your data</li>
+    <li>We do not share your data with advertisers</li>
+    <li>We do not display ads</li>
+    <li>We do not use your data to train AI models</li>
+    <li>We do not use cookies or tracking pixels</li>
+  </ul>
+
+  <h2>3. How we use your data</h2>
+  <p>We use the data described above only for the following purposes:</p>
+  <table>
+    <thead>
+      <tr><th>Data</th><th>Purpose</th><th>Legal basis (GDPR)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Tab audio</td><td>Real-time transcription to deliver the core feature</td><td>Performance of a contract</td></tr>
+      <tr><td>Transcripts</td><td>Entity and insight extraction to deliver the core feature</td><td>Performance of a contract</td></tr>
+      <tr><td>Locally stored data</td><td>Provide session history, knowledge base, preferences</td><td>Performance of a contract</td></tr>
+      <tr><td>Account data</td><td>Authenticate you and sync preferences across devices</td><td>Performance of a contract / Consent</td></tr>
+      <tr><td>Anonymous analytics</td><td>Improve product quality and reliability</td><td>Consent (opt-in)</td></tr>
+    </tbody>
+  </table>
+  <p>We do not use your data for any other purpose without your explicit consent.</p>
+
+  <h2>4. How we share data with third parties</h2>
+  <p>We share data only with the service providers strictly required to deliver the Extension. Each provider acts as a processor on our behalf and is contractually bound to handle your data securely.</p>
+  <ul>
+    <li><strong>Deepgram</strong> — real-time audio transcription. Tab audio is streamed to Deepgram for speech-to-text. Audio is processed in transit and is not retained. Privacy policy: <a href="https://deepgram.com/privacy">deepgram.com/privacy</a></li>
+    <li><strong>Anthropic</strong> (Claude API) — entity and insight extraction. Transcript text is sent to Anthropic's API. Per Anthropic's API terms, this data is not retained beyond the request lifecycle and is not used to train models. Privacy policy: <a href="https://www.anthropic.com/legal/privacy">anthropic.com/legal/privacy</a></li>
+    <li><strong>Supabase</strong> — account storage (if signed in) and opt-in anonymous event logging. Hosted in the United States (us-west-2, Oregon). Privacy policy: <a href="https://supabase.com/privacy">supabase.com/privacy</a></li>
+    <li><strong>Vercel</strong> — hosting for our website and API endpoints. Privacy policy: <a href="https://vercel.com/legal/privacy-policy">vercel.com/legal/privacy-policy</a></li>
+    <li><strong>Upstash</strong> — rate limiting for our API endpoints. Stores only anonymous installation IDs and request counts. Privacy policy: <a href="https://upstash.com/trust/privacy.pdf">upstash.com/trust/privacy</a></li>
+    <li><strong>Google</strong> — sign-in authentication (only if you choose to sign in). Privacy policy: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
+    <li><strong>Wikipedia API</strong> — thumbnail images for entities. No personal data is sent beyond standard HTTP request metadata. Privacy policy: <a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy">foundation.wikimedia.org/wiki/Policy:Privacy_policy</a></li>
+  </ul>
+  <p>We do not share your data with any other third party except (a) when required by law (subpoena, court order, valid legal request), (b) to protect the rights, property, or safety of users or the public, or (c) in connection with a merger, acquisition, or sale of assets, in which case you will be notified before your data is transferred.</p>
+
+  <h2>5. Where data is stored and for how long</h2>
+  <table>
+    <thead>
+      <tr><th>Data</th><th>Storage location</th><th>Retention</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Tab audio</td><td>Streamed in transit only; not stored</td><td>Not retained</td></tr>
+      <tr><td>Transcripts</td><td>Processed in transit only; not stored on our servers</td><td>Not retained</td></tr>
+      <tr><td>Locally stored data</td><td>Your device, in <code>chrome.storage.local</code></td><td>Until you clear it, uninstall the Extension, or clear Chrome data</td></tr>
+      <tr><td>Account data</td><td>Supabase, US (us-west-2, Oregon)</td><td>Until you delete your account or request deletion</td></tr>
+      <tr><td>Anonymous analytics</td><td>Supabase, US (us-west-2, Oregon)</td><td>12 months from the event date, then permanently deleted</td></tr>
+      <tr><td>Rate-limit counters</td><td>Upstash</td><td>24 hours (rolling window)</td></tr>
+    </tbody>
+  </table>
   <p>You can clear all locally stored data at any time using the "Clear" button in the extension sidebar.</p>
 
-  <h2>Account data</h2>
-  <p>If you sign in with Google, we store your email address and name locally to personalize your experience and sync preferences. We do not access your Google data beyond basic profile information (email, name, profile picture).</p>
+  <h2>6. International data transfers</h2>
+  <p>Our service providers primarily process data in the United States. If you access the Extension from outside the United States — including from the European Economic Area, the United Kingdom, or Switzerland — your data may be transferred to and processed in the United States, which has different data-protection laws than your home jurisdiction.</p>
+  <p>When data is transferred internationally, we rely on appropriate safeguards including the European Commission's <strong>Standard Contractual Clauses (SCCs)</strong> with each processor, and we ensure each processor maintains GDPR-compliant data-handling practices.</p>
 
-  <h2>Data we do NOT collect</h2>
+  <h2>7. Security</h2>
   <ul>
-    <li>We do not store your audio recordings</li>
-    <li>We do not store your full transcripts on any server</li>
-    <li>We do not sell or share your data with third parties</li>
-    <li>We do not track your browsing history</li>
-    <li>We do not display ads</li>
+    <li><strong>In transit:</strong> All data is transmitted over HTTPS / TLS 1.2 or higher. Tab audio is streamed to Deepgram over an encrypted WebSocket connection.</li>
+    <li><strong>At rest:</strong> Data stored on Supabase is encrypted at rest using AES-256.</li>
+    <li><strong>On your device:</strong> Locally stored data is held in Chrome's sandboxed extension storage and is inaccessible to other extensions or websites.</li>
+    <li><strong>Access controls:</strong> Only authorized personnel can access production infrastructure, and access is logged and audited.</li>
+    <li><strong>No long-term audio storage:</strong> We minimize risk by not retaining audio or transcripts at all.</li>
+  </ul>
+  <p>No method of transmission or storage is 100% secure. While we strive to use commercially acceptable means to protect your data, we cannot guarantee absolute security.</p>
+
+  <h2>8. Your rights</h2>
+  <p>Depending on where you live, you may have the following rights regarding your personal data:</p>
+  <ul>
+    <li><strong>Right of access</strong> — request a copy of the personal data we hold about you</li>
+    <li><strong>Right of rectification</strong> — request that we correct inaccurate or incomplete data</li>
+    <li><strong>Right of erasure ("right to be forgotten")</strong> — request that we delete your data</li>
+    <li><strong>Right to restrict processing</strong> — request that we limit how we use your data</li>
+    <li><strong>Right to data portability</strong> — request a machine-readable copy of your data</li>
+    <li><strong>Right to object</strong> — object to processing based on legitimate interests</li>
+    <li><strong>Right to withdraw consent</strong> — withdraw any consent you've given (e.g. for analytics) at any time</li>
+    <li><strong>Right to lodge a complaint</strong> with your local data-protection authority</li>
+  </ul>
+  <p><strong>For California residents (CCPA/CPRA):</strong> You also have the right to know what categories of personal information we collect, the right to delete personal information, the right to correct inaccurate personal information, and the right not to be discriminated against for exercising these rights. We do not sell or share personal information as defined under California law.</p>
+  <p>To exercise any of these rights, email <a href="mailto:jack@histatical.com">jack@histatical.com</a>. We will respond within 30 days. You can also clear most of your data directly using the "Clear" button in the sidebar or by uninstalling the Extension.</p>
+
+  <h2>9. Children's privacy</h2>
+  <p>Context is <strong>not directed to children under 13</strong> (or under 16 in the European Economic Area). We do not knowingly collect personal data from children. If you believe a child has provided us with personal data, please contact <a href="mailto:jack@histatical.com">jack@histatical.com</a> and we will delete it promptly.</p>
+
+  <h2>10. Permissions used by the Extension</h2>
+  <ul>
+    <li><strong>tabCapture</strong> — captures audio from the active tab for real-time transcription. Used only when you start a session.</li>
+    <li><strong>activeTab</strong> — injects the sidebar into the current page when you activate Context.</li>
+    <li><strong>scripting</strong> — injects the content script that renders the sidebar UI.</li>
+    <li><strong>storage</strong> — stores your knowledge base, settings, and session data locally (<code>chrome.storage.local</code>).</li>
+    <li><strong>offscreen</strong> — required to process tab audio capture under Chrome's Manifest V3 architecture.</li>
+    <li><strong>identity</strong> — optional. Used only if you choose to sign in with Google.</li>
+  </ul>
+  <p>We request the narrowest set of permissions required to deliver the Extension's functionality.</p>
+
+  <h2>11. Consent</h2>
+  <p>By installing and using the Extension, you consent to this Privacy Policy. <strong>Before any audio is captured for the first time</strong>, the Extension displays an in-product disclosure explaining that audio will be streamed to Deepgram for transcription and that transcripts will be sent to Anthropic for analysis. You must affirmatively confirm this before any data leaves your browser.</p>
+  <p>You can withdraw consent at any time by:</p>
+  <ul>
+    <li>Stopping a Context session (audio capture stops immediately)</li>
+    <li>Toggling off "Help improve Context" in Settings (analytics stops immediately)</li>
+    <li>Signing out of Google (account data is no longer accessed)</li>
+    <li>Uninstalling the Extension (all locally stored data is removed by Chrome)</li>
   </ul>
 
-  <h2>Anonymous analytics</h2>
-  <p>If you opt in to "Help improve Context" in settings, we collect anonymous usage events (session start/stop, feature usage counts) to improve the product. This data contains no personal information, no transcript content, and no entity data. You can opt out at any time in Settings.</p>
-
-  <h2>Third-party services</h2>
+  <h2>12. Changes to this policy</h2>
+  <p>We may update this Privacy Policy from time to time. When we do, we will:</p>
   <ul>
-    <li><strong>Deepgram</strong> — real-time audio transcription</li>
-    <li><strong>Anthropic (Claude)</strong> — entity and insight extraction</li>
-    <li><strong>Supabase</strong> — anonymous event logging (opt-in only)</li>
-    <li><strong>Wikipedia API</strong> — thumbnail images for entities</li>
+    <li>Update the "Last updated" date at the top of this page</li>
+    <li>For material changes, post a notice in the Extension and/or notify signed-in users by email at least 7 days before the changes take effect</li>
+  </ul>
+  <p>Your continued use of the Extension after changes take effect constitutes acceptance of the updated policy.</p>
+
+  <h2>13. Chrome Web Store Limited Use compliance</h2>
+  <p>Context's use of information received from Google APIs adheres to the <a href="https://developer.chrome.com/docs/webstore/program-policies/user-data-faq">Chrome Web Store User Data Policy</a>, including the <strong>Limited Use</strong> requirements. Specifically:</p>
+  <ul>
+    <li>We use Google user data only to provide and improve user-facing features that are prominent in the Extension's Chrome Web Store listing</li>
+    <li>We do not transfer Google user data to third parties except as necessary to provide or improve user-facing features, comply with applicable law, or as part of a merger, acquisition, or sale of assets (with user notice)</li>
+    <li>We do not use Google user data for serving advertisements</li>
+    <li>We do not allow humans to read Google user data, except: (a) with your explicit consent; (b) for security purposes (e.g. investigating abuse); (c) to comply with applicable law; or (d) where the data is aggregated and used for internal operations</li>
   </ul>
 
-  <h2>Permissions explained</h2>
-  <ul>
-    <li><strong>tabCapture</strong> — captures audio from the active tab for transcription</li>
-    <li><strong>activeTab</strong> — injects the sidebar into the current page</li>
-    <li><strong>scripting</strong> — injects the content script that renders the sidebar</li>
-    <li><strong>storage</strong> — stores your knowledge base, settings, and session data locally</li>
-    <li><strong>offscreen</strong> — required to process audio capture in Chrome's Manifest V3</li>
-    <li><strong>identity</strong> — optional Google sign-in for preference sync</li>
-  </ul>
-
-  <h2>Contact</h2>
-  <p>Questions about this privacy policy? Email jack@contextlistener.com</p>
+  <h2>14. Contact</h2>
+  <p>Questions, requests, or complaints regarding this Privacy Policy or your data:</p>
+  <p><strong>Histatical, LLC</strong><br>
+  Email: <a href="mailto:jack@histatical.com">jack@histatical.com</a></p>
+  <p>We aim to respond to all inquiries within 7 business days, and to formal data-subject requests within 30 days.</p>
 </body>
 </html>

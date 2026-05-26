@@ -39,6 +39,18 @@ if (window.__contextExtensionLoaded) {
     });
   }
 
+  // Send OPEN_CHECKOUT with loading state on the clicked button
+  function sendCheckout(plan, source, btn) {
+    if (btn) {
+      btn._originalText = btn.textContent;
+      btn.textContent = 'Loading\u2026';
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.style.pointerEvents = 'none';
+    }
+    try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan, source }); } catch (e) {}
+  }
+
   const DEDUP_WINDOW = 600000;
   const seenTerms = new Map();
   let lastSessionStart = null;
@@ -4376,11 +4388,11 @@ if (window.__contextExtensionLoaded) {
                   '<div class="ctx-student-error" style="display:none"></div>' +
                 '</div>' +
                 '<button class="ctx-upgrade-dismiss">Maybe later</button>';
-              upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'settings' }); } catch (err) {}
+              upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', (e) => {
+                sendCheckout('monthly', 'settings', e.currentTarget);
               });
-              upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-                try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'settings' }); } catch (err) {}
+              upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', (e) => {
+                sendCheckout('annual', 'settings', e.currentTarget);
               });
               upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
                 upgradeOv.remove();
@@ -6631,8 +6643,8 @@ if (window.__contextExtensionLoaded) {
         banner.className = 'ctx-usage-warning-red';
         const secsLeft = Math.max(0, Math.round((30 - minutes) * 60));
         banner.innerHTML = '<span class="ctx-countdown">' + Math.floor(secsLeft / 60) + ':' + String(secsLeft % 60).padStart(2, '0') + '</span> remaining. <span class="upgrade-link">Upgrade now \u2192</span>';
-        banner.querySelector('.upgrade-link').addEventListener('click', () => {
-          try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
+        banner.querySelector('.upgrade-link').addEventListener('click', (e) => {
+          sendCheckout('monthly', 'usage_cap', e.currentTarget);
         });
         cards.parentNode.insertBefore(banner, cards);
         const countdownSpan = banner.querySelector('.ctx-countdown');
@@ -6647,8 +6659,8 @@ if (window.__contextExtensionLoaded) {
         const banner = document.createElement('div');
         banner.className = 'ctx-usage-warning-red';
         banner.innerHTML = '2 minutes remaining! <span class="upgrade-link">Upgrade now \u2192</span>';
-        banner.querySelector('.upgrade-link').addEventListener('click', () => {
-          try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
+        banner.querySelector('.upgrade-link').addEventListener('click', (e) => {
+          sendCheckout('monthly', 'usage_cap', e.currentTarget);
         });
         cards.parentNode.insertBefore(banner, cards);
       } else if (minutes >= 25) {
@@ -6656,8 +6668,8 @@ if (window.__contextExtensionLoaded) {
         const banner = document.createElement('div');
         banner.className = 'ctx-usage-warning-yellow';
         banner.innerHTML = (30 - minutes) + ' minutes remaining today. <span class="upgrade-link">Upgrade for unlimited \u2192</span>';
-        banner.querySelector('.upgrade-link').addEventListener('click', () => {
-          try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
+        banner.querySelector('.upgrade-link').addEventListener('click', (e) => {
+          sendCheckout('monthly', 'usage_cap', e.currentTarget);
         });
         cards.parentNode.insertBefore(banner, cards);
       } else if (minutes >= 20) {
@@ -6703,11 +6715,11 @@ if (window.__contextExtensionLoaded) {
         if (!overlay.isConnected) { clearInterval(countdownInterval); return; }
         countdownEl.textContent = calcResetText();
       }, 60000);
-      overlay.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
+      overlay.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', (e) => {
+        sendCheckout('monthly', 'usage_cap', e.currentTarget);
       });
-      overlay.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'usage_cap' }); } catch (e) {}
+      overlay.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', (e) => {
+        sendCheckout('annual', 'usage_cap', e.currentTarget);
       });
       overlay.querySelector('.ctx-usage-limit-dismiss').addEventListener('click', () => {
         clearInterval(countdownInterval);
@@ -6736,11 +6748,11 @@ if (window.__contextExtensionLoaded) {
           '<div class="ctx-student-error" style="display:none"></div>' +
         '</div>' +
         '<button class="ctx-upgrade-dismiss">Maybe later</button>';
-      upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'monthly', source: 'usage_cap' }); } catch (e) {}
+      upgradeOv.querySelector('.ctx-upgrade-btn-monthly').addEventListener('click', (e) => {
+        sendCheckout('monthly', 'usage_cap', e.currentTarget);
       });
-      upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', () => {
-        try { chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', plan: 'annual', source: 'usage_cap' }); } catch (e) {}
+      upgradeOv.querySelector('.ctx-upgrade-btn-annual').addEventListener('click', (e) => {
+        sendCheckout('annual', 'usage_cap', e.currentTarget);
       });
       upgradeOv.querySelector('.ctx-upgrade-dismiss').addEventListener('click', () => {
         upgradeOv.remove();
@@ -6850,6 +6862,26 @@ if (window.__contextExtensionLoaded) {
       }
       // Rebuild settings panel so next open reflects PRO
       buildSettingsPanel();
+    } else if (msg.type === 'CHECKOUT_CANCELED') {
+      if (!shadowRoot) return;
+      // Reset all upgrade buttons from loading state
+      shadowRoot.querySelectorAll('.ctx-upgrade-btn-monthly, .ctx-upgrade-btn-annual, .ctx-usage-limit-upgrade').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.style.pointerEvents = '';
+        if (btn._originalText) { btn.textContent = btn._originalText; delete btn._originalText; }
+      });
+      // Show brief sign-in note
+      if (msg.reason) {
+        const sidebar = shadowRoot.getElementById('sidebar');
+        if (sidebar) {
+          const note = document.createElement('div');
+          note.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1e293b;color:#94a3b8;padding:8px 16px;border-radius:8px;font-size:12px;z-index:10000;font-family:inherit;border:1px solid rgba(255,255,255,0.1);';
+          note.textContent = msg.reason;
+          sidebar.appendChild(note);
+          setTimeout(() => { if (note.isConnected) note.remove(); }, 3000);
+        }
+      }
     } else if (msg.type === 'SIGN_IN_SUCCESS') {
       // Re-render auth section in settings if open
       if (!shadowRoot) return;

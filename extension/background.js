@@ -692,6 +692,61 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
+// Reusable Google sign-in: gets OAuth token, fetches userinfo, syncs with backend, caches user
+async function signInWithGoogle() {
+  return new Promise((resolve, reject) => {
+    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve(token);
+    });
+  }).then(async (token) => {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const userInfo = await r.json();
+    const user = {
+      id: userInfo.sub,
+      email: userInfo.email,
+      name: userInfo.name,
+      picture: userInfo.picture,
+      token: token,
+      signedInAt: Date.now(),
+      plan: 'free',
+      minutesLimit: 30
+    };
+    try {
+      const installData = await chrome.storage.local.get('installId');
+      const syncRes = await fetch(`${CONFIG.API_BASE}/auth-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
+        body: JSON.stringify({
+          googleId: userInfo.sub,
+          email: userInfo.email,
+          name: userInfo.name,
+          picture: userInfo.picture,
+          installId: installData.installId || null
+        })
+      });
+      if (syncRes.ok) {
+        const syncData = await syncRes.json();
+        user.plan = syncData.plan || 'free';
+        user.minutesLimit = syncData.minutesLimit || 30;
+        user.subscriptionStatus = syncData.subscriptionStatus || null;
+        user.planExpiresAt = syncData.planExpiresAt || null;
+        user.stripeCustomerId = syncData.stripeCustomerId || null;
+      }
+    } catch (e) {
+      console.error('[BACKGROUND] Auth sync failed:', e.message);
+    }
+    chrome.storage.local.set({ user });
+    console.log('[BACKGROUND] Google sign-in success:', user.email, 'plan:', user.plan);
+    return user;
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_CAPTURE') {
     startCapture();
@@ -931,60 +986,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     });
   } else if (message.type === 'GOOGLE_SIGN_IN') {
-    chrome.identity.getAuthToken({ interactive: true }, (token) => {
-      if (chrome.runtime.lastError) {
-        console.error('[BACKGROUND] Google sign-in failed:', chrome.runtime.lastError.message);
-        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_ERROR', error: chrome.runtime.lastError.message }).catch(() => {});
-        return;
-      }
-      fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: 'Bearer ' + token }
-      })
-      .then(r => r.json())
-      .then(async (userInfo) => {
-        const user = {
-          id: userInfo.sub,
-          email: userInfo.email,
-          name: userInfo.name,
-          picture: userInfo.picture,
-          token: token,
-          signedInAt: Date.now(),
-          plan: 'free',
-          minutesLimit: 30
-        };
-        // Sync with backend before notifying content script
-        try {
-          const installData = await chrome.storage.local.get('installId');
-          const syncRes = await fetch(`${CONFIG.API_BASE}/auth-sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
-            body: JSON.stringify({
-              googleId: userInfo.sub,
-              email: userInfo.email,
-              name: userInfo.name,
-              picture: userInfo.picture,
-              installId: installData.installId || null
-            })
-          });
-          if (syncRes.ok) {
-            const syncData = await syncRes.json();
-            user.plan = syncData.plan || 'free';
-            user.minutesLimit = syncData.minutesLimit || 30;
-            user.subscriptionStatus = syncData.subscriptionStatus || null;
-            user.planExpiresAt = syncData.planExpiresAt || null;
-            user.stripeCustomerId = syncData.stripeCustomerId || null;
-          }
-        } catch (e) {
-          console.error('[BACKGROUND] Auth sync failed:', e.message);
-        }
-        chrome.storage.local.set({ user });
-        console.log('[BACKGROUND] Google sign-in success:', user.email, 'plan:', user.plan);
-        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_SUCCESS', user }).catch(() => {});
-      })
-      .catch(err => {
-        console.error('[BACKGROUND] Google userinfo fetch failed:', err.message);
-        if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_ERROR', error: err.message }).catch(() => {});
-      });
+    signInWithGoogle().then(user => {
+      if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_SUCCESS', user }).catch(() => {});
+    }).catch(err => {
+      console.error('[BACKGROUND] Google sign-in failed:', err.message);
+      if (sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: 'SIGN_IN_ERROR', error: err.message }).catch(() => {});
     });
   } else if (message.type === 'GOOGLE_SIGN_OUT') {
     chrome.storage.local.get('user', (data) => {
@@ -1137,13 +1143,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'OPEN_CHECKOUT') {
     trackEvent('upgrade_started', { plan: message.plan || 'monthly', source: message.source || 'settings' });
     const originTabId = capturingTabId || (sender.tab && sender.tab.id) || null;
-    chrome.storage.local.get(['user', 'installId'], async (data) => {
-      const user = data.user;
-      if (!user || !user.id || !user.email) {
-        console.error('[BACKGROUND] OPEN_CHECKOUT: no signed-in user');
-        return;
-      }
+    const notifyTab = (type, extra) => {
+      if (originTabId) chrome.tabs.sendMessage(originTabId, { type, ...extra }).catch(() => {});
+    };
+    (async () => {
       try {
+        // Get cached user; if no googleId, sign in first
+        let data = await chrome.storage.local.get(['user', 'installId']);
+        let user = data.user;
+        if (!user || !user.id || !user.email) {
+          // Anonymous user — trigger Google sign-in
+          try {
+            user = await signInWithGoogle();
+            data = await chrome.storage.local.get(['user', 'installId']);
+          } catch (signInErr) {
+            console.error('[BACKGROUND] OPEN_CHECKOUT sign-in failed:', signInErr.message);
+            notifyTab('CHECKOUT_CANCELED', { reason: 'Sign in to upgrade' });
+            return;
+          }
+        }
+        // If sign-in revealed user is already pro, just unlock UI
+        if (user.plan === 'pro') {
+          console.log('[BACKGROUND] User already pro after sign-in, skipping checkout');
+          notifyTab('PLAN_UPGRADED', { user });
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach(tab => {
+              if (tab.id !== originTabId) {
+                chrome.tabs.sendMessage(tab.id, { type: 'PLAN_UPGRADED', user }).catch(() => {});
+              }
+            });
+          });
+          return;
+        }
+        // Proceed with Stripe checkout
         const resp = await fetch(`${CONFIG.API_BASE}/create-checkout-session`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-extension-token': CONFIG.API_SECRET },
@@ -1176,7 +1208,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   updatedUser.stripeCustomerId = pollData.stripeCustomerId || null;
                   chrome.storage.local.set({ user: updatedUser });
                   console.log('[BACKGROUND] Plan upgraded to pro via checkout polling');
-                  // Notify the origin tab first, then broadcast to all tabs as fallback
                   if (originTabId) {
                     chrome.tabs.sendMessage(originTabId, { type: 'PLAN_UPGRADED', user: updatedUser }).catch(() => {});
                   }
@@ -1198,8 +1229,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       } catch (err) {
         console.error('[BACKGROUND] OPEN_CHECKOUT failed:', err.message);
+        notifyTab('CHECKOUT_CANCELED', { reason: 'Something went wrong' });
       }
-    });
+    })();
   } else if (message.type === 'VERIFY_STUDENT_EMAIL') {
     const originTabId = capturingTabId || (sender.tab && sender.tab.id) || null;
     chrome.storage.local.get(['user', 'installId'], async (data) => {

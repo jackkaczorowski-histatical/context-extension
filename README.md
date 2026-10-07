@@ -28,6 +28,26 @@ The product is designed to reduce the friction between hearing something interes
 - Privacy-conscious product architecture
 - Chrome extension distribution
 
+## Tech Stack & Tools
+
+Context Listener was built using a modern web, AI, backend, payments, and monitoring stack, including:
+
+- JavaScript
+- Chrome Extension APIs
+- Node.js
+- Supabase for backend infrastructure, authentication, and data persistence
+- Deepgram for real-time speech-to-text transcription
+- Stripe for payments and subscription infrastructure
+- Vercel for deployment
+- UptimeRobot for uptime and availability monitoring
+- Claude Code for AI-assisted development and iteration
+- Cursor for development and codebase workflows
+- AI APIs and language-model workflows for entity extraction and contextual enrichment
+- Browser audio capture and real-time processing
+- GitHub for version control and development workflow
+
+The product combines browser-side functionality, real-time transcription, backend services, AI processing, payments, storage, deployment, and monitoring into a single live user experience.
+
 ## Product Problem
 
 Long-form audio constantly introduces information that listeners may want to understand better, including people, companies, products, places, financial assets, and unfamiliar concepts.
